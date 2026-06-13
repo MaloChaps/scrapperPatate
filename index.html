@@ -9,7 +9,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍠</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://www.youtube.com/iframe_api"></script>
 <style>
   :root{
     --wine:#2A0C1B;
@@ -42,15 +41,12 @@
   h1 em{font-style:italic;color:var(--amber)}
   .sub{color:var(--cream-dim);font-size:15px;max-width:46ch}
 
-  .player{margin-top:28px;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--wine-2)}
-  .player iframe{display:block;width:100%;height:150px;border:0}
-
-  .now{
-    margin-top:30px;display:flex;gap:18px;align-items:center;
-    background:var(--card);border:1px solid var(--line);border-radius:20px;
-    padding:18px;
+  .custom-player{
+    margin-top:28px;display:flex;gap:24px;align-items:center;
+    background:var(--wine-2);border:1px solid var(--line);border-radius:22px;
+    padding:24px;
   }
-  .vinyl{flex:0 0 auto;width:72px;height:72px;position:relative}
+  .vinyl{flex:0 0 auto;width:110px;height:110px;position:relative}
   .vinyl svg,.vinyl img{width:100%;height:100%;display:block;border-radius:50%}
   .vinyl img{object-fit:cover;display:none}
   .vinyl.has-cover img{display:block}
@@ -58,10 +54,34 @@
   .vinyl.spinning svg,.vinyl.spinning img{animation:spin 3.2s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion:reduce){.vinyl.spinning svg,.vinyl.spinning img{animation:none}}
-  .now-meta{min-width:0;flex:1}
+  .cp-body{min-width:0;flex:1}
+  .cp-station{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin-bottom:8px}
   .now-label{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--cream-dim)}
-  .now-title{font-family:"Fraunces",serif;font-size:21px;font-weight:600;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .now-title{font-family:"Fraunces",serif;font-size:24px;font-weight:600;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .now-artist{font-size:14px;color:var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cp-controls{display:flex;gap:12px;align-items:center;margin-top:14px}
+  .vol-wrap{display:flex;align-items:center;gap:8px}
+  .vol-icon{font-size:16px;cursor:pointer;line-height:1;user-select:none;transition:transform .1s}
+  .vol-icon:active{transform:scale(.88)}
+  input[type=range].vol{
+    -webkit-appearance:none;appearance:none;
+    width:96px;height:4px;border-radius:2px;outline:none;cursor:pointer;
+    background:linear-gradient(to right,var(--amber) 100%,var(--line) 100%);
+    transition:height .15s;
+  }
+  input[type=range].vol:hover{height:5px}
+  input[type=range].vol::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:var(--cream);cursor:pointer;
+    box-shadow:0 0 0 2px rgba(245,237,196,.2);
+    transition:background .15s,transform .12s,box-shadow .15s;
+  }
+  input[type=range].vol::-webkit-slider-thumb:hover{
+    background:var(--amber);transform:scale(1.2);box-shadow:0 0 0 4px rgba(232,133,59,.25);
+  }
+  input[type=range].vol::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;background:var(--cream);border:none;cursor:pointer;
+  }
 
   .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;align-items:center}
   button{font-family:"Space Grotesk",sans-serif;cursor:pointer;border:none;border-radius:999px;font-weight:600;transition:transform .12s ease, background .2s ease, opacity .2s}
@@ -94,11 +114,6 @@
   .btn-spotify:hover{background:#1DB954;color:#000;border-color:#1DB954}
   .btn-spotify:disabled{opacity:.5;cursor:default;transform:none}
 
-  .btn-play{flex:0 0 auto;background:var(--amber);color:var(--wine);width:40px;height:40px;border-radius:50%;font-size:15px;display:none;place-items:center;padding:0}
-  .btn-play:hover{background:var(--cream)}
-  .mini-player{margin-top:14px;border-radius:14px;overflow:hidden;border:1px solid var(--line);display:none;position:relative}
-  .mini-player iframe,.mini-player>div{display:block;width:100%}
-  .mini-close{position:absolute;top:8px;right:8px;z-index:10;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:13px;display:grid;place-items:center;padding:0}
 
   .empty{padding:40px 20px;text-align:center;color:var(--cream-dim);background:var(--card)}
   .empty b{color:var(--cream);font-family:"Fraunces",serif;font-weight:500}
@@ -126,13 +141,8 @@
   <h1>Mes <em>Pépites</em> 🍠</h1>
   <p class="sub">Écoute en direct et l'appli note chaque titre qui passe. Tu repars avec ta liste, prête à coller dans Spotify.</p>
 
-  <div class="player">
-    <iframe
-      src="https://player.radioking.io/radio-jockey/?c=%233C1227&c2=%23F5EDC4&f=h&i=0&p=1&s=0&li=1&popup=1&plc=NaN&h=undefined&l=470&v=2"
-      allow="autoplay" title="Lecteur La Patate Douce"></iframe>
-  </div>
-
-  <div class="now">
+  <div class="custom-player">
+    <audio id="radioAudio" preload="none"></audio>
     <div class="vinyl" id="vinyl">
       <img id="nowCover" src="" alt="">
       <svg viewBox="0 0 100 100">
@@ -145,17 +155,19 @@
         <circle cx="62" cy="38" r="2" fill="rgba(255,255,255,.25)"/>
       </svg>
     </div>
-    <div class="now-meta">
-      <div class="now-label" id="nowLabel">Dernier titre capté</div>
+    <div class="cp-body">
+      <div class="cp-station">La Patate Douce · en direct</div>
+      <div class="now-label" id="nowLabel">En ce moment</div>
       <div class="now-title" id="nowTitle">—</div>
       <div class="now-artist" id="nowArtist"></div>
+      <div class="cp-controls">
+        <button class="btn-main" id="radioPlayBtn">▶ Écouter</button>
+        <div class="vol-wrap">
+          <span class="vol-icon" id="volIcon">🔊</span>
+          <input type="range" class="vol" id="volSlider" min="0" max="1" step="0.01" value="1">
+        </div>
+      </div>
     </div>
-    <button class="btn-play" id="playBtn" title="Écouter en boucle">▶</button>
-  </div>
-
-  <div class="mini-player" id="miniPlayer">
-    <button class="mini-close" id="miniClose">✕</button>
-    <div id="ytPlaceholder"></div>
   </div>
 
   <div class="controls">
@@ -221,7 +233,6 @@ async function poll() {
     el("nowLabel").textContent  = "En ce moment"
     el("nowTitle").textContent  = title
     el("nowArtist").textContent = artist
-    el("playBtn").style.display = "grid"
     setStatus("")
 
     const cover = String(d.cover || d.cover_url || '').trim()
@@ -346,6 +357,31 @@ el("clearBtn").onclick = async () => {
   tracks = []
   render()
 }
+
+/* ── Player radio ────────────────────────────────────────────── */
+const STREAM_URL = 'https://www.radioking.com/play/radio-jockey'
+
+const audio = el("radioAudio")
+audio.addEventListener('play',  () => el("vinyl").classList.add("spinning"))
+audio.addEventListener('pause', () => el("vinyl").classList.remove("spinning"))
+audio.addEventListener('error', () => setStatus("Flux audio introuvable — essaie de rafraîchir.", true))
+
+el("volSlider").oninput = e => { audio.volume = +e.target.value }
+
+el("radioPlayBtn").onclick = () => {
+  if (audio.paused) {
+    audio.src = STREAM_URL
+    audio.play()
+    el("radioPlayBtn").textContent = "⏸ Pause"
+    el("radioPlayBtn").classList.add("live")
+  } else {
+    audio.pause()
+    audio.src = ''
+    el("radioPlayBtn").textContent = "▶ Écouter"
+    el("radioPlayBtn").classList.remove("live")
+  }
+}
+/* ────────────────────────────────────────────────────────────── */
 
 /* ── Miniatures iTunes ───────────────────────────────────────── */
 const artCache = new Map()
@@ -475,36 +511,6 @@ async function createSpotifyPlaylist() {
 
 el("spotifyBtn").onclick = createSpotifyPlaylist
 
-/* ── Mini-player YouTube en boucle ───────────────────────────── */
-let ytPlayer = null
-
-window.onYouTubeIframeAPIReady = () => { /* player créé à la demande */ }
-
-function openMiniPlayer(title, artist) {
-  const query = `${artist} ${title}`
-  el("miniPlayer").style.display = "block"
-  if (ytPlayer) {
-    ytPlayer.loadPlaylist({ listType: 'search', list: query })
-    return
-  }
-  ytPlayer = new YT.Player('ytPlaceholder', {
-    height: '220',
-    playerVars: { listType: 'search', list: query, autoplay: 1, controls: 1 },
-    events: { onReady: e => e.target.setLoop(true) }
-  })
-}
-
-el("playBtn").onclick = () => {
-  const title  = el("nowTitle").textContent
-  const artist = el("nowArtist").textContent
-  if (title && title !== "—") openMiniPlayer(title, artist)
-}
-
-el("miniClose").onclick = () => {
-  el("miniPlayer").style.display = "none"
-  if (ytPlayer) ytPlayer.stopVideo()
-}
-/* ────────────────────────────────────────────────────────────── */
 /* ──────────────────────────────────────────────────────────────── */
 
 /* Realtime : la liste se met à jour quand la Edge Function insère */
@@ -519,7 +525,6 @@ sb.channel('plays-live')
 /* Boot : charge l'historique depuis Supabase + gère le retour OAuth Spotify */
 ;(async () => {
   el("statusDot").classList.add("on")
-  el("vinyl").classList.add("spinning")
 
   const { data } = await sb
     .from('plays')
