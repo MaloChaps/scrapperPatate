@@ -185,6 +185,13 @@
   .loader-result.err{color:var(--pink)}
   .loader-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px}
   .loader-actions .btn-ghost{font-size:13px;padding:9px 16px}
+  .loader-inner{max-height:100%;overflow-y:auto;width:100%}
+  .loader-missed{width:100%;max-width:320px;border-top:1px solid var(--line);padding-top:14px;display:none}
+  .loader-missed-title{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--cream-dim);opacity:.55;margin-bottom:8px;text-align:left}
+  .loader-yt-link{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;font-size:12px;color:var(--cream-dim);text-decoration:none;transition:background .12s;overflow:hidden}
+  .loader-yt-link:hover{background:var(--card);color:#FF0000}
+  .loader-yt-icon{font-size:10px;flex-shrink:0;color:#FF0000;opacity:.6}
+  .loader-yt-info{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 
   .modal-tracks{overflow-y:auto;flex:1}
   .modal-track{display:flex;align-items:center;gap:12px;padding:10px 22px;cursor:pointer;transition:background .12s}
@@ -327,6 +334,10 @@
           <div class="loader-bar-wrap"><div class="loader-bar" id="loaderBar"></div></div>
           <div class="loader-result" id="loaderResult"></div>
           <div class="loader-actions" id="loaderActions"></div>
+          <div class="loader-missed" id="loaderMissed">
+            <div class="loader-missed-title">Non trouvés — écouter sur YouTube</div>
+            <div id="loaderMissedList"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -355,6 +366,8 @@ const POLL_MS   = 20000
 
 let tracks = []
 let timer  = null
+let isPolling = false
+let lastInserted = null  // { title, artist } du dernier titre réellement inséré
 
 const el   = id => document.getElementById(id)
 const esc  = s  => (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
@@ -368,6 +381,8 @@ function setStatus(msg, isErr) {
 }
 
 async function poll() {
+  if (isPolling) return
+  isPolling = true
   try {
     const res = await fetch(RADIO_API, { cache: 'no-store' })
     if (!res.ok) throw new Error("HTTP " + res.status)
@@ -399,6 +414,9 @@ async function poll() {
       vinyl.classList.remove("has-cover")
     }
 
+    /* Vérifie d'abord le cache local (évite la race condition entre deux polls simultanés) */
+    if (lastInserted && norm(lastInserted.title) === norm(title) && norm(lastInserted.artist) === norm(artist)) return
+
     /* Vérifie le dernier titre en base avant d'insérer */
     const { data: last } = await sb
       .from('plays')
@@ -407,12 +425,18 @@ async function poll() {
       .limit(1)
       .maybeSingle()
 
-    if (last && norm(last.title) === norm(title) && norm(last.artist) === norm(artist)) return
+    if (last && norm(last.title) === norm(title) && norm(last.artist) === norm(artist)) {
+      lastInserted = { title, artist }
+      return
+    }
 
     /* Insert — le Realtime met à jour la liste automatiquement */
+    lastInserted = { title, artist }
     await sb.from('plays').insert({ title, artist })
   } catch(e) {
     setStatus("Flux injoignable (" + e.message + "). Nouvel essai au prochain cycle.", true)
+  } finally {
+    isPolling = false
   }
 }
 
@@ -511,9 +535,28 @@ const STREAM_URL = 'https://www.radioking.com/play/radio-jockey'
 const audio = el("radioAudio")
 audio.addEventListener('play',  () => el("vinyl").classList.add("spinning"))
 audio.addEventListener('pause', () => el("vinyl").classList.remove("spinning"))
-audio.addEventListener('error', () => setStatus("Flux audio introuvable — essaie de rafraîchir.", true))
+audio.addEventListener('error', () => {
+  if (!intentionalStop) scheduleReconnect()
+  else setStatus("Flux audio introuvable — essaie de rafraîchir.", true)
+})
 
 let prevVol = 1
+let intentionalStop = true
+let reconnectTimer  = null
+
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer)
+  reconnectTimer = setTimeout(() => {
+    if (intentionalStop) return
+    setStatus("Reconnexion…")
+    audio.src = STREAM_URL
+    audio.load()
+    audio.play().catch(() => scheduleReconnect())
+  }, 3000)
+}
+
+audio.addEventListener('stalled', () => { if (!intentionalStop) scheduleReconnect() })
+audio.addEventListener('ended',   () => { if (!intentionalStop) scheduleReconnect() })
 
 function setVol(v) {
   audio.volume = v
@@ -532,13 +575,18 @@ el("volIcon").onclick = () => {
 
 el("radioPlayBtn").onclick = () => {
   if (audio.paused) {
+    intentionalStop = false
+    clearTimeout(reconnectTimer)
     audio.src = STREAM_URL
     audio.play()
     el("radioPlayBtn").textContent = "⏸ Pause"
     el("radioPlayBtn").classList.add("live")
   } else {
+    intentionalStop = true
+    clearTimeout(reconnectTimer)
     audio.pause()
     audio.src = ''
+    setStatus("")
     el("radioPlayBtn").textContent = "▶ Écouter"
     el("radioPlayBtn").classList.remove("live")
   }
@@ -551,10 +599,14 @@ const artCache = new Map()
 async function fetchArt(artist, title) {
   const key = `${artist}|${title}`
   if (artCache.has(key)) return artCache.get(key)
-  try {
-    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artist+' '+title)}&media=music&limit=1`)
+  const itunesSearch = async term => {
+    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=1`)
     const d   = await res.json()
-    const url = (d.results?.[0]?.artworkUrl100 || '').replace('100x100bb', '60x60bb')
+    return (d.results?.[0]?.artworkUrl100 || '').replace('100x100bb', '60x60bb')
+  }
+  try {
+    let url = await itunesSearch(`${artist} ${title}`)
+    if (!url && title) url = await itunesSearch(title)
     artCache.set(key, url)
     return url
   } catch { artCache.set(key, ''); return '' }
@@ -638,13 +690,15 @@ async function createSpotifyPlaylist(selectedTracks) {
   }
 
   /* Reset + show loader */
-  iconEl.className     = 'loader-spinner'
-  iconEl.textContent   = ''
-  stepEl.textContent   = ''
-  barEl.style.width    = '0%'
-  resultEl.textContent = ''
-  resultEl.className   = 'loader-result'
-  actionsEl.innerHTML  = ''
+  iconEl.className           = 'loader-spinner'
+  iconEl.textContent         = ''
+  stepEl.textContent         = ''
+  barEl.style.width          = '0%'
+  resultEl.textContent       = ''
+  resultEl.className         = 'loader-result'
+  actionsEl.innerHTML        = ''
+  el("loaderMissed").style.display = 'none'
+  el("loaderMissedList").innerHTML = ''
   loader.classList.add('active')
 
   try {
@@ -665,7 +719,9 @@ async function createSpotifyPlaylist(selectedTracks) {
       })
     })
 
-    const uris = []
+    const uris        = []
+    const seenUris    = new Set()
+    const missedTracks = []
     let notFound = 0
     for (let i = 0; i < selectedTracks.length; i++) {
       const pct = 12 + Math.round((i / selectedTracks.length) * 68)
@@ -673,9 +729,11 @@ async function createSpotifyPlaylist(selectedTracks) {
       try {
         const sq = encodeURIComponent(`track:${selectedTracks[i].title} artist:${selectedTracks[i].artist}`)
         const r  = await spFetch(token, `/search?q=${sq}&type=track&limit=1`)
-        if (r.tracks?.items?.length) uris.push(r.tracks.items[0].uri)
-        else notFound++
-      } catch { notFound++ }
+        if (r.tracks?.items?.length) {
+          const uri = r.tracks.items[0].uri
+          if (!seenUris.has(uri)) { seenUris.add(uri); uris.push(uri) }
+        } else { notFound++; missedTracks.push(selectedTracks[i]) }
+      } catch { notFound++; missedTracks.push(selectedTracks[i]) }
     }
 
     lStep('Ajout des titres…', 85)
@@ -705,6 +763,16 @@ async function createSpotifyPlaylist(selectedTracks) {
       loader.classList.remove('active')
       el("playlistModal").classList.remove("open")
     }
+    if (missedTracks.length) {
+      const missedEl = el("loaderMissed")
+      missedEl.style.display = ''
+      el("loaderMissedList").innerHTML = missedTracks.map(t =>
+        `<a class="loader-yt-link" href="https://www.youtube.com/results?search_query=${q(t.artist, t.title)}" target="_blank" rel="noopener">
+          <span class="loader-yt-icon">▶</span>
+          <span class="loader-yt-info">${esc(t.title)}${t.artist ? ' · ' + esc(t.artist) : ''}</span>
+        </a>`
+      ).join('')
+    }
     setStatus(notFound
       ? `Playlist créée ! ${uris.length} ajoutés · ${notFound} non trouvés`
       : `Playlist créée ! ${uris.length} titres ajoutés`)
@@ -728,10 +796,14 @@ let   trackGenres = new Map() // realIdx → genre string
 async function fetchGenre(artist, title) {
   const key = `${artist}|${title}`
   if (genreCache.has(key)) return genreCache.get(key)
-  try {
-    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artist+' '+title)}&media=music&limit=1`)
+  const itunesGenre = async term => {
+    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=1`)
     const d   = await res.json()
-    const g   = d.results?.[0]?.primaryGenreName || ''
+    return d.results?.[0]?.primaryGenreName || ''
+  }
+  try {
+    let g = await itunesGenre(`${artist} ${title}`)
+    if (!g && title) g = await itunesGenre(title)
     genreCache.set(key, g); return g
   } catch { genreCache.set(key, ''); return '' }
 }
@@ -743,6 +815,14 @@ function visibleRows() {
 const FILTER_LABELS = {
   '4h': '4 h', '12h': '12 h', '24h': '24 h',
   'matin': 'Matin', 'aprem': 'Aprem', 'apero': 'Apéro', 'nuit': 'Nuit'
+}
+
+/* Genres iTunes associés à chaque ambiance */
+const MOOD_GENRES = {
+  matin: ['acoustic', 'singer', 'folk', 'classical', 'ambient', 'bossa', 'jazz', 'easy listening', 'new age'],
+  aprem: ['pop', 'r&b', 'soul', 'indie', 'reggae', 'funk', 'gospel', 'blues'],
+  apero: ['jazz', 'soul', 'funk', 'electronic', 'house', 'nu jazz', 'bossa', 'latin', 'afrobeat', 'lounge', 'world'],
+  nuit:  ['electronic', 'dance', 'hip-hop', 'hip hop', 'rap', 'techno', 'house', 'edm', 'drum', 'alternative', 'metal', 'punk']
 }
 
 function updateBreadcrumb() {
@@ -774,18 +854,14 @@ function updateModalCount() {
 
 function rowMatchesFilters(t, realIdx) {
   if (!activeFilters.size) return true
-  const now  = Date.now()
-  const hour = new Date(t.at).getHours()
+  const now   = Date.now()
+  const genre = (trackGenres.get(realIdx) || '').toLowerCase()
   for (const f of activeFilters) {
-    if (f === '4h'    && now - t.at <= 4  * 3600000) return true
-    if (f === '12h'   && now - t.at <= 12 * 3600000) return true
-    if (f === '24h'   && now - t.at <= 24 * 3600000) return true
-    if (f === 'matin' && hour >= 6  && hour < 12)     return true
-    if (f === 'aprem' && hour >= 12 && hour < 17)     return true
-    if (f === 'apero' && hour >= 17 && hour < 21)     return true
-    if (f === 'nuit'  && (hour >= 21 || hour < 6))    return true
-    const genre = (trackGenres.get(realIdx) || '').toLowerCase()
-    if (genre && genre.includes(f.toLowerCase()))     return true
+    if (f === '4h'  && now - t.at <= 4  * 3600000) return true
+    if (f === '12h' && now - t.at <= 12 * 3600000) return true
+    if (f === '24h' && now - t.at <= 24 * 3600000) return true
+    if (MOOD_GENRES[f] && genre && MOOD_GENRES[f].some(k => genre.includes(k))) return true
+    if (!FILTER_LABELS[f] && genre && genre.includes(f.toLowerCase()))           return true
   }
   return false
 }
@@ -814,6 +890,8 @@ async function loadGenresForModal() {
   el("genreChips").innerHTML = [...genreSet].sort().map(g =>
     `<button class="filter-chip genre" data-filter="${g}">${g}</button>`
   ).join('')
+  const moodActive = [...activeFilters].some(f => MOOD_GENRES[f])
+  if (moodActive) applyFilters()
 }
 
 function showPlaylistModal() {
