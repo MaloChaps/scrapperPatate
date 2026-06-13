@@ -102,13 +102,14 @@
   .row .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row .a{font-size:13px;color:var(--cream-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row .time{font-family:"DM Mono",monospace;font-size:11px;color:var(--cream-dim)}
-  .row .links{display:flex;gap:6px;flex:0 0 auto}
-  .ico{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--cream);text-decoration:none;font-size:13px;line-height:1;background:transparent;transition:background .15s,transform .12s}
-  .ico:hover{background:var(--card);transform:translateY(-1px)}
-  .ico.sp:hover{background:#1DB954;color:#000;border-color:#1DB954}
-  .ico.yt:hover{background:#FF0000;color:#fff;border-color:#FF0000}
-  .ico.dz:hover{background:#A238FF;color:#fff;border-color:#A238FF}
-  .ico.rm:hover{background:#5a1020;color:#fff}
+  .row .links{display:flex;gap:5px;flex:0 0 auto;align-items:center}
+  .svc{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.04em;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--cream-dim);text-decoration:none;transition:background .15s,color .15s,border-color .15s,transform .12s;white-space:nowrap;line-height:1}
+  .svc:hover{transform:translateY(-1px)}
+  .svc.sp:hover{background:#1DB954;color:#000;border-color:#1DB954}
+  .svc.yt:hover{background:#FF0000;color:#fff;border-color:#FF0000}
+  .svc.dz:hover{background:#A238FF;color:#fff;border-color:#A238FF}
+  .now-links{display:none;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .now-links .svc{font-size:11px;padding:5px 11px}
 
   .btn-spotify{color:#1DB954;border-color:#1DB954}
   .btn-spotify:hover{background:#1DB954;color:#000;border-color:#1DB954}
@@ -188,6 +189,7 @@
       <div class="now-label" id="nowLabel">En ce moment</div>
       <div class="now-title" id="nowTitle">—</div>
       <div class="now-artist" id="nowArtist"></div>
+      <div class="now-links" id="nowLinks"></div>
       <div class="cp-controls">
         <button class="btn-main" id="radioPlayBtn">▶ Écouter</button>
         <div class="vol-wrap">
@@ -282,6 +284,14 @@ async function poll() {
     el("nowArtist").textContent = artist
     setStatus("")
 
+    const nowQ  = q(artist, title)
+    const links = el("nowLinks")
+    links.style.display = "flex"
+    links.innerHTML = `
+      <a class="svc sp" href="https://open.spotify.com/search/${nowQ}" target="_blank" rel="noopener">Spotify</a>
+      <a class="svc yt" href="https://www.youtube.com/results?search_query=${nowQ}" target="_blank" rel="noopener">YouTube</a>
+      <a class="svc dz" href="https://www.deezer.com/search/${nowQ}" target="_blank" rel="noopener">Deezer</a>`
+
     const cover = String(d.cover || d.cover_url || '').trim()
     const vinyl  = el("vinyl")
     if (cover) {
@@ -349,10 +359,9 @@ function render() {
       </div>
       <div class="time">${time}</div>
       <div class="links">
-        <a class="ico sp" title="Chercher sur Spotify" href="${sp}" target="_blank" rel="noopener">S</a>
-        <a class="ico yt" title="Chercher sur YouTube" href="${yt}" target="_blank" rel="noopener">Y</a>
-        <a class="ico dz" title="Chercher sur Deezer" href="${dz}" target="_blank" rel="noopener">D</a>
-        <button class="ico rm" title="Retirer" data-rm="${i}" data-id="${t.id}">×</button>
+        <a class="svc sp" href="${sp}" target="_blank" rel="noopener">Spotify</a>
+        <a class="svc yt" href="${yt}" target="_blank" rel="noopener">YouTube</a>
+        <a class="svc dz" href="${dz}" target="_blank" rel="noopener">Deezer</a>
       </div>
     </div>`
   })
@@ -370,13 +379,6 @@ function render() {
 
 el("refreshBtn").onclick = () => poll()
 
-el("list").addEventListener("click", async e => {
-  const btn = e.target.closest("[data-rm]")
-  if (!btn) return
-  await sb.from('plays').delete().eq('id', +btn.dataset.id)
-  tracks.splice(+btn.dataset.rm, 1)
-  render()
-})
 
 el("copyBtn").onclick = async () => {
   if (!tracks.length) return
