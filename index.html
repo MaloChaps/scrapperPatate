@@ -292,6 +292,7 @@
     <button class="btn-ghost btn-spotify" id="spotifyBtn">Créer playlist Spotify</button>
     <button class="btn-ghost" id="copyBtn">Copier la liste</button>
     <button class="btn-ghost" id="csvBtn">Télécharger .csv</button>
+    <button class="btn-ghost" id="dedupeBtn">Nettoyer les doublons</button>
     <button class="btn-ghost" id="clearBtn">Tout effacer</button>
   </div>
 
@@ -519,6 +520,55 @@ el("csvBtn").onclick = () => {
   const a = document.createElement("a")
   a.href = url; a.download = "mes-pepites-patate-douce.csv"; a.click()
   URL.revokeObjectURL(url)
+}
+
+/* ── Dédoublonnage ───────────────────────────────────────────── */
+const DEDUP_WINDOW_MS = 5 * 60 * 1000  // même titre dans les 5 minutes = doublon (race condition)
+
+async function cleanDuplicates(silent = false) {
+  const { data } = await sb
+    .from('plays')
+    .select('id, title, artist, played_at')
+    .order('played_at', { ascending: true })
+  if (!data) return 0
+
+  const toDelete = []
+  // Pour chaque entrée, on garde en mémoire les titres déjà vus avec leur horodatage
+  const seen = []  // [{ title, artist, at }]
+
+  for (const row of data) {
+    const at = new Date(row.played_at).getTime()
+    const nt = norm(row.title)
+    const na = norm(row.artist)
+    const dup = seen.find(s => norm(s.title) === nt && norm(s.artist) === na && at - s.at < DEDUP_WINDOW_MS)
+    if (dup) {
+      toDelete.push(row.id)
+    } else {
+      seen.push({ title: row.title, artist: row.artist, at })
+    }
+  }
+
+  if (toDelete.length) {
+    await sb.from('plays').delete().in('id', toDelete)
+  }
+  if (!silent) {
+    setStatus(toDelete.length
+      ? `${toDelete.length} doublon${toDelete.length > 1 ? 's' : ''} supprimé${toDelete.length > 1 ? 's' : ''} ✓`
+      : "Aucun doublon trouvé ✓")
+  }
+  return toDelete.length
+}
+
+el("dedupeBtn").onclick = async () => {
+  setStatus("Recherche des doublons…")
+  await cleanDuplicates()
+  // Recharge la liste depuis la base après nettoyage
+  const { data } = await sb.from('plays').select('id, title, artist, played_at').order('played_at', { ascending: false })
+  if (data) {
+    tracks = data.map(r => ({ id: r.id, title: r.title, artist: r.artist, at: new Date(r.played_at).getTime() }))
+    lastInserted = tracks[0] ? { title: tracks[0].title, artist: tracks[0].artist } : null
+    render()
+  }
 }
 
 el("clearBtn").onclick = async () => {
@@ -977,12 +1027,16 @@ sb.channel('plays-live')
 ;(async () => {
   el("statusDot").classList.add("on")
 
+  /* Nettoyage silencieux des doublons existants au démarrage */
+  await cleanDuplicates(true)
+
   const { data } = await sb
     .from('plays')
     .select('id, title, artist, played_at')
     .order('played_at', { ascending: false })
   if (data) {
     tracks = data.map(r => ({ id: r.id, title: r.title, artist: r.artist, at: new Date(r.played_at).getTime() }))
+    lastInserted = tracks[0] ? { title: tracks[0].title, artist: tracks[0].artist } : null
     render()
   }
   poll()
