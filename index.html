@@ -84,6 +84,10 @@
   .ico.dz:hover{background:#A238FF;color:#fff;border-color:#A238FF}
   .ico.rm:hover{background:#5a1020;color:#fff}
 
+  .btn-spotify{color:#1DB954;border-color:#1DB954}
+  .btn-spotify:hover{background:#1DB954;color:#000;border-color:#1DB954}
+  .btn-spotify:disabled{opacity:.5;cursor:default;transform:none}
+
   .empty{padding:40px 20px;text-align:center;color:var(--cream-dim);background:var(--card)}
   .empty b{color:var(--cream);font-family:"Fraunces",serif;font-weight:500}
 
@@ -145,6 +149,7 @@
   <div class="list" id="list"></div>
 
   <div class="export">
+    <button class="btn-ghost btn-spotify" id="spotifyBtn">Créer playlist Spotify</button>
     <button class="btn-ghost" id="copyBtn">Copier la liste</button>
     <button class="btn-ghost" id="csvBtn">Télécharger .csv</button>
     <button class="btn-ghost" id="clearBtn">Tout effacer</button>
@@ -158,10 +163,13 @@
 </div>
 
 <script>
-/* ── Remplis avec tes clés (Supabase > Project Settings > API) ── */
-const SUPABASE_URL      = ' https://wnbcoczjfqyxggkfyooh.supabase.co'
+/* ── Supabase (Project Settings > API) ── */
+const SUPABASE_URL      = 'https://wnbcoczjfqyxggkfyooh.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduYmNvY3pqZnF5eGdna2Z5b29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTQ1MDYsImV4cCI6MjA5NjkzMDUwNn0.0mO3O7xqMDwTLGx-5zrVLzW8ed0WoNDKP03eHji2v9o'
-/* ────────────────────────────────────────────────────────────── */
+
+/* ── Spotify (developer.spotify.com > ton app > Client ID) ── */
+const SPOTIFY_CLIENT_ID = 'YOUR_SPOTIFY_CLIENT_ID'
+/* ────────────────────────────────────────────────────────── */
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
@@ -315,6 +323,119 @@ el("clearBtn").onclick = async () => {
   render()
 }
 
+/* ── Spotify ─────────────────────────────────────────────────── */
+const SP_REDIRECT = window.location.origin + window.location.pathname
+
+function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
+}
+function spVerifier() {
+  const a = new Uint8Array(32); crypto.getRandomValues(a); return b64url(a)
+}
+async function spChallenge(v) {
+  return b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)))
+}
+
+async function spLogin() {
+  const v = spVerifier()
+  sessionStorage.setItem('sp_v', v)
+  const p = new URLSearchParams({
+    client_id: SPOTIFY_CLIENT_ID, response_type: 'code',
+    redirect_uri: SP_REDIRECT,
+    scope: 'playlist-modify-public playlist-modify-private',
+    code_challenge_method: 'S256', code_challenge: await spChallenge(v)
+  })
+  window.location = 'https://accounts.spotify.com/authorize?' + p
+}
+
+async function spExchange(code) {
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code', code,
+      redirect_uri: SP_REDIRECT,
+      client_id: SPOTIFY_CLIENT_ID,
+      code_verifier: sessionStorage.getItem('sp_v')
+    })
+  })
+  const d = await res.json()
+  if (d.access_token) {
+    sessionStorage.setItem('sp_token', d.access_token)
+    sessionStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
+    sessionStorage.removeItem('sp_v')
+  }
+  return d.access_token
+}
+
+function spToken() {
+  const t = sessionStorage.getItem('sp_token')
+  return t && Date.now() < +sessionStorage.getItem('sp_exp') ? t : null
+}
+
+async function spFetch(token, path, opts = {}) {
+  const res = await fetch('https://api.spotify.com/v1' + path, {
+    ...opts,
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+  })
+  if (!res.ok) throw new Error('Spotify ' + res.status)
+  return res.json()
+}
+
+async function createSpotifyPlaylist() {
+  const token = spToken()
+  if (!token) { await spLogin(); return }
+
+  const btn = el("spotifyBtn")
+  btn.disabled = true
+  btn.textContent = "Connexion…"
+
+  try {
+    const me = await spFetch(token, '/me')
+    const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+    const playlist = await spFetch(token, `/users/${me.id}/playlists`, {
+      method: 'POST',
+      body: JSON.stringify({ name: `La Patate Douce · ${date}`, description: 'Généré par Mes Pépites 🍠', public: false })
+    })
+
+    const uris = []
+    let notFound = 0
+    const ordered = [...tracks].reverse()
+    for (let i = 0; i < ordered.length; i++) {
+      const t = ordered[i]
+      btn.textContent = `Recherche… ${i+1}/${ordered.length}`
+      try {
+        const sq = encodeURIComponent(`track:${t.title} artist:${t.artist}`)
+        const r  = await spFetch(token, `/search?q=${sq}&type=track&limit=1`)
+        if (r.tracks?.items?.length) uris.push(r.tracks.items[0].uri)
+        else notFound++
+      } catch { notFound++ }
+    }
+
+    btn.textContent = "Création de la playlist…"
+    for (let i = 0; i < uris.length; i += 100) {
+      await spFetch(token, `/playlists/${playlist.id}/tracks`, {
+        method: 'POST',
+        body: JSON.stringify({ uris: uris.slice(i, i+100) })
+      })
+    }
+
+    setStatus(notFound
+      ? `Playlist créée ! ${uris.length} ajoutés · ${notFound} non trouvés sur Spotify`
+      : `Playlist créée ! ${uris.length} titres ajoutés`)
+    window.open(playlist.external_urls.spotify, '_blank')
+  } catch(e) {
+    setStatus("Erreur Spotify : " + e.message, true)
+  } finally {
+    btn.disabled = false
+    btn.textContent = "Créer playlist Spotify"
+  }
+}
+
+el("spotifyBtn").onclick = createSpotifyPlaylist
+/* ──────────────────────────────────────────────────────────────── */
+
 /* Realtime : la liste se met à jour quand la Edge Function insère */
 sb.channel('plays-live')
   .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'plays' }, ({ new: r }) => {
@@ -324,7 +445,7 @@ sb.channel('plays-live')
   })
   .subscribe()
 
-/* Boot : charge l'historique depuis Supabase */
+/* Boot : charge l'historique depuis Supabase + gère le retour OAuth Spotify */
 ;(async () => {
   const { data } = await sb
     .from('plays')
@@ -335,6 +456,15 @@ sb.channel('plays-live')
     render()
   }
   poll()
+
+  /* Retour après login Spotify → échange le code et crée la playlist */
+  const params = new URLSearchParams(window.location.search)
+  const code   = params.get('code')
+  if (code) {
+    history.replaceState({}, '', window.location.pathname)
+    const token = await spExchange(code)
+    if (token) createSpotifyPlaylist()
+  }
 })()
 </script>
 </body>
