@@ -129,6 +129,7 @@
     background:#2a1020;border:1px solid var(--line);border-radius:22px;
     width:min(520px,92vw);max-height:82vh;display:flex;flex-direction:column;
     overflow:hidden;transform:translateY(14px);transition:transform .22s;
+    position:relative;
   }
   .modal-overlay.open .modal{transform:translateY(0)}
   .modal-header{padding:20px 22px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
@@ -144,6 +145,47 @@
   .filter-chip.genre{border-color:rgba(224,88,142,.4);color:var(--pink)}
   .filter-chip.genre:hover{border-color:var(--pink);background:rgba(224,88,142,.12)}
   .filter-chip.genre.active{background:var(--pink);color:#fff;border-color:var(--pink)}
+
+  .modal-breadcrumb{
+    padding:7px 22px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    background:rgba(245,237,196,.015);min-height:34px;
+  }
+  .bc-tags{display:flex;gap:5px;flex-wrap:wrap;flex:1;align-items:center}
+  .bc-tag{font-family:"DM Mono",monospace;font-size:10px;background:rgba(232,133,59,.18);color:var(--amber);border-radius:999px;padding:2px 8px;font-weight:600}
+  .bc-tag.genre{background:rgba(224,88,142,.18);color:var(--pink)}
+  .bc-all{font-family:"DM Mono",monospace;font-size:10px;color:var(--cream-dim);opacity:.45;font-style:italic}
+  .bc-count{font-family:"DM Mono",monospace;font-size:10px;color:var(--cream-dim);opacity:.55;margin-left:auto;flex-shrink:0}
+
+  .modal-loader{
+    position:absolute;inset:0;background:rgba(28,6,18,.94);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    display:flex;align-items:center;justify-content:center;
+    border-radius:22px;z-index:10;
+    opacity:0;pointer-events:none;transition:opacity .22s;
+  }
+  .modal-loader.active{opacity:1;pointer-events:all}
+  .loader-inner{display:flex;flex-direction:column;align-items:center;gap:20px;padding:40px 32px;text-align:center}
+  @keyframes lspin{to{transform:rotate(360deg)}}
+  .loader-spinner{
+    width:46px;height:46px;border-radius:50%;
+    border:3px solid rgba(232,133,59,.15);border-top-color:var(--amber);
+    animation:lspin .7s linear infinite;flex-shrink:0;
+  }
+  .loader-icon-done,.loader-icon-err{
+    width:46px;height:46px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:22px;border:3px solid;
+  }
+  .loader-icon-done{border-color:#5ad17e;color:#5ad17e}
+  .loader-icon-err{border-color:var(--pink);color:var(--pink)}
+  .loader-step{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.07em;color:var(--cream-dim);min-height:16px;transition:opacity .2s}
+  .loader-bar-wrap{width:210px;height:3px;background:rgba(245,237,196,.1);border-radius:2px;overflow:hidden}
+  .loader-bar{height:100%;background:var(--amber);width:0%;transition:width .35s ease;border-radius:2px}
+  .loader-result{font-size:14px;font-weight:600;color:var(--cream);min-height:20px;line-height:1.4}
+  .loader-result.err{color:var(--pink)}
+  .loader-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+  .loader-actions .btn-ghost{font-size:13px;padding:9px 16px}
+
   .modal-tracks{overflow-y:auto;flex:1}
   .modal-track{display:flex;align-items:center;gap:12px;padding:10px 22px;cursor:pointer;transition:background .12s}
   .modal-track:hover{background:var(--card)}
@@ -267,11 +309,24 @@
         <div class="filter-sep" id="genreSep" style="display:none"></div>
         <div id="genreChips" style="display:contents"></div>
       </div>
+      <div class="modal-breadcrumb" id="modalBreadcrumb">
+        <span class="bc-tags" id="bcTags"><span class="bc-all">Tous les titres</span></span>
+        <span class="bc-count" id="bcCount"></span>
+      </div>
       <div class="modal-tracks" id="modalTracks"></div>
       <div class="modal-footer">
         <span class="modal-sel-count" id="modalSelCount"></span>
         <button class="btn-ghost" id="modalCancel">Annuler</button>
         <button class="btn-ghost btn-spotify" id="modalConfirm">Créer la playlist</button>
+      </div>
+      <div class="modal-loader" id="modalLoader">
+        <div class="loader-inner">
+          <div class="loader-spinner" id="loaderIcon"></div>
+          <div class="loader-step" id="loaderStep"></div>
+          <div class="loader-bar-wrap"><div class="loader-bar" id="loaderBar"></div></div>
+          <div class="loader-result" id="loaderResult"></div>
+          <div class="loader-actions" id="loaderActions"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -569,32 +624,60 @@ async function createSpotifyPlaylist(selectedTracks) {
   const token = spToken()
   if (!token) { await spLogin(); return }
 
-  const btn = el("spotifyBtn")
-  btn.disabled = true
-  btn.textContent = "En cours…"
+  const loader  = el("modalLoader")
+  const iconEl  = el("loaderIcon")
+  const stepEl  = el("loaderStep")
+  const barEl   = el("loaderBar")
+  const resultEl = el("loaderResult")
+  const actionsEl = el("loaderActions")
+
+  function lStep(txt, pct) {
+    stepEl.textContent = txt
+    if (pct !== undefined) barEl.style.width = pct + '%'
+  }
+
+  /* Reset + show loader */
+  iconEl.className     = 'loader-spinner'
+  iconEl.textContent   = ''
+  stepEl.textContent   = ''
+  barEl.style.width    = '0%'
+  resultEl.textContent = ''
+  resultEl.className   = 'loader-result'
+  actionsEl.innerHTML  = ''
+  loader.classList.add('active')
 
   try {
+    lStep('Connexion Spotify…', 5)
     const me = await spFetch(token, '/me')
+
+    lStep('Création de la playlist…', 12)
     const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+    const activeLabels = activeFilters.size
+      ? ' · ' + [...activeFilters].map(f => FILTER_LABELS[f] || f).join(', ')
+      : ''
     const playlist = await spFetch(token, `/users/${me.id}/playlists`, {
       method: 'POST',
-      body: JSON.stringify({ name: `La Patate Douce · ${date}`, description: 'Généré par Mes Pépites 🍠', public: false })
+      body: JSON.stringify({
+        name: `La Patate Douce · ${date}${activeLabels}`,
+        description: 'Généré par Mes Pépites 🍠',
+        public: false
+      })
     })
 
     const uris = []
     let notFound = 0
     for (let i = 0; i < selectedTracks.length; i++) {
-      const t = selectedTracks[i]
-      btn.textContent = `Recherche… ${i+1}/${selectedTracks.length}`
+      const pct = 12 + Math.round((i / selectedTracks.length) * 68)
+      lStep(`Recherche des titres · ${i + 1} / ${selectedTracks.length}`, pct)
       try {
-        const sq = encodeURIComponent(`track:${t.title} artist:${t.artist}`)
+        const sq = encodeURIComponent(`track:${selectedTracks[i].title} artist:${selectedTracks[i].artist}`)
         const r  = await spFetch(token, `/search?q=${sq}&type=track&limit=1`)
         if (r.tracks?.items?.length) uris.push(r.tracks.items[0].uri)
         else notFound++
       } catch { notFound++ }
     }
 
-    btn.textContent = "Création de la playlist…"
+    lStep('Ajout des titres…', 85)
     for (let i = 0; i < uris.length; i += 100) {
       await spFetch(token, `/playlists/${playlist.id}/tracks`, {
         method: 'POST',
@@ -602,15 +685,37 @@ async function createSpotifyPlaylist(selectedTracks) {
       })
     }
 
+    barEl.style.width    = '100%'
+    iconEl.className     = 'loader-icon-done'
+    iconEl.textContent   = '✓'
+    stepEl.textContent   = ''
+    resultEl.className   = 'loader-result'
+    resultEl.innerHTML   = notFound
+      ? `${uris.length} titre${uris.length !== 1 ? 's' : ''} ajouté${uris.length !== 1 ? 's' : ''}<br><span style="font-weight:400;font-size:12px;opacity:.6">${notFound} non trouvé${notFound !== 1 ? 's' : ''} sur Spotify</span>`
+      : `${uris.length} titre${uris.length !== 1 ? 's' : ''} ajouté${uris.length !== 1 ? 's' : ''} ✓`
+    actionsEl.innerHTML  = `
+      <a class="btn-ghost btn-spotify" href="${playlist.external_urls.spotify}" target="_blank" rel="noopener"
+         style="text-decoration:none;display:inline-flex;align-items:center;padding:9px 16px;font-size:13px;border-radius:999px;border:1px solid #1DB954;color:#1DB954;font-weight:600;font-family:'Space Grotesk',sans-serif;cursor:pointer">
+        Ouvrir sur Spotify
+      </a>
+      <button class="btn-ghost" id="loaderCloseBtn">Fermer</button>
+    `
+    el("loaderCloseBtn").onclick = () => {
+      loader.classList.remove('active')
+      el("playlistModal").classList.remove("open")
+    }
     setStatus(notFound
-      ? `Playlist créée ! ${uris.length} ajoutés · ${notFound} non trouvés sur Spotify`
+      ? `Playlist créée ! ${uris.length} ajoutés · ${notFound} non trouvés`
       : `Playlist créée ! ${uris.length} titres ajoutés`)
-    window.open(playlist.external_urls.spotify, '_blank')
   } catch(e) {
+    iconEl.className     = 'loader-icon-err'
+    iconEl.textContent   = '✕'
+    stepEl.textContent   = ''
+    resultEl.className   = 'loader-result err'
+    resultEl.textContent = 'Erreur : ' + e.message
+    actionsEl.innerHTML  = `<button class="btn-ghost" id="loaderCloseBtn">Réessayer plus tard</button>`
+    el("loaderCloseBtn").onclick = () => loader.classList.remove('active')
     setStatus("Erreur Spotify : " + e.message, true)
-  } finally {
-    btn.disabled = false
-    btn.textContent = "Créer playlist Spotify"
   }
 }
 
@@ -632,6 +737,28 @@ async function fetchGenre(artist, title) {
 
 function visibleRows() {
   return [...document.querySelectorAll('.modal-track')].filter(r => r.style.display !== 'none')
+}
+
+const FILTER_LABELS = {
+  '4h': '4 h', '12h': '12 h', '24h': '24 h',
+  'matin': 'Matin', 'aprem': 'Aprem', 'apero': 'Apéro', 'nuit': 'Nuit'
+}
+
+function updateBreadcrumb() {
+  const total   = document.querySelectorAll('.modal-track').length
+  const visible = visibleRows().length
+  const bcTags  = el("bcTags")
+  const bcCount = el("bcCount")
+  if (!activeFilters.size) {
+    bcTags.innerHTML = '<span class="bc-all">Tous les titres</span>'
+    bcCount.textContent = `${total} titre${total !== 1 ? 's' : ''}`
+  } else {
+    bcTags.innerHTML = [...activeFilters].map(f => {
+      const isGenre = !FILTER_LABELS[f]
+      return `<span class="bc-tag${isGenre ? ' genre' : ''}">${FILTER_LABELS[f] || f}</span>`
+    }).join('')
+    bcCount.textContent = `${visible} / ${total}`
+  }
 }
 
 function updateModalCount() {
@@ -670,6 +797,7 @@ function applyFilters() {
     if (visible && activeFilters.size) row.querySelector('.sp-pick').checked = true
   })
   updateModalCount()
+  updateBreadcrumb()
 }
 
 async function loadGenresForModal() {
@@ -709,6 +837,7 @@ function showPlaylistModal() {
   }).join('')
 
   updateModalCount()
+  updateBreadcrumb()
   el("playlistModal").classList.add("open")
   loadGenresForModal()
 }
@@ -738,7 +867,6 @@ el("modalClose").onclick = el("modalCancel").onclick = () => {
 }
 
 el("modalConfirm").onclick = async () => {
-  el("playlistModal").classList.remove("open")
   const selected = visibleRows()
     .filter(r => r.querySelector('.sp-pick')?.checked)
     .map(r => tracks[+r.querySelector('.sp-pick').dataset.idx])
