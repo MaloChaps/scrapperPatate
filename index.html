@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mes Pépites · La Patate Douce</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --wine:#2A0C1B;
+    --wine-2:#3C1227;
+    --cream:#F5EDC4;
+    --cream-dim:#cfc69f;
+    --amber:#E8853B;
+    --pink:#E0588E;
+    --line:rgba(245,237,196,.14);
+    --card:rgba(245,237,196,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--wine);color:var(--cream)}
+  body{
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    min-height:100vh;
+    line-height:1.45;
+    background:
+      radial-gradient(1100px 500px at 85% -10%, rgba(232,133,59,.16), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(224,88,142,.13), transparent 55%),
+      var(--wine);
+    padding:clamp(18px,4vw,48px);
+  }
+  .wrap{max-width:780px;margin:0 auto}
+
+  .eyebrow{font-family:"DM Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);display:flex;align-items:center;gap:9px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--cream-dim)}
+  .eyebrow .dot.on{background:#5ad17e;box-shadow:0 0 0 4px rgba(90,209,126,.18)}
+  h1{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(40px,9vw,76px);line-height:.92;letter-spacing:-.02em;margin:14px 0 6px}
+  h1 em{font-style:italic;color:var(--amber)}
+  .sub{color:var(--cream-dim);font-size:15px;max-width:46ch}
+
+  .player{margin-top:28px;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--wine-2)}
+  .player iframe{display:block;width:100%;height:150px;border:0}
+
+  .now{
+    margin-top:30px;display:flex;gap:18px;align-items:center;
+    background:var(--card);border:1px solid var(--line);border-radius:20px;
+    padding:18px;
+  }
+  .vinyl{flex:0 0 auto;width:72px;height:72px;position:relative}
+  .vinyl svg{width:100%;height:100%;display:block}
+  .vinyl.spinning svg{animation:spin 3.2s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.vinyl.spinning svg{animation:none}}
+  .now-meta{min-width:0;flex:1}
+  .now-label{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--cream-dim)}
+  .now-title{font-family:"Fraunces",serif;font-size:21px;font-weight:600;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .now-artist{font-size:14px;color:var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;align-items:center}
+  button{font-family:"Space Grotesk",sans-serif;cursor:pointer;border:none;border-radius:999px;font-weight:600;transition:transform .12s ease, background .2s ease, opacity .2s}
+  button:active{transform:scale(.97)}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .btn-main{background:var(--amber);color:var(--wine);font-size:16px;padding:13px 24px;display:inline-flex;align-items:center;gap:9px}
+  .btn-main.live{background:var(--pink);color:#fff}
+  .btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--line);padding:11px 18px;font-size:14px}
+  .btn-ghost:hover{background:var(--card)}
+  .count{font-family:"DM Mono",monospace;font-size:13px;color:var(--cream-dim);margin-left:auto}
+  .count b{color:var(--cream)}
+
+  .list{margin-top:26px;display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+  .row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card)}
+  .row .idx{font-family:"DM Mono",monospace;font-size:12px;color:var(--cream-dim);width:26px;flex:0 0 auto;text-align:right}
+  .row .info{min-width:0;flex:1}
+  .row .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .a{font-size:13px;color:var(--cream-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .time{font-family:"DM Mono",monospace;font-size:11px;color:var(--cream-dim)}
+  .row .links{display:flex;gap:6px;flex:0 0 auto}
+  .ico{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--cream);text-decoration:none;font-size:13px;line-height:1;background:transparent;transition:background .15s,transform .12s}
+  .ico:hover{background:var(--card);transform:translateY(-1px)}
+  .ico.sp:hover{background:#1DB954;color:#000;border-color:#1DB954}
+  .ico.yt:hover{background:#FF0000;color:#fff;border-color:#FF0000}
+  .ico.dz:hover{background:#A238FF;color:#fff;border-color:#A238FF}
+  .ico.rm:hover{background:#5a1020;color:#fff}
+
+  .empty{padding:40px 20px;text-align:center;color:var(--cream-dim);background:var(--card)}
+  .empty b{color:var(--cream);font-family:"Fraunces",serif;font-weight:500}
+
+  .hour-sep{padding:10px 16px 6px;display:flex;align-items:center;gap:10px;background:transparent}
+  .hour-sep .hour-label{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);white-space:nowrap}
+  .hour-sep .hour-line{flex:1;height:1px;background:var(--line)}
+
+  .export{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+  .footnote{margin-top:26px;font-size:12.5px;color:var(--cream-dim);border-top:1px solid var(--line);padding-top:16px}
+  .footnote a{color:var(--amber)}
+  .status{font-family:"DM Mono",monospace;font-size:12px;color:var(--cream-dim);margin-top:12px;min-height:16px}
+  .status.err{color:var(--pink)}
+
+  @media(max-width:540px){
+    .row .time{display:none}
+    .now-title{font-size:18px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow"><span class="dot" id="statusDot"></span> La Patate Douce · capture en direct</div>
+  <h1>Mes <em>Pépites</em> 🍠</h1>
+  <p class="sub">Écoute en direct et l'appli note chaque titre qui passe. Tu repars avec ta liste, prête à coller dans Spotify.</p>
+
+  <div class="player">
+    <iframe
+      src="https://player.radioking.io/radio-jockey/?c=%233C1227&c2=%23F5EDC4&f=h&i=0&p=1&s=0&li=1&popup=1&plc=NaN&h=undefined&l=470&v=2"
+      allow="autoplay" title="Lecteur La Patate Douce"></iframe>
+  </div>
+
+  <div class="now">
+    <div class="vinyl" id="vinyl">
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="49" fill="#1a0710"/>
+        <circle cx="50" cy="50" r="49" fill="none" stroke="rgba(245,237,196,.08)" stroke-width="1"/>
+        <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(245,237,196,.06)" stroke-width="1"/>
+        <circle cx="50" cy="50" r="31" fill="none" stroke="rgba(245,237,196,.06)" stroke-width="1"/>
+        <circle cx="50" cy="50" r="18" fill="#E8853B"/>
+        <circle cx="50" cy="50" r="4.5" fill="#1a0710"/>
+        <circle cx="62" cy="38" r="2" fill="rgba(255,255,255,.25)"/>
+      </svg>
+    </div>
+    <div class="now-meta">
+      <div class="now-label" id="nowLabel">Dernier titre capté</div>
+      <div class="now-title" id="nowTitle">—</div>
+      <div class="now-artist" id="nowArtist"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-main" id="toggleBtn">▶ Lancer la capture</button>
+    <button class="btn-ghost" id="refreshBtn">Rafraîchir</button>
+    <span class="count"><b id="countNum">0</b> titres</span>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div class="list" id="list"></div>
+
+  <div class="export">
+    <button class="btn-ghost" id="copyBtn">Copier la liste</button>
+    <button class="btn-ghost" id="csvBtn">Télécharger .csv</button>
+    <button class="btn-ghost" id="clearBtn">Tout effacer</button>
+  </div>
+
+  <p class="footnote">
+    Un robot tourne en continu côté serveur et note chaque nouveau titre toutes les minutes, même quand cette page est fermée. Quand la page est ouverte, la capture se fait toutes les 20 s. L'historique complet est stocké dans Supabase.
+    Pour fabriquer la playlist Spotify : clique sur l'icône <b style="color:#1DB954">●</b> de chaque titre, ou colle la liste copiée dans un outil type <a href="https://www.spotlistr.com/search/textbox" target="_blank" rel="noopener">Spotlistr</a>.
+  </p>
+
+</div>
+
+<script>
+/* ── Remplis avec tes clés (Supabase > Project Settings > API) ── */
+const SUPABASE_URL      = ' https://wnbcoczjfqyxggkfyooh.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduYmNvY3pqZnF5eGdna2Z5b29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTQ1MDYsImV4cCI6MjA5NjkzMDUwNn0.0mO3O7xqMDwTLGx-5zrVLzW8ed0WoNDKP03eHji2v9o'
+/* ────────────────────────────────────────────────────────────── */
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+const RADIO_API = 'https://api.radioking.io/widget/radio/radio-jockey/track/current'
+const POLL_MS   = 20000
+
+let tracks = []
+let live   = false
+let timer  = null
+
+const el   = id => document.getElementById(id)
+const esc  = s  => (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const norm = s  => (s||"").toLowerCase().replace(/\s+/g, ' ').trim()
+const q    = (a, t) => encodeURIComponent(`${a||""} ${t||""}`.trim())
+
+function setStatus(msg, isErr) {
+  const s = el("status")
+  s.textContent = msg || ""
+  s.classList.toggle("err", !!isErr)
+}
+
+async function poll() {
+  try {
+    const res = await fetch(RADIO_API, { cache: 'no-store' })
+    if (!res.ok) throw new Error("HTTP " + res.status)
+    const d = await res.json()
+
+    const title  = String(d.title  || d.song    || '').trim()
+    const artist = String(d.artist || d.artists || '').trim()
+    if (!title) { setStatus("Pas de titre lisible pour l'instant…"); return }
+
+    el("nowLabel").textContent  = live ? "Capté en direct" : "Dernier titre capté"
+    el("nowTitle").textContent  = title
+    el("nowArtist").textContent = artist
+    setStatus("")
+
+    /* Vérifie le dernier titre en base avant d'insérer */
+    const { data: last } = await sb
+      .from('plays')
+      .select('title, artist')
+      .order('played_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (last && norm(last.title) === norm(title) && norm(last.artist) === norm(artist)) return
+
+    /* Insert — le Realtime met à jour la liste automatiquement */
+    await sb.from('plays').insert({ title, artist })
+  } catch(e) {
+    setStatus("Flux injoignable (" + e.message + "). Nouvel essai au prochain cycle.", true)
+  }
+}
+
+function hourKey(at) {
+  const d = new Date(at)
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`
+}
+
+function hourLabel(at) {
+  const d = new Date(at)
+  const day = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })
+  const h   = String(d.getHours()).padStart(2, "0") + "h"
+  return `${day} · ${h}`
+}
+
+function render() {
+  el("countNum").textContent = tracks.length
+  const list = el("list")
+  if (!tracks.length) {
+    list.innerHTML = `<div class="empty"><b>Rien encore.</b><br>Lance la capture et laisse tourner — les pépites vont tomber.</div>`
+    return
+  }
+
+  let lastHour = null
+  let html = ""
+  tracks.forEach((t, i) => {
+    const hk = hourKey(t.at)
+    if (hk !== lastHour) {
+      lastHour = hk
+      html += `<div class="hour-sep"><span class="hour-label">${hourLabel(t.at)}</span><span class="hour-line"></span></div>`
+    }
+    const time = new Date(t.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+    const sp = `https://open.spotify.com/search/${q(t.artist, t.title)}`
+    const yt = `https://www.youtube.com/results?search_query=${q(t.artist, t.title)}`
+    const dz = `https://www.deezer.com/search/${q(t.artist, t.title)}`
+    html += `<div class="row">
+      <div class="idx">${tracks.length - i}</div>
+      <div class="info">
+        <div class="t">${esc(t.title)}</div>
+        <div class="a">${esc(t.artist)||"&nbsp;"}</div>
+      </div>
+      <div class="time">${time}</div>
+      <div class="links">
+        <a class="ico sp" title="Chercher sur Spotify" href="${sp}" target="_blank" rel="noopener">S</a>
+        <a class="ico yt" title="Chercher sur YouTube" href="${yt}" target="_blank" rel="noopener">Y</a>
+        <a class="ico dz" title="Chercher sur Deezer" href="${dz}" target="_blank" rel="noopener">D</a>
+        <button class="ico rm" title="Retirer" data-rm="${i}" data-id="${t.id}">×</button>
+      </div>
+    </div>`
+  })
+  list.innerHTML = html
+}
+
+function setLive(v) {
+  live = v
+  const b = el("toggleBtn")
+  b.classList.toggle("live", v)
+  b.textContent = v ? "⏸ Stopper la capture" : "▶ Lancer la capture"
+  el("statusDot").classList.toggle("on", v)
+  el("vinyl").classList.toggle("spinning", v)
+  el("nowLabel").textContent = v ? "Capté en direct" : "Dernier titre capté"
+  if (v) { poll(); timer = setInterval(poll, POLL_MS) }
+  else   { clearInterval(timer); timer = null }
+}
+
+el("toggleBtn").onclick = () => setLive(!live)
+el("refreshBtn").onclick = () => poll()
+
+el("list").addEventListener("click", async e => {
+  const btn = e.target.closest("[data-rm]")
+  if (!btn) return
+  await sb.from('plays').delete().eq('id', +btn.dataset.id)
+  tracks.splice(+btn.dataset.rm, 1)
+  render()
+})
+
+el("copyBtn").onclick = async () => {
+  if (!tracks.length) return
+  const txt = tracks.slice().reverse().map(t => `${t.artist} - ${t.title}`).join("\n")
+  try { await navigator.clipboard.writeText(txt); setStatus("Liste copiée ✓") }
+  catch(e) { setStatus("Copie impossible ici — utilise le .csv.", true) }
+}
+
+el("csvBtn").onclick = () => {
+  if (!tracks.length) return
+  const rows = [["#","Artiste","Titre","Heure"]].concat(
+    tracks.slice().reverse().map((t, i) => [i+1, t.artist, t.title, new Date(t.at).toLocaleString("fr-FR")])
+  )
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n")
+  const url = URL.createObjectURL(new Blob(["﻿"+csv], { type: "text/csv;charset=utf-8" }))
+  const a = document.createElement("a")
+  a.href = url; a.download = "mes-pepites-patate-douce.csv"; a.click()
+  URL.revokeObjectURL(url)
+}
+
+el("clearBtn").onclick = async () => {
+  if (!tracks.length) return
+  if (!confirm("Effacer tout l'historique en base ?")) return
+  await sb.from('plays').delete().gte('id', 0)
+  tracks = []
+  render()
+}
+
+/* Realtime : la liste se met à jour quand la Edge Function insère */
+sb.channel('plays-live')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'plays' }, ({ new: r }) => {
+    if (tracks.some(t => t.id === r.id)) return
+    tracks.unshift({ id: r.id, title: r.title, artist: r.artist, at: new Date(r.played_at).getTime() })
+    render()
+  })
+  .subscribe()
+
+/* Boot : charge l'historique depuis Supabase */
+;(async () => {
+  const { data } = await sb
+    .from('plays')
+    .select('id, title, artist, played_at')
+    .order('played_at', { ascending: false })
+  if (data) {
+    tracks = data.map(r => ({ id: r.id, title: r.title, artist: r.artist, at: new Date(r.played_at).getTime() }))
+    render()
+  }
+  poll()
+})()
+</script>
+</body>
+</html>
