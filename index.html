@@ -118,6 +118,34 @@
   .empty{padding:40px 20px;text-align:center;color:var(--cream-dim);background:var(--card)}
   .empty b{color:var(--cream);font-family:"Fraunces",serif;font-weight:500}
 
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(42,12,27,.88);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;z-index:100;
+    opacity:0;pointer-events:none;transition:opacity .2s;
+  }
+  .modal-overlay.open{opacity:1;pointer-events:all}
+  .modal{
+    background:#2a1020;border:1px solid var(--line);border-radius:22px;
+    width:min(520px,92vw);max-height:82vh;display:flex;flex-direction:column;
+    overflow:hidden;transform:translateY(14px);transition:transform .22s;
+  }
+  .modal-overlay.open .modal{transform:translateY(0)}
+  .modal-header{padding:20px 22px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .modal-header h2{font-family:"Fraunces",serif;font-size:20px;font-weight:600;flex:1;line-height:1.1}
+  .modal-close{background:transparent;border:1px solid var(--line);color:var(--cream-dim);font-size:16px;cursor:pointer;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;padding:0;flex-shrink:0}
+  .modal-selall{display:flex;align-items:center;gap:10px;padding:10px 22px;border-bottom:1px solid var(--line);font-size:13px;color:var(--cream-dim);cursor:pointer}
+  .modal-selall input{accent-color:var(--amber);width:15px;height:15px;cursor:pointer;flex-shrink:0}
+  .modal-tracks{overflow-y:auto;flex:1}
+  .modal-track{display:flex;align-items:center;gap:12px;padding:10px 22px;cursor:pointer;transition:background .12s}
+  .modal-track:hover{background:var(--card)}
+  .modal-track input[type=checkbox]{accent-color:var(--amber);width:15px;height:15px;flex-shrink:0;cursor:pointer}
+  .mt-thumb{width:38px;height:38px;border-radius:6px;background:var(--card);border:1px solid var(--line);background-size:cover;background-position:center;flex-shrink:0}
+  .mt-info{min-width:0;flex:1}
+  .mt-title{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mt-artist{font-size:12px;color:var(--cream-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .modal-footer{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center}
+  .modal-sel-count{font-family:"DM Mono",monospace;font-size:12px;color:var(--cream-dim);flex:1}
+
   .hour-sep{padding:10px 16px 6px;display:flex;align-items:center;gap:10px;background:transparent}
   .hour-sep .hour-label{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);white-space:nowrap}
   .hour-sep .hour-line{flex:1;height:1px;background:var(--line)}
@@ -183,6 +211,25 @@
     <button class="btn-ghost" id="copyBtn">Copier la liste</button>
     <button class="btn-ghost" id="csvBtn">Télécharger .csv</button>
     <button class="btn-ghost" id="clearBtn">Tout effacer</button>
+  </div>
+
+  <div class="modal-overlay" id="playlistModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Créer une playlist Spotify</h2>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+      <label class="modal-selall">
+        <input type="checkbox" id="selAll" checked>
+        Tout sélectionner
+      </label>
+      <div class="modal-tracks" id="modalTracks"></div>
+      <div class="modal-footer">
+        <span class="modal-sel-count" id="modalSelCount"></span>
+        <button class="btn-ghost" id="modalCancel">Annuler</button>
+        <button class="btn-ghost btn-spotify" id="modalConfirm">Créer la playlist</button>
+      </div>
+    </div>
   </div>
 
   <p class="footnote">
@@ -474,13 +521,13 @@ async function spFetch(token, path, opts = {}) {
   return res.json()
 }
 
-async function createSpotifyPlaylist() {
+async function createSpotifyPlaylist(selectedTracks) {
   const token = spToken()
   if (!token) { await spLogin(); return }
 
   const btn = el("spotifyBtn")
   btn.disabled = true
-  btn.textContent = "Connexion…"
+  btn.textContent = "En cours…"
 
   try {
     const me = await spFetch(token, '/me')
@@ -492,10 +539,9 @@ async function createSpotifyPlaylist() {
 
     const uris = []
     let notFound = 0
-    const ordered = [...tracks].reverse()
-    for (let i = 0; i < ordered.length; i++) {
-      const t = ordered[i]
-      btn.textContent = `Recherche… ${i+1}/${ordered.length}`
+    for (let i = 0; i < selectedTracks.length; i++) {
+      const t = selectedTracks[i]
+      btn.textContent = `Recherche… ${i+1}/${selectedTracks.length}`
       try {
         const sq = encodeURIComponent(`track:${t.title} artist:${t.artist}`)
         const r  = await spFetch(token, `/search?q=${sq}&type=track&limit=1`)
@@ -524,7 +570,60 @@ async function createSpotifyPlaylist() {
   }
 }
 
-el("spotifyBtn").onclick = createSpotifyPlaylist
+function updateModalCount() {
+  const checked = document.querySelectorAll('.sp-pick:checked').length
+  const total   = document.querySelectorAll('.sp-pick').length
+  el("modalSelCount").textContent = `${checked} titre${checked !== 1 ? 's' : ''} sélectionné${checked !== 1 ? 's' : ''}`
+  el("modalConfirm").disabled = checked === 0
+  el("selAll").indeterminate = checked > 0 && checked < total
+  el("selAll").checked = checked === total
+}
+
+function showPlaylistModal() {
+  const ordered = [...tracks].reverse()
+  el("modalTracks").innerHTML = ordered.map((t, i) => {
+    const realIdx = tracks.length - 1 - i
+    const art = artCache.get(`${t.artist}|${t.title}`) || ''
+    return `<label class="modal-track">
+      <input type="checkbox" class="sp-pick" data-idx="${realIdx}" checked>
+      <div class="mt-thumb" style="${art ? `background-image:url(${art})` : ''}"></div>
+      <div class="mt-info">
+        <div class="mt-title">${esc(t.title)}</div>
+        <div class="mt-artist">${esc(t.artist)||'&nbsp;'}</div>
+      </div>
+    </label>`
+  }).join('')
+  updateModalCount()
+  el("playlistModal").classList.add("open")
+}
+
+el("playlistModal").addEventListener('change', e => {
+  if (e.target.id === 'selAll') {
+    document.querySelectorAll('.sp-pick').forEach(cb => cb.checked = e.target.checked)
+  }
+  updateModalCount()
+})
+
+el("playlistModal").addEventListener('click', e => {
+  if (e.target === el("playlistModal")) el("playlistModal").classList.remove("open")
+})
+
+el("modalClose").onclick = el("modalCancel").onclick = () => {
+  el("playlistModal").classList.remove("open")
+}
+
+el("modalConfirm").onclick = async () => {
+  el("playlistModal").classList.remove("open")
+  const selected = [...document.querySelectorAll('.sp-pick:checked')].map(cb => tracks[+cb.dataset.idx])
+  await createSpotifyPlaylist(selected)
+}
+
+el("spotifyBtn").onclick = async () => {
+  if (!tracks.length) return
+  const token = spToken()
+  if (!token) { await spLogin(); return }
+  showPlaylistModal()
+}
 
 /* ──────────────────────────────────────────────────────────────── */
 
@@ -558,7 +657,7 @@ sb.channel('plays-live')
   if (code) {
     history.replaceState({}, '', window.location.pathname)
     const token = await spExchange(code)
-    if (token) createSpotifyPlaylist()
+    if (token) showPlaylistModal()
   }
 })()
 </script>
