@@ -136,6 +136,14 @@
   .modal-close{background:transparent;border:1px solid var(--line);color:var(--cream-dim);font-size:16px;cursor:pointer;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;padding:0;flex-shrink:0}
   .modal-selall{display:flex;align-items:center;gap:10px;padding:10px 22px;border-bottom:1px solid var(--line);font-size:13px;color:var(--cream-dim);cursor:pointer}
   .modal-selall input{accent-color:var(--amber);width:15px;height:15px;cursor:pointer;flex-shrink:0}
+  .modal-filters{padding:10px 18px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .filter-sep{width:1px;height:16px;background:var(--line);margin:0 2px;align-self:center;flex-shrink:0}
+  .filter-chip{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.06em;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--cream-dim);background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
+  .filter-chip:hover{border-color:var(--amber);color:var(--amber)}
+  .filter-chip.active{background:var(--amber);color:var(--wine);border-color:var(--amber);font-weight:700}
+  .filter-chip.genre{border-color:rgba(224,88,142,.4);color:var(--pink)}
+  .filter-chip.genre:hover{border-color:var(--pink);background:rgba(224,88,142,.12)}
+  .filter-chip.genre.active{background:var(--pink);color:#fff;border-color:var(--pink)}
   .modal-tracks{overflow-y:auto;flex:1}
   .modal-track{display:flex;align-items:center;gap:12px;padding:10px 22px;cursor:pointer;transition:background .12s}
   .modal-track:hover{background:var(--card)}
@@ -247,6 +255,18 @@
         <input type="checkbox" id="selAll" checked>
         Tout sélectionner
       </label>
+      <div class="modal-filters" id="modalFilters">
+        <button class="filter-chip" data-filter="4h">4 h</button>
+        <button class="filter-chip" data-filter="12h">12 h</button>
+        <button class="filter-chip" data-filter="24h">24 h</button>
+        <div class="filter-sep"></div>
+        <button class="filter-chip" data-filter="matin">Matin</button>
+        <button class="filter-chip" data-filter="aprem">Aprem</button>
+        <button class="filter-chip" data-filter="apero">Apéro</button>
+        <button class="filter-chip" data-filter="nuit">Nuit</button>
+        <div class="filter-sep" id="genreSep" style="display:none"></div>
+        <div id="genreChips" style="display:contents"></div>
+      </div>
       <div class="modal-tracks" id="modalTracks"></div>
       <div class="modal-footer">
         <span class="modal-sel-count" id="modalSelCount"></span>
@@ -594,16 +614,86 @@ async function createSpotifyPlaylist(selectedTracks) {
   }
 }
 
+/* ── Filtres modal ───────────────────────────────────────────── */
+const genreCache  = new Map()
+const activeFilters = new Set()
+let   trackGenres = new Map() // realIdx → genre string
+
+async function fetchGenre(artist, title) {
+  const key = `${artist}|${title}`
+  if (genreCache.has(key)) return genreCache.get(key)
+  try {
+    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artist+' '+title)}&media=music&limit=1`)
+    const d   = await res.json()
+    const g   = d.results?.[0]?.primaryGenreName || ''
+    genreCache.set(key, g); return g
+  } catch { genreCache.set(key, ''); return '' }
+}
+
+function visibleRows() {
+  return [...document.querySelectorAll('.modal-track')].filter(r => r.style.display !== 'none')
+}
+
 function updateModalCount() {
-  const checked = document.querySelectorAll('.sp-pick:checked').length
-  const total   = document.querySelectorAll('.sp-pick').length
+  const rows    = visibleRows()
+  const checked = rows.filter(r => r.querySelector('.sp-pick')?.checked).length
+  const total   = rows.length
   el("modalSelCount").textContent = `${checked} titre${checked !== 1 ? 's' : ''} sélectionné${checked !== 1 ? 's' : ''}`
-  el("modalConfirm").disabled = checked === 0
-  el("selAll").indeterminate = checked > 0 && checked < total
-  el("selAll").checked = checked === total
+  el("modalConfirm").disabled    = checked === 0
+  el("selAll").indeterminate     = checked > 0 && checked < total
+  el("selAll").checked           = total > 0 && checked === total
+}
+
+function rowMatchesFilters(t, realIdx) {
+  if (!activeFilters.size) return true
+  const now  = Date.now()
+  const hour = new Date(t.at).getHours()
+  for (const f of activeFilters) {
+    if (f === '4h'    && now - t.at <= 4  * 3600000) return true
+    if (f === '12h'   && now - t.at <= 12 * 3600000) return true
+    if (f === '24h'   && now - t.at <= 24 * 3600000) return true
+    if (f === 'matin' && hour >= 6  && hour < 12)     return true
+    if (f === 'aprem' && hour >= 12 && hour < 17)     return true
+    if (f === 'apero' && hour >= 17 && hour < 21)     return true
+    if (f === 'nuit'  && (hour >= 21 || hour < 6))    return true
+    const genre = (trackGenres.get(realIdx) || '').toLowerCase()
+    if (genre && genre.includes(f.toLowerCase()))     return true
+  }
+  return false
+}
+
+function applyFilters() {
+  document.querySelectorAll('.modal-track').forEach((row, i) => {
+    const realIdx = tracks.length - 1 - i
+    const visible = rowMatchesFilters(tracks[realIdx], realIdx)
+    row.style.display = visible ? '' : 'none'
+    if (visible && activeFilters.size) row.querySelector('.sp-pick').checked = true
+  })
+  updateModalCount()
+}
+
+async function loadGenresForModal() {
+  const genreSet = new Set()
+  const ordered  = [...tracks].reverse()
+  await Promise.all(ordered.map(async (t, i) => {
+    const realIdx = tracks.length - 1 - i
+    const genre   = await fetchGenre(t.artist, t.title)
+    if (genre) { trackGenres.set(realIdx, genre); genreSet.add(genre) }
+  }))
+  if (!genreSet.size) return
+  el("genreSep").style.display = ''
+  el("genreChips").innerHTML = [...genreSet].sort().map(g =>
+    `<button class="filter-chip genre" data-filter="${g}">${g}</button>`
+  ).join('')
 }
 
 function showPlaylistModal() {
+  activeFilters.clear()
+  trackGenres = new Map()
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'))
+  el("genreSep").style.display  = 'none'
+  el("genreChips").innerHTML    = ''
+
   const ordered = [...tracks].reverse()
   el("modalTracks").innerHTML = ordered.map((t, i) => {
     const realIdx = tracks.length - 1 - i
@@ -617,13 +707,24 @@ function showPlaylistModal() {
       </div>
     </label>`
   }).join('')
+
   updateModalCount()
   el("playlistModal").classList.add("open")
+  loadGenresForModal()
 }
+
+el("modalFilters").addEventListener('click', e => {
+  const chip = e.target.closest('.filter-chip')
+  if (!chip) return
+  chip.classList.toggle('active')
+  const f = chip.dataset.filter
+  activeFilters.has(f) ? activeFilters.delete(f) : activeFilters.add(f)
+  applyFilters()
+})
 
 el("playlistModal").addEventListener('change', e => {
   if (e.target.id === 'selAll') {
-    document.querySelectorAll('.sp-pick').forEach(cb => cb.checked = e.target.checked)
+    visibleRows().forEach(r => r.querySelector('.sp-pick').checked = e.target.checked)
   }
   updateModalCount()
 })
@@ -638,7 +739,9 @@ el("modalClose").onclick = el("modalCancel").onclick = () => {
 
 el("modalConfirm").onclick = async () => {
   el("playlistModal").classList.remove("open")
-  const selected = [...document.querySelectorAll('.sp-pick:checked')].map(cb => tracks[+cb.dataset.idx])
+  const selected = visibleRows()
+    .filter(r => r.querySelector('.sp-pick')?.checked)
+    .map(r => tracks[+r.querySelector('.sp-pick').dataset.idx])
   await createSpotifyPlaylist(selected)
 }
 
