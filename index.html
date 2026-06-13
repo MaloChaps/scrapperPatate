@@ -7,7 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍠</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 <style>
   :root{
     --wine:#2A0C1B;
@@ -49,10 +51,13 @@
     padding:18px;
   }
   .vinyl{flex:0 0 auto;width:72px;height:72px;position:relative}
-  .vinyl svg{width:100%;height:100%;display:block}
-  .vinyl.spinning svg{animation:spin 3.2s linear infinite}
+  .vinyl svg,.vinyl img{width:100%;height:100%;display:block;border-radius:50%}
+  .vinyl img{object-fit:cover;display:none}
+  .vinyl.has-cover img{display:block}
+  .vinyl.has-cover svg{display:none}
+  .vinyl.spinning svg,.vinyl.spinning img{animation:spin 3.2s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  @media (prefers-reduced-motion:reduce){.vinyl.spinning svg{animation:none}}
+  @media (prefers-reduced-motion:reduce){.vinyl.spinning svg,.vinyl.spinning img{animation:none}}
   .now-meta{min-width:0;flex:1}
   .now-label{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--cream-dim)}
   .now-title{font-family:"Fraunces",serif;font-size:21px;font-weight:600;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -71,6 +76,7 @@
 
   .list{margin-top:26px;display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
   .row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card)}
+  .row .thumb{width:38px;height:38px;border-radius:6px;flex:0 0 auto;background:var(--card);border:1px solid var(--line);background-size:cover;background-position:center;transition:opacity .3s}
   .row .idx{font-family:"DM Mono",monospace;font-size:12px;color:var(--cream-dim);width:26px;flex:0 0 auto;text-align:right}
   .row .info{min-width:0;flex:1}
   .row .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -87,6 +93,12 @@
   .btn-spotify{color:#1DB954;border-color:#1DB954}
   .btn-spotify:hover{background:#1DB954;color:#000;border-color:#1DB954}
   .btn-spotify:disabled{opacity:.5;cursor:default;transform:none}
+
+  .btn-play{flex:0 0 auto;background:var(--amber);color:var(--wine);width:40px;height:40px;border-radius:50%;font-size:15px;display:none;place-items:center;padding:0}
+  .btn-play:hover{background:var(--cream)}
+  .mini-player{margin-top:14px;border-radius:14px;overflow:hidden;border:1px solid var(--line);display:none;position:relative}
+  .mini-player iframe,.mini-player>div{display:block;width:100%}
+  .mini-close{position:absolute;top:8px;right:8px;z-index:10;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:13px;display:grid;place-items:center;padding:0}
 
   .empty{padding:40px 20px;text-align:center;color:var(--cream-dim);background:var(--card)}
   .empty b{color:var(--cream);font-family:"Fraunces",serif;font-weight:500}
@@ -122,6 +134,7 @@
 
   <div class="now">
     <div class="vinyl" id="vinyl">
+      <img id="nowCover" src="" alt="">
       <svg viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="49" fill="#1a0710"/>
         <circle cx="50" cy="50" r="49" fill="none" stroke="rgba(245,237,196,.08)" stroke-width="1"/>
@@ -137,10 +150,15 @@
       <div class="now-title" id="nowTitle">—</div>
       <div class="now-artist" id="nowArtist"></div>
     </div>
+    <button class="btn-play" id="playBtn" title="Écouter en boucle">▶</button>
+  </div>
+
+  <div class="mini-player" id="miniPlayer">
+    <button class="mini-close" id="miniClose">✕</button>
+    <div id="ytPlaceholder"></div>
   </div>
 
   <div class="controls">
-    <button class="btn-main" id="toggleBtn">▶ Lancer la capture</button>
     <button class="btn-ghost" id="refreshBtn">Rafraîchir</button>
     <span class="count"><b id="countNum">0</b> titres</span>
   </div>
@@ -177,7 +195,6 @@ const RADIO_API = 'https://api.radioking.io/widget/radio/radio-jockey/track/curr
 const POLL_MS   = 20000
 
 let tracks = []
-let live   = false
 let timer  = null
 
 const el   = id => document.getElementById(id)
@@ -201,10 +218,20 @@ async function poll() {
     const artist = String(d.artist || d.artists || '').trim()
     if (!title) { setStatus("Pas de titre lisible pour l'instant…"); return }
 
-    el("nowLabel").textContent  = live ? "Capté en direct" : "Dernier titre capté"
+    el("nowLabel").textContent  = "En ce moment"
     el("nowTitle").textContent  = title
     el("nowArtist").textContent = artist
+    el("playBtn").style.display = "grid"
     setStatus("")
+
+    const cover = String(d.cover || d.cover_url || '').trim()
+    const vinyl  = el("vinyl")
+    if (cover) {
+      el("nowCover").src = cover
+      vinyl.classList.add("has-cover")
+    } else {
+      vinyl.classList.remove("has-cover")
+    }
 
     /* Vérifie le dernier titre en base avant d'insérer */
     const { data: last } = await sb
@@ -256,6 +283,7 @@ function render() {
     const yt = `https://www.youtube.com/results?search_query=${q(t.artist, t.title)}`
     const dz = `https://www.deezer.com/search/${q(t.artist, t.title)}`
     html += `<div class="row">
+      <div class="thumb" data-thumb="${i}"></div>
       <div class="idx">${tracks.length - i}</div>
       <div class="info">
         <div class="t">${esc(t.title)}</div>
@@ -271,21 +299,17 @@ function render() {
     </div>`
   })
   list.innerHTML = html
+
+  /* Charge les miniatures iTunes en arrière-plan */
+  tracks.forEach((t, i) => {
+    fetchArt(t.artist, t.title).then(url => {
+      if (!url) return
+      const el = list.querySelector(`[data-thumb="${i}"]`)
+      if (el) el.style.backgroundImage = `url(${url})`
+    })
+  })
 }
 
-function setLive(v) {
-  live = v
-  const b = el("toggleBtn")
-  b.classList.toggle("live", v)
-  b.textContent = v ? "⏸ Stopper la capture" : "▶ Lancer la capture"
-  el("statusDot").classList.toggle("on", v)
-  el("vinyl").classList.toggle("spinning", v)
-  el("nowLabel").textContent = v ? "Capté en direct" : "Dernier titre capté"
-  if (v) { poll(); timer = setInterval(poll, POLL_MS) }
-  else   { clearInterval(timer); timer = null }
-}
-
-el("toggleBtn").onclick = () => setLive(!live)
 el("refreshBtn").onclick = () => poll()
 
 el("list").addEventListener("click", async e => {
@@ -322,6 +346,22 @@ el("clearBtn").onclick = async () => {
   tracks = []
   render()
 }
+
+/* ── Miniatures iTunes ───────────────────────────────────────── */
+const artCache = new Map()
+
+async function fetchArt(artist, title) {
+  const key = `${artist}|${title}`
+  if (artCache.has(key)) return artCache.get(key)
+  try {
+    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artist+' '+title)}&media=music&limit=1`)
+    const d   = await res.json()
+    const url = (d.results?.[0]?.artworkUrl100 || '').replace('100x100bb', '60x60bb')
+    artCache.set(key, url)
+    return url
+  } catch { artCache.set(key, ''); return '' }
+}
+/* ────────────────────────────────────────────────────────────── */
 
 /* ── Spotify ─────────────────────────────────────────────────── */
 const SP_REDIRECT = window.location.origin + window.location.pathname
@@ -434,6 +474,37 @@ async function createSpotifyPlaylist() {
 }
 
 el("spotifyBtn").onclick = createSpotifyPlaylist
+
+/* ── Mini-player YouTube en boucle ───────────────────────────── */
+let ytPlayer = null
+
+window.onYouTubeIframeAPIReady = () => { /* player créé à la demande */ }
+
+function openMiniPlayer(title, artist) {
+  const query = `${artist} ${title}`
+  el("miniPlayer").style.display = "block"
+  if (ytPlayer) {
+    ytPlayer.loadPlaylist({ listType: 'search', list: query })
+    return
+  }
+  ytPlayer = new YT.Player('ytPlaceholder', {
+    height: '220',
+    playerVars: { listType: 'search', list: query, autoplay: 1, controls: 1 },
+    events: { onReady: e => e.target.setLoop(true) }
+  })
+}
+
+el("playBtn").onclick = () => {
+  const title  = el("nowTitle").textContent
+  const artist = el("nowArtist").textContent
+  if (title && title !== "—") openMiniPlayer(title, artist)
+}
+
+el("miniClose").onclick = () => {
+  el("miniPlayer").style.display = "none"
+  if (ytPlayer) ytPlayer.stopVideo()
+}
+/* ────────────────────────────────────────────────────────────── */
 /* ──────────────────────────────────────────────────────────────── */
 
 /* Realtime : la liste se met à jour quand la Edge Function insère */
@@ -447,6 +518,9 @@ sb.channel('plays-live')
 
 /* Boot : charge l'historique depuis Supabase + gère le retour OAuth Spotify */
 ;(async () => {
+  el("statusDot").classList.add("on")
+  el("vinyl").classList.add("spinning")
+
   const { data } = await sb
     .from('plays')
     .select('id, title, artist, played_at')
@@ -456,6 +530,7 @@ sb.channel('plays-live')
     render()
   }
   poll()
+  timer = setInterval(poll, POLL_MS)
 
   /* Retour après login Spotify → échange le code et crée la playlist */
   const params = new URLSearchParams(window.location.search)
