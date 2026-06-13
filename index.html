@@ -366,7 +366,22 @@ audio.addEventListener('play',  () => el("vinyl").classList.add("spinning"))
 audio.addEventListener('pause', () => el("vinyl").classList.remove("spinning"))
 audio.addEventListener('error', () => setStatus("Flux audio introuvable — essaie de rafraîchir.", true))
 
-el("volSlider").oninput = e => { audio.volume = +e.target.value }
+let prevVol = 1
+
+function setVol(v) {
+  audio.volume = v
+  el("volSlider").value = v
+  el("volSlider").style.background =
+    `linear-gradient(to right,var(--amber) ${v*100}%,var(--line) ${v*100}%)`
+  el("volIcon").textContent = v === 0 ? '🔇' : v < 0.4 ? '🔈' : '🔊'
+}
+
+el("volSlider").oninput = e => { prevVol = +e.target.value || prevVol; setVol(+e.target.value) }
+
+el("volIcon").onclick = () => {
+  if (audio.volume > 0) { prevVol = audio.volume; setVol(0) }
+  else setVol(prevVol)
+}
 
 el("radioPlayBtn").onclick = () => {
   if (audio.paused) {
