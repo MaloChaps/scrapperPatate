@@ -913,6 +913,7 @@ async function createSpotifyPlaylist(selectedTracks) {
   }
 
   /* Reset + show loader */
+  loaderMode = 'create'
   iconEl.className           = 'loader-spinner'
   iconEl.textContent         = ''
   stepEl.textContent         = ''
@@ -1132,8 +1133,8 @@ function renderGenreChips() {
 }
 
 /* Genres + miniatures (track_info, sinon file Deezer) ; l'affichage se met à jour au fil de l'eau */
-async function loadGenresForModal(session, from = 0) {
-  let refresh = null
+async function loadGenresForModal(session, from = 0, onProgress = () => {}) {
+  let refresh = null, done = 0
   const scheduleRefresh = () => {
     if (refresh) return
     refresh = setTimeout(() => {
@@ -1150,7 +1151,30 @@ async function loadGenresForModal(session, from = 0) {
     if (session !== modalSession) return
     if (info.art && !t.art && thumbs[i]) thumbs[i].style.backgroundImage = `url(${info.art})`
     if (info.genre) { trackGenres.set(i, genresOf(info)); scheduleRefresh() }
+    onProgress(++done, modalList.length - from)
   }))
+  if (session === modalSession) { renderGenreChips(); if (activeFilters.size) applyFilters() }
+}
+
+/* Loader à l'ouverture : on attend que les genres soient là pour que les filtres soient complets */
+let loaderMode = null  // 'filters' | 'create'
+function showFiltersLoader() {
+  loaderMode = 'filters'
+  el("loaderIcon").className   = 'loader-spinner'
+  el("loaderIcon").textContent = ''
+  el("loaderStep").textContent = 'Chargement des filtres…'
+  el("loaderBar").style.width  = '0%'
+  el("loaderResult").textContent = ''
+  el("loaderResult").className = 'loader-result'
+  el("loaderMissed").style.display = 'none'
+  el("loaderActions").innerHTML = `<button class="btn-ghost" id="loaderSkipBtn">Continuer sans attendre</button>`
+  el("loaderSkipBtn").onclick = hideFiltersLoader
+  el("modalLoader").classList.add('active')
+}
+function hideFiltersLoader() {
+  if (loaderMode !== 'filters') return
+  loaderMode = null
+  el("modalLoader").classList.remove('active')
 }
 
 function modalRowHtml(t, i) {
@@ -1167,7 +1191,13 @@ function modalRowHtml(t, i) {
   </label>`
 }
 
-function showPlaylistModal() {
+async function showPlaylistModal() {
+  const session = ++modalSession
+  el("playlistModal").classList.add("open")
+  showFiltersLoader()
+  await loadTrackInfo()  // genres ajoutés côté serveur depuis l'ouverture de la page
+  if (session !== modalSession) return
+
   activeFilters.clear()
   activeSources.clear()
   loadedSources.clear()
@@ -1184,8 +1214,11 @@ function showPlaylistModal() {
 
   updateModalCount()
   updateBreadcrumb()
-  el("playlistModal").classList.add("open")
-  loadGenresForModal(++modalSession)
+  await loadGenresForModal(session, 0, (done, total) => {
+    el("loaderStep").textContent = `Chargement des genres · ${done} / ${total}`
+    el("loaderBar").style.width  = Math.round(done / total * 100) + '%'
+  })
+  if (session === modalSession) hideFiltersLoader()
 }
 
 /* ── Playlists Spotify ajoutées (mémorisées dans le navigateur) ─ */
