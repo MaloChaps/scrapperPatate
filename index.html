@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mes Pépites · La Patate Douce</title>
+<title>La frite</title>
 <link rel="stylesheet" href="da.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍠</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -31,15 +31,9 @@
   }
   .wrap{max-width:780px;margin:0 auto}
 
-  .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);display:flex;align-items:center;gap:9px}
-  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--cream-dim)}
-  .eyebrow .dot.on{background:var(--pink);box-shadow:0 0 0 4px color-mix(in srgb, var(--pink) 18%, transparent)}
-  h1{color:var(--amber);font-family:var(--font-display);font-weight:400;font-size:clamp(40px,9vw,76px);line-height:.92;letter-spacing:-.02em;margin:14px 0 6px}
-  h1 em{font-style:italic;color:var(--amber)}
-  .sub{color:var(--cream-dim);font-size:15px;max-width:46ch}
 
   .custom-player{
-    margin-top:28px;display:flex;gap:24px;align-items:center;
+    display:flex;gap:24px;align-items:center;
     background:var(--wine-2);border:1px solid var(--line);border-radius:4px;
     padding:24px;
   }
@@ -88,6 +82,10 @@
   .btn-main.live{background:var(--pink);color:var(--wine)}
   .btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--cream);padding:10px 16px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
   a.btn-ghost{display:inline-flex;align-items:center;border-radius:999px;font-family:var(--font-mono);font-weight:500;text-decoration:none}
+  /* Accès au générateur : en haut à droite de la page */
+  .topbar{display:flex;justify-content:flex-end;margin-bottom:16px}
+  .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--amber);color:var(--wine);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+  @media (hover:hover){.btn-mix:hover{opacity:.85}}
   .btn-ghost:hover{background:var(--card)}
   .count{font-family:var(--font-mono);font-size:13px;color:var(--cream-dim);margin-left:auto}
   .count b{color:var(--cream)}
@@ -248,17 +246,16 @@
     .filter-chips--scroll::-webkit-scrollbar{display:none}
     .filter-chips--scroll .filter-chip{flex-shrink:0}
 
-    /* Header */
-    h1{font-size:clamp(34px,10vw,60px)}
   }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <div class="eyebrow"><span class="dot" id="statusDot"></span> La Patate Douce · capture en direct</div>
-  <h1>Mes <em>Pépites</em> 🍠</h1>
-  <p class="sub">Écoute en direct et l'appli note chaque titre qui passe. Tu repars avec ta liste, prête à coller dans Spotify.</p>
+
+  <header class="topbar">
+    <a class="btn-mix" href="generateur.html">✦ Le Mix</a>
+  </header>
 
   <div class="custom-player">
     <audio id="radioAudio" preload="none"></audio>
@@ -293,7 +290,6 @@
   <div class="controls">
     <button class="btn-ghost" id="refreshBtn">Rafraîchir</button>
     <button class="btn-ghost btn-spotify" id="spotifyBtnTop">Créer playlist Spotify</button>
-    <a class="btn-ghost" href="generateur.html">✦ Le Mix</a>
     <span class="count"><b id="countNum">0</b> titres</span>
   </div>
   <div class="status" id="status"></div>
@@ -1427,7 +1423,6 @@ sb.channel('plays-live')
 
 /* Boot : charge l'historique depuis Supabase + gère le retour OAuth Spotify */
 ;(async () => {
-  el("statusDot").classList.add("on")
 
   await loadTrackInfo()  // avant l'affichage, sinon les miniatures repartent sur Deezer
   await loadTracks()
