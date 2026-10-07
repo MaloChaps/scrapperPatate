@@ -99,6 +99,9 @@
   .section-title{margin:0;color:var(--accent);font-family:var(--font-display);font-weight:400;font-size:clamp(36px,9vw,56px);line-height:.95;letter-spacing:-.02em}
   .section-title small{font:400 13px var(--font-mono);letter-spacing:.04em;vertical-align:.9em}
   .profile{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px}
+  .short{display:none;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:14px 0 6px;padding:14px 16px;border:1px solid var(--accent);border-radius:4px;color:var(--accent);font:400 13px var(--font-mono)}
+  .short.on{display:flex}
+  .short p{margin:0;flex:1;min-width:220px}
   .tag{font:400 12px var(--font-mono);padding:3px 9px;border:1px solid var(--line-strong);border-radius:99px;white-space:nowrap}
   .tag--fill{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 
@@ -186,6 +189,10 @@
       <button class="pill-button" id="regen">↻ Régénérer</button>
     </div>
     <div class="profile" id="profile"></div>
+    <div class="short" id="short">
+      <p id="shortText"></p>
+      <button class="pill-button" id="complete">Compléter en assouplissant</button>
+    </div>
     <ol class="tracks" id="list"></ol>
     <div class="create">
       <input class="field" id="plName" placeholder="Nom de la playlist">
@@ -465,7 +472,14 @@ function startSteps() {
   return setInterval(tick, 1000)
 }
 
-async function generate(seeds) {
+/* extra.keep + extra.relax : on garde la sélection affichée et on complète avec des filtres élargis */
+let lastBody = null
+async function generate(seeds, extra = {}) {
+  const body = extra.keep ? { ...lastBody, ...extra } : {
+    seeds, theme: state.theme, niche: state.niche, curve: state.curve, styles: [...state.styles],
+    length: +el("len").value, discovery: el("disc").value / 100
+  }
+  if (!extra.keep) lastBody = body
   el("error").classList.remove('on')
   el("result").classList.remove('on')
   el("loading").classList.add('on')
@@ -475,15 +489,12 @@ async function generate(seeds) {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/build-playlist`, {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        seeds, theme: state.theme, niche: state.niche, curve: state.curve, styles: [...state.styles],
-        length: +el("len").value, discovery: el("disc").value / 100
-      })
+      body: JSON.stringify(body)
     })
     const d = await res.json().catch(() => ({ error: 'réponse illisible (' + res.status + ')' }))
     if (!res.ok || d.error) throw new Error(d.error || 'Erreur ' + res.status)
     result = d
-    resultTheme = state.theme
+    resultTheme = body.theme
     renderResult()
   } catch (e) {
     showError('La génération a échoué : ' + e.message)
@@ -518,6 +529,11 @@ el("go").onclick = async () => {
   if (failed.length) showError(`${failed.length} playlist(s) illisible(s), le mix a été fait avec les autres.`)
 }
 el("regen").onclick = () => lastSeeds && generate(lastSeeds)
+el("complete").onclick = () => {
+  if (!lastBody || !result) return
+  const picked = [...el("list").querySelectorAll('input:checked')].map(c => result.tracks[+c.dataset.i])
+  generate(lastBody.seeds, { keep: picked, relax: true })
+}
 
 const fansLabel = n => n == null ? '' : n < 1000 ? `${n} fans` : n < 1e6 ? `${Math.round(n / 1000)} k fans` : `${(n / 1e6).toFixed(1)} M fans`
 
@@ -527,8 +543,17 @@ function renderResult() {
   el("profile").innerHTML =
     `<span class="tag tag--fill">★ ${result.tracks.length - fresh} de tes playlists</span><span class="tag tag--fill">✦ ${fresh} découvertes</span>` +
     `<span class="tag">${esc(CURVES[result.curve] || CURVES.none)}</span>` +
-    result.profile.map(p => `<span class="tag">${esc(STYLES[p.style] || p.style)} ${p.share} %</span>`).join('') +
-    (result.short ? `<span class="tag">${result.short} titre${result.short > 1 ? 's' : ''} manquant${result.short > 1 ? 's' : ''} : filtres trop stricts</span>` : '')
+    result.profile.map(p => `<span class="tag">${esc(STYLES[p.style] || p.style)} ${p.share} %</span>`).join('')
+  /* Pas assez de titres : on dit pourquoi et on propose de compléter */
+  const s = result.short
+  el("short").classList.toggle('on', s > 0)
+  if (s > 0) {
+    const why = lastBody?.styles?.length && result.rejected?.style >= result.rejected?.niche ? 'les styles choisis' : 'le niveau de rareté'
+    el("shortText").textContent = `Il manque ${s} titre${s > 1 ? 's' : ''} : ${why} ${why.startsWith('les') ? 'écartent' : 'écarte'} trop de titres de ces playlists.` +
+      (result.relaxed ? ' Même en assouplissant, il n\'y en a pas plus : essaie une autre playlist de départ ou un autre style.' : '') +
+      (!result.lastfm && why.startsWith('les') ? ' (Styles déduits de Deezer, approximatifs.)' : '')
+    el("complete").style.display = result.relaxed ? 'none' : ''
+  }
   el("list").innerHTML = result.tracks.map((t, i) => `
     <li><label class="track">
       <input type="checkbox" data-i="${i}" checked>

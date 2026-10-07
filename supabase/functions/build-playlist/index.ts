@@ -33,6 +33,13 @@ const STYLES: Record<string, { tags: string[], deezer: string[] }> = {
 }
 const TAG_TO_STYLES = new Map<string, string[]>()
 for (const [id, s] of Object.entries(STYLES)) for (const t of s.tags) TAG_TO_STYLES.set(t, [...(TAG_TO_STYLES.get(t) || []), id])
+/* Styles voisins : les genres d'album Deezer sont grossiers (beaucoup de funk classé « R&B »),
+   donc un style déduit de Deezer compte aussi pour ses voisins */
+const NEIGHBORS: Record<string, string[]> = {
+  funk: ['soul', 'rnb', 'disco'], soul: ['funk', 'rnb'], rnb: ['soul', 'funk'], disco: ['funk', 'house', 'soul'],
+  house: ['disco'], bresil: ['latin', 'jazz'], latin: ['bresil', 'afro'], hiphop: ['rnb'], chill: ['jazz', 'house'], jazz: ['chill', 'funk'],
+  afro: ['funk', 'jazz', 'latin'], reggae: ['afro'], folk: ['chanson'], chanson: ['folk', 'pop'], rock: ['pop'], pop: ['rnb']
+}
 const fromDeezer = (genres: string[]) => [...new Set(genres.flatMap(g => Object.entries(STYLES).filter(([, s]) => s.deezer.includes(g)).map(([id]) => id)))]
 
 /* ── Thèmes prédéfinis ───────────────────────────────────────── */
@@ -102,7 +109,7 @@ const songKey = (artist: string, title: string) => loose(firstArtist(artist)) + 
 
 type Track = {
   title: string, artist: string, artistId?: number, isrc?: string, uri?: string,
-  deezerId?: number, bpm: number, genres: string[], styles: string[], fans: number | null,
+  deezerId?: number, bpm: number, genres: string[], styles: string[], precise?: boolean, fans: number | null,
   cover: string, rank: number, seed: boolean, score?: number
 }
 
@@ -145,7 +152,7 @@ async function trackFromDeezer(d: any, seed: boolean, extra: Partial<Track> = {}
   ])
   return {
     title: d.title, artist, artistId: d.artist?.id, isrc: d.isrc, deezerId: d.id,
-    bpm: d.bpm || 0, genres, styles: tagStyles.length ? tagStyles : fromDeezer(genres), fans,
+    bpm: d.bpm || 0, genres, styles: tagStyles.length ? tagStyles : fromDeezer(genres), precise: tagStyles.length > 0, fans,
     cover: d.album?.cover_small || '', rank: d.rank || 0, seed, ...extra
   }
 }
@@ -162,7 +169,7 @@ async function resolveSeed(s: { title: string, artist: string, isrc?: string, ur
   }
   if (!d) {
     const styles = await artistStyles(firstArtist(s.artist))
-    return { title: s.title, artist: s.artist, uri: s.uri, isrc: s.isrc, bpm: 0, genres: [], styles, fans: null, cover: '', rank: 0, seed: true }
+    return { title: s.title, artist: s.artist, uri: s.uri, isrc: s.isrc, bpm: 0, genres: [], styles, precise: true, fans: null, cover: '', rank: 0, seed: true }
   }
   return trackFromDeezer(d, true, { title: s.title, artist: s.artist, uri: s.uri, isrc: d.isrc || s.isrc })
 }
@@ -217,7 +224,7 @@ Deno.serve(async req => {
 
   try {
     const { seeds = [], theme = 'libre', length = 30, discovery = 0.5,
-            niche = 'auto', styles: wanted = [], curve: curveIn = 'theme' } = await req.json()
+            niche = 'auto', styles: wanted = [], curve: curveIn = 'theme', relax = false, keep: keepIn = [] } = await req.json()
     const th = THEMES[theme]
     if (!th) return json({ error: 'thème inconnu' }, 400)
     if (!Array.isArray(seeds) || !seeds.length) return json({ error: 'aucun titre de départ' }, 400)
@@ -225,6 +232,11 @@ Deno.serve(async req => {
     const r = Math.min(Math.max(+discovery, 0), 1)
     const wantedStyles = (Array.isArray(wanted) ? wanted : []).filter((s: string) => STYLES[s])
     const curve: Curve = ['rise', 'fall', 'wave', 'none'].includes(curveIn) ? curveIn : th.curve
+    /* Titres déjà retenus (complétion) : gardés tels quels, on ne fait que compléter */
+    const keep: Track[] = (Array.isArray(keepIn) ? keepIn : []).slice(0, N).map((t: Track) => ({
+      ...t, bpm: t.bpm || 0, styles: t.styles || [], genres: t.genres || [], fans: t.fans ?? null,
+      cover: t.cover || '', rank: 0, seed: !!t.seed, score: t.score || 1
+    }))
 
     /* 1. Profil : un échantillon des playlists (jusqu'à 70 titres) */
     const uniqSeeds = [...new Map(seeds.map((s: { artist: string, title: string }) => [songKey(s.artist, s.title), s])).values()]
@@ -236,15 +248,22 @@ Deno.serve(async req => {
     const seedBpm = median(seedTracks.map(t => t.bpm))
     const range: [number, number] = th.bpm || (seedBpm ? [seedBpm - 12, seedBpm + 12] : [90, 120])
     const seedFans = median(seedTracks.map(t => t.fans || 0)) || 10_000
-    const nicheRule = NICHE[niche] || { target: seedFans, min: 0, max: Math.max(50_000, seedFans * 30) }
+    const nicheRule = { ...(NICHE[niche] || { target: seedFans, min: 0, max: Math.max(50_000, seedFans * 30) }) }
 
     const artistCount = new Map<number, number>()
     for (const t of seedTracks) if (t.artistId) artistCount.set(t.artistId, (artistCount.get(t.artistId) || 0) + 1)
     const topArtists = [...artistCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([id]) => id)
 
-    /* 2. Artistes proches (2 niveaux pour aller chercher plus rare), dans la bonne rareté */
+    /* Assouplissement (bouton « Compléter ») : rareté élargie, styles voisins acceptés, un tour de recherche de plus */
+    if (relax) { nicheRule.min = nicheRule.min / 4; nicheRule.max = nicheRule.max * 4 }
+    const fitsNiche = (fans: number | null) => fans === null || (fans >= nicheRule.min && fans <= nicheRule.max)
+
+    /* 2. Artistes proches, dans la bonne rareté */
     const related = new Map<number, { n: number, fans: number }>()
+    const expanded = new Set<number>()
     const addRelated = async (id: number, weight: number) => {
+      if (expanded.has(id)) return
+      expanded.add(id)
       const rel = await deezer(`/artist/${id}/related?limit=12`)
       for (const a of rel?.data || []) {
         if (artistCount.has(a.id)) continue
@@ -253,35 +272,47 @@ Deno.serve(async req => {
       }
     }
     await pool(topArtists, 4, id => addRelated(id, 1))
+    /* 2e niveau pour aller chercher plus rare */
     if (!late() && nicheRule.target < 50_000) {
       const rareOnes = [...related.entries()].filter(([, a]) => a.fans < 60_000).sort((a, b) => b[1].n - a[1].n).slice(0, 10)
       await pool(rareOnes.map(([id]) => id), 4, id => addRelated(id, 0.5))
     }
-    const fitsNiche = (fans: number | null) => fans === null || (fans >= nicheRule.min && fans <= nicheRule.max)
-    const relArtists = [...related.entries()].filter(([, a]) => fitsNiche(a.fans)).sort((a, b) => b[1].n - a[1].n).slice(0, 32)
-    const maxRel = relArtists[0]?.[1].n || 1
 
-    const seen = new Set(seedTracks.map(t => songKey(t.artist, t.title)))
-    const candIds: { id: number, affinity: number, fans: number | null }[] = []
-    const sources = [
-      ...relArtists.map(([id, a]) => ({ id, affinity: 0.4 + 0.5 * a.n / maxRel, fans: a.fans as number | null, top: 3 })),
-      ...topArtists.map(id => ({ id, affinity: 0.9, fans: null as number | null, top: 4 }))
-    ]
-    await pool(sources, 4, async a => {
-      if (late()) return
-      const top = await deezer(`/artist/${a.id}/top?limit=${a.top}`)
-      for (const t of top?.data || []) {
-        const k = songKey(t.artist?.name, t.title)
-        if (seen.has(k)) continue
-        seen.add(k)
-        candIds.push({ id: t.id, affinity: a.affinity, fans: a.fans })
-      }
-    })
-    const candidates = (await pool(candIds, 6, async c => {
-      if (late()) return null
-      const d = await deezer(`/track/${c.id}`)
-      return d ? { t: await trackFromDeezer(d, false, c.fans !== null ? { fans: c.fans } : {}), affinity: c.affinity } : null
-    })).filter(Boolean) as { t: Track, affinity: number }[]
+    /* Titres phares d'une liste d'artistes → candidats notés (sans doublon) */
+    const seen = new Set([...seedTracks, ...keep].map(t => songKey(t.artist, t.title)))
+    const harvested = new Set<number>()
+    const candidates: { t: Track, affinity: number }[] = []
+    let nicheRejected = 0
+    async function harvest(list: { id: number, affinity: number, fans: number | null, top: number }[]) {
+      const ids: { id: number, affinity: number, fans: number | null }[] = []
+      await pool(list.filter(a => !harvested.has(a.id)), 4, async a => {
+        harvested.add(a.id)
+        if (late()) return
+        const top = await deezer(`/artist/${a.id}/top?limit=${a.top}`)
+        for (const t of top?.data || []) {
+          const k = songKey(t.artist?.name, t.title)
+          if (seen.has(k)) continue
+          seen.add(k)
+          ids.push({ id: t.id, affinity: a.affinity, fans: t.artist?.id === a.id ? a.fans : null })
+        }
+      })
+      const found = (await pool(ids, 6, async c => {
+        if (late()) return null
+        const d = await deezer(`/track/${c.id}`)
+        return d ? { t: await trackFromDeezer(d, false, c.fans !== null ? { fans: c.fans } : {}), affinity: c.affinity } : null
+      })).filter(Boolean) as { t: Track, affinity: number }[]
+      for (const c of found) scoreCandidate(c)
+      candidates.push(...found)
+      return found.map(c => c.t)
+    }
+    const relatedSources = (limit: number) => {
+      const all = [...related.entries()].filter(([id]) => !harvested.has(id))
+      const ok = all.filter(([, a]) => fitsNiche(a.fans))
+      nicheRejected += all.length - ok.length
+      const maxRel = Math.max(1, ...ok.map(([, a]) => a.n))
+      return ok.sort((a, b) => b[1].n - a[1].n).slice(0, limit)
+        .map(([id, a]) => ({ id, affinity: 0.4 + 0.5 * a.n / maxRel, fans: a.fans as number | null, top: 3 }))
+    }
 
     /* 3. Score : thème (tempo + styles), proximité avec les playlists, rareté */
     const styleFit = (st: string[]) => {
@@ -295,21 +326,30 @@ Deno.serve(async req => {
       ? 0.55 * bpmFit(t.bpm, range) + 0.45 * styleFit(t.styles)
       : 0.4 * bpmFit(t.bpm, range) + 0.6 * profileFit(t.styles)
     const nicheFit = (fans: number | null) => fans ? Math.max(0, 1 - Math.abs(Math.log10(fans) - Math.log10(nicheRule.target)) / 2.5) : 0.5
-
-    for (const t of seedTracks) t.score = 0.6 * themeFit(t) + 0.4
-    for (const { t, affinity } of candidates) {
+    function scoreCandidate({ t, affinity }: { t: Track, affinity: number }) {
       t.score = 0.35 * themeFit(t) + 0.25 * affinity + 0.2 * profileFit(t.styles) + 0.2 * nicheFit(t.fans)
-      if (th.bpm && styleFit(t.styles) === 0) t.score *= 0.3
+      if (th.bpm && styleFit(t.styles) === 0) t.score *= relax ? 0.7 : 0.3
     }
+    for (const t of seedTracks) t.score = 0.6 * themeFit(t) + 0.4
 
-    /* 4. Styles choisis : seuls les titres qui en font partie (quitte à rendre une playlist plus courte) */
-    const styleOk = (t: Track) => !wantedStyles.length || t.styles.some(s => wantedStyles.includes(s))
+    await harvest([
+      ...relatedSources(32),
+      ...topArtists.map(id => ({ id, affinity: 0.9, fans: null as number | null, top: 4 }))
+    ])
+
+    /* 4. Styles choisis : seuls les titres qui en font partie (jamais ceux au style inconnu) */
+    const exactStyle = (t: Track) => t.styles.some(s => wantedStyles.includes(s))
+    const nearStyle = (t: Track) => (relax || !t.precise) && t.styles.some(s => wantedStyles.some(w => NEIGHBORS[w]?.includes(s)))
+    const styleOk = (t: Track) => (t.seed || fitsNiche(t.fans)) && (!wantedStyles.length || exactStyle(t) || nearStyle(t))
+    /* Style certain d'abord : un titre retenu seulement par voisinage passe après */
+    const rank = (t: Track) => (t.score || 0) + (wantedStyles.length && exactStyle(t) ? 0.15 : 0)
 
     /* 5. Sélection : part de découvertes demandée, 2 titres max par artiste */
     const perArtist = new Map<string, number>()
+    for (const t of keep) { const a = loose(firstArtist(t.artist)); perArtist.set(a, (perArtist.get(a) || 0) + 1) }
     const pick = (list: Track[], n: number) => {
       const out: Track[] = []
-      for (const t of [...list].sort((a, b) => (b.score || 0) - (a.score || 0))) {
+      for (const t of [...list].sort((a, b) => rank(b) - rank(a))) {
         if (out.length >= n) break
         const a = loose(firstArtist(t.artist))
         if ((perArtist.get(a) || 0) >= 2) continue
@@ -318,15 +358,29 @@ Deno.serve(async req => {
       }
       return out
     }
-    const candTracks = candidates.map(c => c.t)
-    const nNew = Math.round(N * r)
-    const fresh = pick(candTracks.filter(styleOk), nNew)
-    const fromSeeds = pick(seedTracks.filter(styleOk), N - fresh.length)
-    const chosen = [...fromSeeds, ...fresh]
-    if (chosen.length < N) chosen.push(...pick(candTracks.filter(t => styleOk(t) && !chosen.includes(t)), N - chosen.length))
+    const chosen: Track[] = [...keep]
+    const need = () => N - chosen.length
+    const nNew = Math.max(0, Math.round(N * r) - keep.filter(t => !t.seed).length)
+    chosen.push(...pick(candidates.map(c => c.t).filter(styleOk), Math.min(nNew, need())))
+    const keepKeys = new Set(keep.map(t => songKey(t.artist, t.title)))
+    chosen.push(...pick(seedTracks.filter(t => styleOk(t) && !chosen.includes(t) && !keepKeys.has(songKey(t.artist, t.title))), need()))
+    if (need() > 0) chosen.push(...pick(candidates.map(c => c.t).filter(t => styleOk(t) && !chosen.includes(t)), need()))
 
+    /* 6. Il en manque : on creuse autour des artistes qui passent les filtres (2 tours, 3 en assouplissant) */
+    let rounds = 0
+    while (need() > 0 && rounds < (relax ? 3 : 2) && !late()) {
+      rounds++
+      const anchors = [...new Set([...chosen, ...candidates.map(c => c.t)].filter(styleOk).map(t => t.artistId).filter(Boolean) as number[])]
+        .filter(id => !expanded.has(id)).slice(0, 12)
+      if (!anchors.length) break
+      await pool(anchors, 4, id => addRelated(id, 0.7))
+      const fresh = await harvest(relatedSources(24))
+      chosen.push(...pick(fresh.filter(styleOk), need()))
+    }
+
+    const styleRejected = candidates.filter(c => !styleOk(c.t)).length + seedTracks.filter(t => !styleOk(t)).length
     const tracks = order(chosen, curve, range).map(t => ({
-      title: t.title, artist: t.artist, isrc: t.isrc || null, uri: t.uri || null,
+      title: t.title, artist: t.artist, artistId: t.artistId || null, isrc: t.isrc || null, uri: t.uri || null,
       deezerId: t.deezerId || null, bpm: Math.round(effBpm(t.bpm, range)) || null,
       styles: t.styles, genres: t.genres, fans: t.fans, cover: t.cover, seed: t.seed,
       score: Math.round((t.score || 0) * 100) / 100
@@ -334,8 +388,8 @@ Deno.serve(async req => {
     const profile = [...styleShare.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([style, s]) => ({ style, share: Math.round(s * 100) }))
     return json({
       tracks, profile, curve, bpm: seedBpm ? Math.round(seedBpm) : null, fans: seedFans,
-      analysed: seedTracks.length, candidates: candidates.length, lastfm: !!LASTFM_KEY,
-      short: tracks.length < N ? N - tracks.length : 0, ms: Date.now() - t0
+      analysed: seedTracks.length, candidates: candidates.length, lastfm: !!LASTFM_KEY, relaxed: !!relax, rounds,
+      short: Math.max(0, N - tracks.length), rejected: { style: styleRejected, niche: nicheRejected }, ms: Date.now() - t0
     })
   } catch (e) {
     return json({ error: String(e) }, 500)
