@@ -117,53 +117,46 @@
   .empty{padding:40px 20px;text-align:center;color:var(--cream-dim);background:var(--card)}
   .empty b{color:var(--cream);font-family:var(--font-display);font-weight:500}
 
+  /* Fenêtre « Créer une playlist » : même logique que Le Mix (pastilles pleines, coches, gros bouton en bas) */
   .modal-overlay{
-    position:fixed;inset:0;background:color-mix(in srgb, var(--wine) 92%, transparent);backdrop-filter:blur(6px);
+    position:fixed;inset:0;background:color-mix(in srgb, var(--wine) 88%, transparent);backdrop-filter:blur(6px);
     display:flex;align-items:center;justify-content:center;z-index:100;
     opacity:0;pointer-events:none;transition:opacity .2s;
   }
   .modal-overlay.open{opacity:1;pointer-events:all}
   .modal{
     background:var(--wine);border:1px solid var(--cream);border-radius:4px;
-    width:min(520px,92vw);max-height:82vh;display:flex;flex-direction:column;
-    overflow:hidden;transform:translateY(14px);transition:transform .22s;
-    position:relative;
+    width:min(640px,94vw);height:min(88vh,900px);display:flex;flex-direction:column;
+    overflow:hidden;transform:translateY(14px);transition:transform .22s;position:relative;
   }
   .modal-overlay.open .modal{transform:translateY(0)}
-  .modal-header{padding:20px 22px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
-  .modal-header h2{font-family:var(--font-display);font-size:24px;font-weight:400;flex:1;line-height:1.1}
-  .modal-close{background:transparent;border:1px solid var(--line);color:var(--cream-dim);font-size:16px;cursor:pointer;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;padding:0;flex-shrink:0}
-  .modal-selall{display:flex;align-items:center;gap:10px;padding:11px 22px;border-bottom:1px solid var(--line);font-size:13px;color:var(--cream-dim)}
-  .modal-selall label{display:flex;align-items:center;gap:9px;cursor:pointer;flex:1}
-  .modal-selall input{accent-color:var(--amber);width:15px;height:15px;cursor:pointer;flex-shrink:0}
-  .selall-count{font-family:var(--font-mono);font-size:11px;color:var(--cream-dim);opacity:.55;flex-shrink:0}
+  .modal-header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+  .modal-header h2{font-family:var(--font-display);font-size:30px;font-weight:400;flex:1;line-height:1;color:var(--amber)}
+  .modal-close{background:transparent;border:1px solid var(--cream);color:var(--cream);font-size:15px;border-radius:50%;width:36px;height:36px;display:grid;place-items:center;padding:0;flex-shrink:0}
+  .modal-body{flex:1;overflow-y:auto;overscroll-behavior:contain}
 
-  .modal-filters{padding:14px 22px 12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
-  .filter-group{display:flex;align-items:flex-start;gap:10px}
-  .filter-group-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--cream-dim);opacity:.38;flex-shrink:0;width:58px;padding-top:8px}
-  .filter-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1}
-  .filter-chip{font-family:var(--font-mono);font-size:13px;font-weight:500;padding:6px 14px;border-radius:999px;border:1px solid var(--line);color:var(--cream-dim);background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
-  .filter-chip:hover{border-color:color-mix(in srgb, var(--cream) 35%, transparent);color:var(--cream);background:var(--card)}
-  .filter-chip.active{background:var(--amber);color:var(--wine);border-color:var(--amber);font-weight:700}
-  .filter-chip.genre{border-color:color-mix(in srgb, var(--pink) 35%, transparent);color:color-mix(in srgb, var(--pink) 80%, transparent)}
-  .filter-chip.genre:hover{border-color:var(--pink);color:var(--pink);background:color-mix(in srgb, var(--pink) 8%, transparent)}
-  .filter-chip.genre.active{background:var(--pink);color:var(--wine);border-color:var(--pink)}
-  .filter-chip.src{border-color:color-mix(in srgb, var(--pink) 40%, transparent);color:color-mix(in srgb, var(--pink) 90%, transparent)}
-  .filter-chip.src:hover{border-color:var(--pink);color:var(--pink);background:color-mix(in srgb, var(--pink) 8%, transparent)}
-  .filter-chip.src.active{background:var(--pink);color:var(--wine);border-color:var(--pink)}
+  .modal-filters{padding:6px 20px 16px;display:flex;flex-direction:column;gap:14px;border-bottom:1px solid var(--line)}
+  .filter-group{display:flex;flex-direction:column;gap:8px}
+  .filter-group-label{font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;padding-top:10px}
+  .filter-chips{display:flex;flex-wrap:wrap;gap:8px}
+  .filter-chip{display:inline-flex;align-items:center;min-height:36px;padding:7px 14px;border:0;border-radius:999px;background:var(--field);color:var(--cream);font:400 14px var(--font-mono);letter-spacing:0;white-space:nowrap;transition:background-color .2s,color .2s}
+  .filter-chip.active{background:var(--cream);color:var(--wine)}
+  .filter-chip small{margin-left:7px;font-size:12px;opacity:.6}
+  @media (hover:hover){.filter-chip:hover{background:var(--cream);color:var(--wine)}}
   .filter-chip.src.loading{opacity:.55;cursor:wait}
   .src-del{margin-left:8px;opacity:.6}
   .src-del:hover{opacity:1}
-  .src-add{display:flex;gap:6px;flex:1 1 240px;min-width:0}
-  .src-add input{flex:1;min-width:0;font-family:var(--font-mono);font-size:13px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--cream)}
-  .src-add input::placeholder{color:var(--cream-dim);opacity:.5}
-  .src-msg{width:100%;font-size:12px;color:var(--cream-dim);opacity:.75}
+  .src-add{display:flex;gap:8px;flex:1 1 260px;min-width:0}
+  .src-add input{flex:1;min-width:0;padding:8px 16px;border:0;border-radius:999px;background:var(--field);color:var(--cream);font:400 16px var(--font-mono);outline:none}
+  .src-add input::placeholder{color:var(--cream);opacity:.6}
+  .src-msg{width:100%;font:400 12px var(--font-mono);opacity:.8}
+  .src-msg:empty{display:none}
 
   .modal-loader{
     position:absolute;inset:0;background:color-mix(in srgb, var(--wine) 96%, transparent);
     backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
     display:flex;align-items:center;justify-content:center;
-    border-radius:22px;z-index:10;
+    z-index:10;
     opacity:0;pointer-events:none;transition:opacity .22s;
   }
   .modal-loader.active{opacity:1;pointer-events:all}
@@ -195,17 +188,25 @@
   .loader-yt-icon{font-size:10px;flex-shrink:0;color:#FF0000;opacity:.6}
   .loader-yt-info{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 
-  .modal-tracks{overflow-y:auto;flex:1}
-  .modal-track{display:flex;align-items:center;gap:12px;padding:10px 22px;cursor:pointer;transition:background .12s}
-  .modal-track:hover{background:var(--card)}
-  .mt-plays{font-family:var(--font-mono);font-size:11px;opacity:.55}
-  .modal-track input[type=checkbox]{accent-color:var(--amber);width:15px;height:15px;flex-shrink:0;cursor:pointer}
-  .mt-thumb{width:38px;height:38px;border-radius:6px;background:var(--card);border:1px solid var(--line);background-size:cover;background-position:center;flex-shrink:0}
+  .modal-selall{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:12px 20px;background:var(--wine);border-bottom:1px solid var(--line);font:400 13px var(--font-mono)}
+  .modal-selall label{display:flex;align-items:center;gap:10px;cursor:pointer;flex:1}
+  .modal-selall input{accent-color:var(--cream);width:18px;height:18px;cursor:pointer;flex-shrink:0}
+  .selall-count{font:400 12px var(--font-mono);opacity:.7;flex-shrink:0}
+
+  .modal-track{display:flex;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;-webkit-user-select:none;transition:opacity .15s}
+  .modal-track input{position:absolute;opacity:0;pointer-events:none}
+  .modal-track:has(input:not(:checked)){opacity:.4}
+  @media (hover:hover){.modal-track:hover{background:var(--card)}}
+  .mt-check{width:22px;height:22px;flex-shrink:0;border:1px solid var(--cream);border-radius:50%;display:grid;place-items:center;font:500 12px var(--font-mono)}
+  .modal-track input:checked + .mt-check::after{content:'✓'}
+  .mt-plays{font:400 11px var(--font-mono);opacity:.6}
+  .mt-thumb{width:40px;height:40px;border-radius:4px;background:var(--field) center/cover;flex-shrink:0}
   .mt-info{min-width:0;flex:1}
-  .mt-title{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .mt-artist{font-size:12px;color:var(--cream-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-  .modal-footer{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center}
-  .modal-sel-count{font-family:var(--font-mono);font-size:12px;color:var(--cream-dim);flex:1}
+  .mt-title{font-family:var(--font-display);font-size:20px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mt-artist{font:400 12px var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+  .modal-footer{padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--wine)}
+  .modal-cta{width:100%;min-height:52px;padding:14px 22px;border:0;border-radius:999px;background:var(--cream);color:var(--wine);font:500 14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+  .modal-cta:disabled{opacity:.4;cursor:default}
 
   .hour-sep{padding:10px 16px 6px;display:flex;align-items:center;gap:10px;background:transparent}
   .hour-sep .hour-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);white-space:nowrap}
@@ -237,8 +238,15 @@
     .export{flex-direction:column}
     .export button{border-radius:12px;text-align:center;justify-content:center}
 
-    /* Modal */
-    .modal-track{padding:10px 14px}
+    /* Fenêtre plein écran, rangées de choix uniques qui défilent */
+    .modal-overlay{align-items:stretch}
+    .modal{width:100%;height:100dvh;border:0;border-radius:0}
+    .modal-header{padding-top:calc(14px + env(safe-area-inset-top))}
+    .modal-header,.modal-filters,.modal-selall,.modal-track,.modal-footer{padding-left:16px;padding-right:16px}
+    .filter-chip{min-height:40px;padding:8px 15px}
+    .filter-chips--scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 4px}
+    .filter-chips--scroll::-webkit-scrollbar{display:none}
+    .filter-chips--scroll .filter-chip{flex-shrink:0}
 
     /* Header */
     h1{font-size:clamp(34px,10vw,60px)}
@@ -301,58 +309,58 @@
   </div>
 
   <div class="modal-overlay" id="playlistModal">
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal-header">
-        <h2>Créer une playlist Spotify</h2>
-        <button class="modal-close" id="modalClose">✕</button>
+        <h2 id="modalTitle">Créer une playlist</h2>
+        <button class="modal-close" id="modalClose" aria-label="Fermer">✕</button>
       </div>
-      <div class="modal-filters" id="modalFilters">
-        <div class="filter-group">
-          <span class="filter-group-label">Période</span>
-          <div class="filter-chips">
-            <button class="filter-chip" data-filter="4h">4 h</button>
-            <button class="filter-chip" data-filter="12h">12 h</button>
-            <button class="filter-chip" data-filter="24h">24 h</button>
-            <button class="filter-chip" data-filter="tout">Tout</button>
+      <div class="modal-body">
+        <div class="modal-filters" id="modalFilters">
+          <div class="filter-group">
+            <span class="filter-group-label">Période</span>
+            <div class="filter-chips filter-chips--scroll" data-single>
+              <button class="filter-chip" data-filter="4h">4 h</button>
+              <button class="filter-chip" data-filter="12h">12 h</button>
+              <button class="filter-chip" data-filter="24h">24 h</button>
+              <button class="filter-chip" data-filter="tout">Tout</button>
+            </div>
+          </div>
+          <div class="filter-group">
+            <span class="filter-group-label">Ambiance</span>
+            <div class="filter-chips filter-chips--scroll">
+              <button class="filter-chip" data-filter="matin">Matin</button>
+              <button class="filter-chip" data-filter="aprem">Aprem</button>
+              <button class="filter-chip" data-filter="apero">Apéro</button>
+              <button class="filter-chip" data-filter="nuit">Nuit</button>
+            </div>
+          </div>
+          <div class="filter-group" id="genreGroup" style="display:none">
+            <span class="filter-group-label">Styles</span>
+            <div class="filter-chips" id="genreChips"></div>
+          </div>
+          <div class="filter-group">
+            <span class="filter-group-label">Ajouter tes playlists</span>
+            <div class="filter-chips">
+              <span id="srcChips" style="display:contents"></span>
+              <form class="src-add" id="srcAdd">
+                <input id="srcInput" placeholder="Lien de playlist Spotify" autocomplete="off" inputmode="url">
+                <button class="filter-chip" type="submit">Ajouter</button>
+              </form>
+              <span class="src-msg" id="srcMsg"></span>
+            </div>
           </div>
         </div>
-        <div class="filter-group">
-          <span class="filter-group-label">Ambiance</span>
-          <div class="filter-chips">
-            <button class="filter-chip" data-filter="matin">🌅 Matin</button>
-            <button class="filter-chip" data-filter="aprem">☀️ Aprem</button>
-            <button class="filter-chip" data-filter="apero">🍷 Apéro</button>
-            <button class="filter-chip" data-filter="nuit">🌙 Nuit</button>
-          </div>
+        <div class="modal-selall">
+          <label>
+            <input type="checkbox" id="selAll" checked>
+            Tout sélectionner
+          </label>
+          <span class="selall-count" id="bcCount"></span>
         </div>
-        <div class="filter-group" id="genreGroup" style="display:none">
-          <span class="filter-group-label">Genre</span>
-          <div class="filter-chips" id="genreChips"></div>
-        </div>
-        <div class="filter-group">
-          <span class="filter-group-label">Playlists</span>
-          <div class="filter-chips">
-            <span id="srcChips" style="display:contents"></span>
-            <form class="src-add" id="srcAdd">
-              <input id="srcInput" placeholder="Lien d'une playlist Spotify" autocomplete="off">
-              <button class="filter-chip" type="submit">+ Ajouter</button>
-            </form>
-            <span class="src-msg" id="srcMsg"></span>
-          </div>
-        </div>
+        <div class="modal-tracks" id="modalTracks"></div>
       </div>
-      <div class="modal-selall">
-        <label>
-          <input type="checkbox" id="selAll" checked>
-          Tout sélectionner
-        </label>
-        <span class="selall-count" id="bcCount"></span>
-      </div>
-      <div class="modal-tracks" id="modalTracks"></div>
       <div class="modal-footer">
-        <span class="modal-sel-count" id="modalSelCount"></span>
-        <button class="btn-ghost" id="modalCancel">Annuler</button>
-        <button class="btn-ghost btn-spotify" id="modalConfirm">Créer la playlist</button>
+        <button class="modal-cta" id="modalConfirm">Créer sur Spotify</button>
       </div>
       <div class="modal-loader" id="modalLoader">
         <div class="loader-inner">
@@ -932,7 +940,7 @@ async function createSpotifyPlaylist(selectedTracks) {
   try {
     lStep('Création de la playlist…', 8)
     const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-    const activeLabels = [...activeFilters].map(f => FILTER_LABELS[f] || f).join(', ')
+    const activeLabels = [...activeFilters].filter(f => f !== 'tout').map(f => FILTER_LABELS[f] || STYLE_LABELS[f] || f).join(', ')
     const srcNames     = savedSources.filter(s => activeSources.has(s.id)).map(s => s.name)
     const nameParts    = [activeLabels, ...srcNames].filter(Boolean).join(' + ')
     const playlistName = nameParts ? `${nameParts} · ${date}` : date
@@ -1062,6 +1070,21 @@ function trackMoods(hours) {
   return []
 }
 
+/* Genres bruts (Deezer, anciens iTunes : « R&B/Soul », « Hip-Hop/Rap »…) → styles lisibles */
+const STYLE_RULES = [
+  ['funk', 'Funk', /funk/i], ['soul', 'Soul', /soul/i], ['rnb', 'R&B', /r&b|rnb|rhythm/i],
+  ['disco', 'Disco & boogie', /disco|boogie/i], ['jazz', 'Jazz & blues', /jazz|blues/i],
+  ['afro', 'Afro', /afro|africa/i], ['bresil', 'Brésil', /brésil|bresil|mpb|samba|bossa/i],
+  ['latin', 'Latin', /latin|salsa|bolero|cumbia|reggaeton|tropical/i],
+  ['house', 'House & électro', /electro|house|techno|dance/i], ['hiphop', 'Hip-hop', /hip.?hop|\brap\b/i],
+  ['reggae', 'Reggae & dub', /reggae|\bdub\b|\bska\b/i], ['rock', 'Rock & indé', /rock|alternative|indé|indie|metal|punk/i],
+  ['pop', 'Pop', /pop/i], ['folk', 'Folk & country', /folk|country|singer/i],
+  ['chanson', 'Chanson', /chanson|variété|french/i], ['monde', 'Monde', /asiati|indienne|arabe|world|j-pop|k-pop/i],
+  ['bo', 'Classique & BO', /classi|film|soundtrack/i]
+]
+const STYLE_LABELS = Object.fromEntries(STYLE_RULES.map(([id, label]) => [id, label]))
+const stylesOf = genres => STYLE_RULES.filter(([, , re]) => genres.some(g => re.test(g))).map(([id]) => id)
+
 function visibleRows() {
   return [...document.querySelectorAll('.modal-track')].filter(r => r.style.display !== 'none')
 }
@@ -1074,7 +1097,7 @@ const FILTER_LABELS = {
 function updateBreadcrumb() {
   const total   = modalList.filter(t => !t.src || activeSources.has(t.src)).length
   const visible = visibleRows().length
-  el("bcCount").textContent = activeFilters.size
+  el("bcCount").textContent = [...activeFilters].some(f => f !== 'tout')
     ? `${visible} / ${total}`
     : `${total} titre${total !== 1 ? 's' : ''}`
 }
@@ -1083,7 +1106,7 @@ function updateModalCount() {
   const rows    = visibleRows()
   const checked = rows.filter(r => r.querySelector('.sp-pick')?.checked).length
   const total   = rows.length
-  el("modalSelCount").textContent = `${checked} titre${checked !== 1 ? 's' : ''} sélectionné${checked !== 1 ? 's' : ''}`
+  el("modalConfirm").textContent = `Créer sur Spotify · ${checked} titre${checked !== 1 ? 's' : ''}`
   el("modalConfirm").disabled    = checked === 0
   el("selAll").indeterminate     = checked > 0 && checked < total
   el("selAll").checked           = total > 0 && checked === total
@@ -1097,7 +1120,7 @@ function rowMatchesFilters(t, idx) {
   const f = [...activeFilters]
   const periods = f.filter(x => PERIOD_HOURS[x])
   const moods   = f.filter(x => MOOD_HOURS[x])
-  const genres  = f.filter(x => !FILTER_LABELS[x])
+  const genres  = f.filter(x => STYLE_LABELS[x])
   const tg      = trackGenres.get(idx) || []
   const genreOk = !genres.length || genres.some(g => tg.includes(g))
   if (t.src) return activeSources.has(t.src) && genreOk
@@ -1112,7 +1135,7 @@ function updateMoodCounts() {
     const m = chip.dataset.filter
     if (!MOOD_HOURS[m]) return
     chip.dataset.label ??= chip.textContent
-    chip.textContent = `${chip.dataset.label} · ${modalList.filter(t => t.moods.includes(m)).length}`
+    chip.innerHTML = `${esc(chip.dataset.label)}<small>${modalList.filter(t => t.moods.includes(m)).length}</small>`
   })
 }
 
@@ -1127,12 +1150,14 @@ function applyFilters() {
   updateBreadcrumb()
 }
 
+/* Styles présents, du plus fréquent au moins fréquent, avec leur nombre de titres */
 function renderGenreChips() {
-  const genres = [...new Set([...trackGenres.values()].flat())].sort((a, b) => a.localeCompare(b, 'fr'))
-  if (!genres.length) return
+  const counts = new Map()
+  for (const st of trackGenres.values()) for (const g of st) counts.set(g, (counts.get(g) || 0) + 1)
+  if (!counts.size) return
   el("genreGroup").style.display = ''
-  el("genreChips").innerHTML = genres.map(g =>
-    `<button class="filter-chip genre${activeFilters.has(g) ? ' active' : ''}" data-filter="${esc(g)}">${esc(g)}</button>`
+  el("genreChips").innerHTML = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([g, n]) =>
+    `<button class="filter-chip${activeFilters.has(g) ? ' active' : ''}" data-filter="${g}">${esc(STYLE_LABELS[g])}<small>${n}</small></button>`
   ).join('')
 }
 
@@ -1154,7 +1179,8 @@ async function loadGenresForModal(session, from = 0, onProgress = () => {}) {
     const info = await trackInfo(t)
     if (session !== modalSession) return
     if (info.art && !t.art && thumbs[i]) thumbs[i].style.backgroundImage = `url(${info.art})`
-    if (info.genre) { trackGenres.set(i, genresOf(info)); scheduleRefresh() }
+    const st = stylesOf(genresOf(info))
+    if (st.length) { trackGenres.set(i, st); scheduleRefresh() }
     onProgress(++done, modalList.length - from)
   }))
   if (session === modalSession) { renderGenreChips(); if (activeFilters.size) applyFilters() }
@@ -1187,11 +1213,12 @@ function modalRowHtml(t, i) {
             : t.plays > 1 ? ` <span class="mt-plays">×${t.plays}</span>` : ''
   return `<label class="modal-track">
     <input type="checkbox" class="sp-pick" data-idx="${i}" checked>
-    <div class="mt-thumb" style="${art ? `background-image:url(${art})` : ''}"></div>
-    <div class="mt-info">
-      <div class="mt-title">${esc(t.title)}</div>
-      <div class="mt-artist">${esc(t.artist)||'&nbsp;'}${tag}</div>
-    </div>
+    <span class="mt-check" aria-hidden="true"></span>
+    <span class="mt-thumb" style="${art ? `background-image:url(${art})` : ''}"></span>
+    <span class="mt-info">
+      <span class="mt-title" style="display:block">${esc(t.title)}</span>
+      <span class="mt-artist" style="display:block">${esc(t.artist)||'&nbsp;'}${tag}</span>
+    </span>
   </label>`
 }
 
@@ -1207,6 +1234,8 @@ async function showPlaylistModal() {
   loadedSources.clear()
   trackGenres = new Map()
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'))
+  activeFilters.add('tout')
+  document.querySelector('.filter-chip[data-filter="tout"]').classList.add('active')
   el("genreGroup").style.display  = 'none'
   el("genreChips").innerHTML    = ''
   el("srcMsg").textContent      = ''
@@ -1333,9 +1362,18 @@ el("srcChips").addEventListener('click', e => {
 el("modalFilters").addEventListener('click', e => {
   const chip = e.target.closest('.filter-chip[data-filter]')
   if (!chip) return
-  chip.classList.toggle('active')
   const f = chip.dataset.filter
-  activeFilters.has(f) ? activeFilters.delete(f) : activeFilters.add(f)
+  /* Période : un seul choix (4 h est déjà compris dans 24 h) */
+  if (chip.parentElement.hasAttribute('data-single')) {
+    chip.parentElement.querySelectorAll('.filter-chip').forEach(c => {
+      c.classList.toggle('active', c === chip)
+      if (c !== chip) activeFilters.delete(c.dataset.filter)
+    })
+    activeFilters.add(f)
+  } else {
+    chip.classList.toggle('active')
+    activeFilters.has(f) ? activeFilters.delete(f) : activeFilters.add(f)
+  }
   applyFilters()
 })
 
@@ -1350,7 +1388,7 @@ el("playlistModal").addEventListener('click', e => {
   if (e.target === el("playlistModal")) el("playlistModal").classList.remove("open")
 })
 
-el("modalClose").onclick = el("modalCancel").onclick = () => {
+el("modalClose").onclick = () => {
   el("playlistModal").classList.remove("open")
 }
 
