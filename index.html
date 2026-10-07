@@ -497,10 +497,10 @@ function render() {
   })
   list.innerHTML = html
 
-  /* Miniatures iTunes : depuis le cache, sinon au défilement */
+  /* Miniatures : depuis le cache, sinon au défilement */
   thumbObserver.disconnect()
   list.querySelectorAll('[data-thumb]').forEach(node => {
-    const art = itunesCache.get(trackKey(tracks[+node.dataset.thumb]))?.art
+    const art = infoCache.get(trackKey(tracks[+node.dataset.thumb]))?.art
     if (art) node.style.backgroundImage = `url(${art})`
     else thumbObserver.observe(node)
   })
@@ -554,7 +554,7 @@ async function loadTrackInfo() {
     const { data, error } = await sb.from('track_info')
       .select('artist, title, genre, art').order('key').range(from, from + PAGE - 1)
     if (error || !data) return
-    for (const r of data) itunesCache.set(trackKey(r), { art: r.art, genre: r.genre })
+    for (const r of data) infoCache.set(trackKey(r), { art: r.art, genre: r.genre })
     if (data.length < PAGE) return
   }
 }
@@ -678,97 +678,108 @@ el("radioPlayBtn").onclick = () => {
 }
 /* ────────────────────────────────────────────────────────────── */
 
-/* ── iTunes (miniature + genre) ─────────────────────────────── */
-/* Une seule requête par titre, file d'attente limitée (iTunes bloque les rafales)
-   et cache persistant dans le navigateur pour ne pas tout refaire à chaque visite */
-const ITUNES_STORE = 'itunes_cache_v2'  // v2 : genre vérifié (artiste concordant)
-try { localStorage.removeItem('itunes_cache_v1') } catch {}
-const ITUNES_CONCURRENCY = 4
+/* ── Deezer (miniature + genres) ────────────────────────────── */
+/* Normalement déjà fournis par la table track_info (remplie côté serveur) ;
+   sinon une requête par titre, file d'attente limitée + cache persistant dans le navigateur */
+const INFO_STORE = 'track_info_cache_v3'  // v3 : Deezer
+try { ['itunes_cache_v1', 'itunes_cache_v2'].forEach(k => localStorage.removeItem(k)) } catch {}
+const INFO_CONCURRENCY = 4
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const trackKey = t => `${norm(t.artist)}|${norm(t.title)}`
 
-const itunesCache = new Map((() => {
-  try { return Object.entries(JSON.parse(localStorage.getItem(ITUNES_STORE)) || {}) } catch { return [] }
+const infoCache = new Map((() => {
+  try { return Object.entries(JSON.parse(localStorage.getItem(INFO_STORE)) || {}) } catch { return [] }
 })())
-let itunesSaveTimer
-function saveItunesCache() {
-  clearTimeout(itunesSaveTimer)
-  itunesSaveTimer = setTimeout(() => {
-    try { localStorage.setItem(ITUNES_STORE, JSON.stringify(Object.fromEntries(itunesCache))) } catch {}
+let infoSaveTimer
+function saveInfoCache() {
+  clearTimeout(infoSaveTimer)
+  infoSaveTimer = setTimeout(() => {
+    try { localStorage.setItem(INFO_STORE, JSON.stringify(Object.fromEntries(infoCache))) } catch {}
   }, 1000)
 }
 
-const itunesQueue   = []
-const itunesPending = new Map()
-let   itunesWorkers = 0
-let   itunesPauseUntil = 0
-let   itunesFailStreak = 0  // trop d'échecs de suite → iTunes nous bloque, on abandonne la file
+const infoQueue   = []
+const infoPending = new Map()
+let   infoWorkers = 0
+let   infoPauseUntil = 0
+let   infoFailStreak = 0  // trop d'échecs de suite → Deezer nous bloque, on abandonne la file
 
-async function itunesSearch(term) {
-  const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=5`)
-  if (!res.ok) throw new Error('iTunes ' + res.status)
-  return (await res.json()).results || []
-}
-
-/* Résultat iTunes qui correspond vraiment au titre : même artiste (et titre proche si pas d'artiste) */
-const VAGUE_GENRES = new Set(['music', 'musique'])
-function itunesMatch(results, t) {
-  const la = loose(firstArtist(t.artist))
-  const lt = loose(cleanTitle(t.title) || t.title)
-  const near = (a, b) => a && b && (a.includes(b) || b.includes(a))
-  return results.find(r => {
-    const ra = loose(r.artistName), rt = loose(cleanTitle(r.trackName) || r.trackName)
-    return la ? near(la, ra) && (!lt || near(lt, rt)) : lt === rt
+/* Deezer n'envoie pas d'en-têtes CORS : appel en JSONP */
+let dzSeq = 0
+function deezer(path) {
+  return new Promise((resolve, reject) => {
+    const cb = `__dz${++dzSeq}`
+    const s  = document.createElement('script')
+    const done = () => { window[cb] = () => {}; s.remove(); clearTimeout(timer) }
+    const timer = setTimeout(() => { done(); reject(new Error('Deezer timeout')) }, 10000)
+    window[cb] = d => { done(); d?.error ? reject(new Error('Deezer ' + (d.error.code ?? ''))) : resolve(d) }
+    s.onerror  = () => { done(); reject(new Error('Deezer réseau')) }
+    s.src = `https://api.deezer.com${path}${path.includes('?') ? '&' : '?'}output=jsonp&callback=${cb}`
+    document.head.appendChild(s)
   })
 }
 
-/* → { art, genre } ; priority = passe devant (miniatures visibles) */
-function itunesInfo(t, priority = false) {
-  const key = trackKey(t)
-  if (itunesCache.has(key)) return Promise.resolve(itunesCache.get(key))
-  if (!itunesPending.has(key)) {
-    itunesPending.set(key, new Promise(resolve => {
-      const job = { t, key, resolve, tries: 0 }
-      priority ? itunesQueue.unshift(job) : itunesQueue.push(job)
-    }))
-    if (itunesWorkers < ITUNES_CONCURRENCY) itunesWorker()
+/* Genres de l'album du titre, seulement si l'artiste correspond (titre ET album :
+   on écarte les compilations / BO dont les genres ne disent rien du morceau) */
+const VAGUE_GENRES = new Set(['music', 'musique', 'tous'])
+async function deezerLookup(t) {
+  const artist = firstArtist(t.artist)
+  const title  = cleanTitle(t.title) || t.title
+  const la = loose(artist), lt = loose(title)
+  const near = (a, b) => !!a && !!b && (a.includes(b) || b.includes(a))
+  const r = await deezer(`/search?q=${encodeURIComponent(`${artist} ${title}`.trim())}&limit=10`)
+  const hits = (r.data || []).filter(x =>
+    (!la || near(la, loose(x.artist?.name))) && near(lt, loose(cleanTitle(x.title) || x.title)))
+  for (const h of hits.slice(0, 3)) {
+    const al = await deezer(`/album/${h.album.id}`)
+    if (la && !near(la, loose(al.artist?.name))) continue
+    const genres = (al.genres?.data || []).map(g => g.name).filter(g => !VAGUE_GENRES.has(g.toLowerCase()))
+    return { art: h.album.cover_small || '', genre: genres.join(', ') }
   }
-  return itunesPending.get(key)
+  return { art: (hits[0] || r.data?.[0])?.album?.cover_small || '', genre: '' }
+}
+const genresOf = info => info?.genre ? info.genre.split(', ') : []
+
+/* → { art, genre } ; priority = passe devant (miniatures visibles) */
+function trackInfo(t, priority = false) {
+  const key = trackKey(t)
+  if (infoCache.has(key)) return Promise.resolve(infoCache.get(key))
+  if (!infoPending.has(key)) {
+    infoPending.set(key, new Promise(resolve => {
+      const job = { t, key, resolve, tries: 0 }
+      priority ? infoQueue.unshift(job) : infoQueue.push(job)
+    }))
+    if (infoWorkers < INFO_CONCURRENCY) infoWorker()
+  }
+  return infoPending.get(key)
 }
 
-async function itunesWorker() {
-  itunesWorkers++
-  while (itunesQueue.length) {
-    const wait = itunesPauseUntil - Date.now()
+async function infoWorker() {
+  infoWorkers++
+  while (infoQueue.length) {
+    const wait = infoPauseUntil - Date.now()
     if (wait > 0) await sleep(wait)
-    const job = itunesQueue.shift()
+    const job = infoQueue.shift()
     if (!job) break
     try {
-      const title = cleanTitle(job.t.title) || job.t.title
-      let results = await itunesSearch(`${firstArtist(job.t.artist)} ${title}`)
-      let hit = itunesMatch(results, job.t)
-      if (!hit && title) { results = await itunesSearch(title); hit = itunesMatch(results, job.t) }
-      /* Genre seulement si le titre est confirmé ; la miniature peut venir du meilleur résultat */
-      const art   = (hit || results[0])?.artworkUrl100 || ''
-      const genre = hit?.primaryGenreName || ''
-      const info  = { art: art.replace('100x100bb', '60x60bb'), genre: VAGUE_GENRES.has(genre.toLowerCase()) ? '' : genre }
-      itunesCache.set(job.key, info); saveItunesCache()
-      itunesFailStreak = 0
-      itunesPending.delete(job.key)
+      const info = await deezerLookup(job.t)
+      infoCache.set(job.key, info); saveInfoCache()
+      infoFailStreak = 0
+      infoPending.delete(job.key)
       job.resolve(info)
     } catch {
       /* Limité ou réseau : pause générale puis on retente (sans mettre l'échec en cache) */
-      itunesPauseUntil = Date.now() + 15000
-      if (++job.tries < 3 && ++itunesFailStreak < 12) { itunesQueue.push(job); continue }
-      itunesPending.delete(job.key)
+      infoPauseUntil = Date.now() + 5000
+      if (++job.tries < 3 && ++infoFailStreak < 12) { infoQueue.push(job); continue }
+      infoPending.delete(job.key)
       job.resolve({ art: '', genre: '' })
-      if (itunesFailStreak >= 12) {
-        for (const j of itunesQueue.splice(0)) { itunesPending.delete(j.key); j.resolve({ art: '', genre: '' }) }
-        itunesFailStreak = 0
+      if (infoFailStreak >= 12) {
+        for (const j of infoQueue.splice(0)) { infoPending.delete(j.key); j.resolve({ art: '', genre: '' }) }
+        infoFailStreak = 0
       }
     }
   }
-  itunesWorkers--
+  infoWorkers--
 }
 
 /* Miniatures de la liste principale : chargées seulement quand elles deviennent visibles */
@@ -777,7 +788,7 @@ const thumbObserver = new IntersectionObserver(entries => {
     if (!e.isIntersecting) continue
     thumbObserver.unobserve(e.target)
     const t = tracks[+e.target.dataset.thumb]
-    if (t) itunesInfo(t, true).then(i => { if (i.art) e.target.style.backgroundImage = `url(${i.art})` })
+    if (t) trackInfo(t, true).then(i => { if (i.art) e.target.style.backgroundImage = `url(${i.art})` })
   }
 }, { rootMargin: '400px' })
 /* ────────────────────────────────────────────────────────────── */
@@ -1006,7 +1017,7 @@ async function createSpotifyPlaylist(selectedTracks) {
 /* ── Filtres modal ───────────────────────────────────────────── */
 const activeFilters = new Set()
 let   modalList   = []        // titres uniques : { title, artist, at (dernier passage), plays }
-let   trackGenres = new Map() // index modalList → genre
+let   trackGenres = new Map() // index modalList → [genres]
 let   modalSession = 0
 
 /* Un titre passé plusieurs fois n'apparaît qu'une fois (dernier passage + nombre de passages) */
@@ -1082,11 +1093,12 @@ function rowMatchesFilters(t, idx) {
   const periods = f.filter(x => PERIOD_HOURS[x])
   const moods   = f.filter(x => MOOD_HOURS[x])
   const genres  = f.filter(x => !FILTER_LABELS[x])
-  const genre   = trackGenres.get(idx)
-  if (t.src) return activeSources.has(t.src) && (!genres.length || genres.includes(genre))
+  const tg      = trackGenres.get(idx) || []
+  const genreOk = !genres.length || genres.some(g => tg.includes(g))
+  if (t.src) return activeSources.has(t.src) && genreOk
   return (!periods.length || periods.some(p => Date.now() - t.at <= PERIOD_HOURS[p] * 3600000))
       && (!moods.length   || moods.some(m => t.moods.includes(m)))
-      && (!genres.length  || genres.includes(genre))
+      && genreOk
 }
 
 /* Nombre de titres par ambiance, affiché sur les boutons */
@@ -1111,7 +1123,7 @@ function applyFilters() {
 }
 
 function renderGenreChips() {
-  const genres = [...new Set(trackGenres.values())].sort()
+  const genres = [...new Set([...trackGenres.values()].flat())].sort((a, b) => a.localeCompare(b, 'fr'))
   if (!genres.length) return
   el("genreGroup").style.display = ''
   el("genreChips").innerHTML = genres.map(g =>
@@ -1119,7 +1131,7 @@ function renderGenreChips() {
   ).join('')
 }
 
-/* Genres + miniatures via la file iTunes ; l'affichage se met à jour au fil de l'eau */
+/* Genres + miniatures (track_info, sinon file Deezer) ; l'affichage se met à jour au fil de l'eau */
 async function loadGenresForModal(session, from = 0) {
   let refresh = null
   const scheduleRefresh = () => {
@@ -1134,15 +1146,15 @@ async function loadGenresForModal(session, from = 0) {
   const thumbs = el("modalTracks").querySelectorAll('.mt-thumb')
   await Promise.all(modalList.slice(from).map(async (t, j) => {
     const i = from + j
-    const info = await itunesInfo(t)
+    const info = await trackInfo(t)
     if (session !== modalSession) return
     if (info.art && !t.art && thumbs[i]) thumbs[i].style.backgroundImage = `url(${info.art})`
-    if (info.genre) { trackGenres.set(i, info.genre); scheduleRefresh() }
+    if (info.genre) { trackGenres.set(i, genresOf(info)); scheduleRefresh() }
   }))
 }
 
 function modalRowHtml(t, i) {
-  const art = t.art || itunesCache.get(trackKey(t))?.art || ''
+  const art = t.art || infoCache.get(trackKey(t))?.art || ''
   const tag = t.src ? ` <span class="mt-plays">♫ ${esc(t.srcName)}</span>`
             : t.plays > 1 ? ` <span class="mt-plays">×${t.plays}</span>` : ''
   return `<label class="modal-track">
@@ -1342,7 +1354,7 @@ sb.channel('plays-live')
 ;(async () => {
   el("statusDot").classList.add("on")
 
-  await loadTrackInfo()  // avant l'affichage, sinon les miniatures repartent sur iTunes
+  await loadTrackInfo()  // avant l'affichage, sinon les miniatures repartent sur Deezer
   await loadTracks()
   poll()
   setInterval(poll, POLL_MS)
