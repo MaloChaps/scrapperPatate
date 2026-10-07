@@ -8,16 +8,17 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍠</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-  /* Palette de la DA (da.css) sous les noms historiques de la page */
+  /* Palette de la DA (da.css) sous les noms historiques de la page :
+     wine = fond, cream = texte, amber = accent rouge, pink = second accent sombre */
   :root{
-    --wine:var(--color-maroon);
-    --wine-2:color-mix(in srgb, var(--color-red) 6%, var(--color-maroon));
-    --cream:var(--color-red);
-    --cream-dim:color-mix(in srgb, var(--color-red) 72%, var(--color-maroon));
+    --wine:var(--color-beige);
+    --wine-2:color-mix(in srgb, var(--color-brown) 5%, var(--color-beige));
+    --cream:var(--color-brown);
+    --cream-dim:color-mix(in srgb, var(--color-brown) 72%, var(--color-beige));
     --amber:var(--color-red);
-    --pink:var(--color-beige);
-    --line:color-mix(in srgb, var(--color-red) 25%, transparent);
-    --card:color-mix(in srgb, var(--color-red) 7%, transparent);
+    --pink:var(--color-maroon);
+    --line:color-mix(in srgb, var(--color-brown) 20%, transparent);
+    --card:color-mix(in srgb, var(--color-brown) 5%, transparent);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{background:var(--wine);color:var(--cream)}
@@ -33,7 +34,7 @@
   .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);display:flex;align-items:center;gap:9px}
   .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--cream-dim)}
   .eyebrow .dot.on{background:var(--pink);box-shadow:0 0 0 4px color-mix(in srgb, var(--pink) 18%, transparent)}
-  h1{font-family:var(--font-display);font-weight:400;font-size:clamp(40px,9vw,76px);line-height:.92;letter-spacing:-.02em;margin:14px 0 6px}
+  h1{color:var(--amber);font-family:var(--font-display);font-weight:400;font-size:clamp(40px,9vw,76px);line-height:.92;letter-spacing:-.02em;margin:14px 0 6px}
   h1 em{font-style:italic;color:var(--amber)}
   .sub{color:var(--cream-dim);font-size:15px;max-width:46ch}
 

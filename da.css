@@ -1,4 +1,4 @@
-/* DA partagée (reprise du site CookChap's) : polices, palette, composants de base */
+/* DA partagée (reprise des fiches du site CookChap's) : polices, palette */
 
 @font-face { font-family: "Denver Serial"; src: url("fonts/Denver-Serial/Denver-Serial-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: "Denver Serial"; src: url("fonts/Denver-Serial/Denver-Serial-RegularItalic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
@@ -16,12 +16,13 @@
   --color-red: #FF3F2A;
   --color-beige: #F2E6D4;
 
-  --bg: var(--color-maroon);
-  --ink: var(--color-red);
-  --field: #974132;               /* champs et pastilles inactives */
-  --soft: var(--color-beige);     /* second accent, avec parcimonie */
-  --line: color-mix(in srgb, var(--ink) 25%, transparent);
-  --line-strong: color-mix(in srgb, var(--ink) 50%, transparent);
+  /* Thème des fiches recette : fond beige, texte brun, grands titres en rouge */
+  --bg: var(--color-beige);
+  --ink: var(--color-brown);
+  --accent: var(--color-red);
+  --field: color-mix(in srgb, var(--ink) 12%, var(--bg));   /* champs et pastilles inactives */
+  --line: color-mix(in srgb, var(--ink) 20%, transparent);
+  --line-strong: color-mix(in srgb, var(--ink) 45%, transparent);
 
   --font-display: "Denver Serial", Georgia, serif;
   --font-body: "Blanco", Georgia, serif;
