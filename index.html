@@ -190,6 +190,7 @@
   .modal-tracks{overflow-y:auto;flex:1}
   .modal-track{display:flex;align-items:center;gap:12px;padding:10px 22px;cursor:pointer;transition:background .12s}
   .modal-track:hover{background:var(--card)}
+  .mt-plays{font-family:"DM Mono",monospace;font-size:11px;opacity:.55}
   .modal-track input[type=checkbox]{accent-color:var(--amber);width:15px;height:15px;flex-shrink:0;cursor:pointer}
   .mt-thumb{width:38px;height:38px;border-radius:6px;background:var(--card);border:1px solid var(--line);background-size:cover;background-position:center;flex-shrink:0}
   .mt-info{min-width:0;flex:1}
@@ -369,10 +370,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 const RADIO_API = 'https://api.radioking.io/widget/radio/radio-jockey/track/current'
 const POLL_MS   = 20000
 
-let tracks = []
-let timer  = null
+let tracks = []          // du plus récent au plus ancien
 let isPolling = false
-let lastInserted = null  // { title, artist } du dernier titre réellement inséré
 
 const el   = id => document.getElementById(id)
 const esc  = s  => (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
@@ -385,6 +384,8 @@ function setStatus(msg, isErr) {
   s.classList.toggle("err", !!isErr)
 }
 
+/* Affiche le titre en cours. L'enregistrement en base est fait côté serveur
+   (Edge Function poll-radio + pg_cron) ; la liste se met à jour via Realtime. */
 async function poll() {
   if (isPolling) return
   isPolling = true
@@ -418,26 +419,6 @@ async function poll() {
     } else {
       vinyl.classList.remove("has-cover")
     }
-
-    /* Vérifie d'abord le cache local (évite la race condition entre deux polls simultanés) */
-    if (lastInserted && norm(lastInserted.title) === norm(title) && norm(lastInserted.artist) === norm(artist)) return
-
-    /* Vérifie le dernier titre en base avant d'insérer */
-    const { data: last } = await sb
-      .from('plays')
-      .select('title, artist')
-      .order('played_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (last && norm(last.title) === norm(title) && norm(last.artist) === norm(artist)) {
-      lastInserted = { title, artist }
-      return
-    }
-
-    /* Insert — le Realtime met à jour la liste automatiquement */
-    lastInserted = { title, artist }
-    await sb.from('plays').insert({ title, artist })
   } catch(e) {
     setStatus("Flux injoignable (" + e.message + "). Nouvel essai au prochain cycle.", true)
   } finally {
@@ -494,13 +475,12 @@ function render() {
   })
   list.innerHTML = html
 
-  /* Charge les miniatures iTunes en arrière-plan */
-  tracks.forEach((t, i) => {
-    fetchArt(t.artist, t.title).then(url => {
-      if (!url) return
-      const el = list.querySelector(`[data-thumb="${i}"]`)
-      if (el) el.style.backgroundImage = `url(${url})`
-    })
+  /* Miniatures iTunes : depuis le cache, sinon au défilement */
+  thumbObserver.disconnect()
+  list.querySelectorAll('[data-thumb]').forEach(node => {
+    const art = itunesCache.get(trackKey(tracks[+node.dataset.thumb]))?.art
+    if (art) node.style.backgroundImage = `url(${art})`
+    else thumbObserver.observe(node)
   })
 }
 
@@ -526,14 +506,37 @@ el("csvBtn").onclick = () => {
   URL.revokeObjectURL(url)
 }
 
+/* ── Données ─────────────────────────────────────────────────── */
+const rowToTrack = r => ({ id: r.id, title: r.title, artist: r.artist, at: new Date(r.played_at).getTime() })
+
+/* Supabase renvoie max 1000 lignes par requête → on pagine */
+async function fetchAllPlays(ascending = false) {
+  const PAGE = 1000
+  let all = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb
+      .from('plays')
+      .select('id, title, artist, played_at')
+      .order('played_at', { ascending })
+      .order('id', { ascending })
+      .range(from, from + PAGE - 1)
+    if (error) return all.length ? all : null
+    all = all.concat(data)
+    if (data.length < PAGE) return all
+  }
+}
+async function loadTracks() {
+  const data = await fetchAllPlays()
+  if (!data) return setStatus("Impossible de charger l'historique.", true)
+  tracks = data.map(rowToTrack)
+  render()
+}
+
 /* ── Dédoublonnage ───────────────────────────────────────────── */
 const DEDUP_WINDOW_MS = 5 * 60 * 1000  // même titre dans les 5 minutes = doublon (race condition)
 
 async function cleanDuplicates(silent = false) {
-  const { data } = await sb
-    .from('plays')
-    .select('id, title, artist, played_at')
-    .order('played_at', { ascending: true })
+  const data = await fetchAllPlays(true)
   if (!data) return 0
 
   const toDelete = []
@@ -552,8 +555,8 @@ async function cleanDuplicates(silent = false) {
     }
   }
 
-  if (toDelete.length) {
-    await sb.from('plays').delete().in('id', toDelete)
+  for (let i = 0; i < toDelete.length; i += 200) {
+    await sb.from('plays').delete().in('id', toDelete.slice(i, i + 200))
   }
   if (!silent) {
     setStatus(toDelete.length
@@ -566,13 +569,7 @@ async function cleanDuplicates(silent = false) {
 el("dedupeBtn").onclick = async () => {
   setStatus("Recherche des doublons…")
   await cleanDuplicates()
-  // Recharge la liste depuis la base après nettoyage
-  const { data } = await sb.from('plays').select('id, title, artist, played_at').order('played_at', { ascending: false })
-  if (data) {
-    tracks = data.map(r => ({ id: r.id, title: r.title, artist: r.artist, at: new Date(r.played_at).getTime() }))
-    lastInserted = tracks[0] ? { title: tracks[0].title, artist: tracks[0].artist } : null
-    render()
-  }
+  await loadTracks()
 }
 
 el("clearBtn").onclick = async () => {
@@ -647,24 +644,90 @@ el("radioPlayBtn").onclick = () => {
 }
 /* ────────────────────────────────────────────────────────────── */
 
-/* ── Miniatures iTunes ───────────────────────────────────────── */
-const artCache = new Map()
+/* ── iTunes (miniature + genre) ─────────────────────────────── */
+/* Une seule requête par titre, file d'attente limitée (iTunes bloque les rafales)
+   et cache persistant dans le navigateur pour ne pas tout refaire à chaque visite */
+const ITUNES_STORE = 'itunes_cache_v1'
+const ITUNES_CONCURRENCY = 4
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+const trackKey = t => `${norm(t.artist)}|${norm(t.title)}`
 
-async function fetchArt(artist, title) {
-  const key = `${artist}|${title}`
-  if (artCache.has(key)) return artCache.get(key)
-  const itunesSearch = async term => {
-    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=1`)
-    const d   = await res.json()
-    return (d.results?.[0]?.artworkUrl100 || '').replace('100x100bb', '60x60bb')
-  }
-  try {
-    let url = await itunesSearch(`${artist} ${title}`)
-    if (!url && title) url = await itunesSearch(title)
-    artCache.set(key, url)
-    return url
-  } catch { artCache.set(key, ''); return '' }
+const itunesCache = new Map((() => {
+  try { return Object.entries(JSON.parse(localStorage.getItem(ITUNES_STORE)) || {}) } catch { return [] }
+})())
+let itunesSaveTimer
+function saveItunesCache() {
+  clearTimeout(itunesSaveTimer)
+  itunesSaveTimer = setTimeout(() => {
+    try { localStorage.setItem(ITUNES_STORE, JSON.stringify(Object.fromEntries(itunesCache))) } catch {}
+  }, 1000)
 }
+
+const itunesQueue   = []
+const itunesPending = new Map()
+let   itunesWorkers = 0
+let   itunesPauseUntil = 0
+let   itunesFailStreak = 0  // trop d'échecs de suite → iTunes nous bloque, on abandonne la file
+
+async function itunesSearch(term) {
+  const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=1`)
+  if (!res.ok) throw new Error('iTunes ' + res.status)
+  return (await res.json()).results?.[0]
+}
+
+/* → { art, genre } ; priority = passe devant (miniatures visibles) */
+function itunesInfo(t, priority = false) {
+  const key = trackKey(t)
+  if (itunesCache.has(key)) return Promise.resolve(itunesCache.get(key))
+  if (!itunesPending.has(key)) {
+    itunesPending.set(key, new Promise(resolve => {
+      const job = { t, key, resolve, tries: 0 }
+      priority ? itunesQueue.unshift(job) : itunesQueue.push(job)
+    }))
+    if (itunesWorkers < ITUNES_CONCURRENCY) itunesWorker()
+  }
+  return itunesPending.get(key)
+}
+
+async function itunesWorker() {
+  itunesWorkers++
+  while (itunesQueue.length) {
+    const wait = itunesPauseUntil - Date.now()
+    if (wait > 0) await sleep(wait)
+    const job = itunesQueue.shift()
+    if (!job) break
+    try {
+      let r = await itunesSearch(`${job.t.artist} ${job.t.title}`)
+      if (!r && job.t.title) r = await itunesSearch(job.t.title)
+      const info = { art: (r?.artworkUrl100 || '').replace('100x100bb', '60x60bb'), genre: r?.primaryGenreName || '' }
+      itunesCache.set(job.key, info); saveItunesCache()
+      itunesFailStreak = 0
+      itunesPending.delete(job.key)
+      job.resolve(info)
+    } catch {
+      /* Limité ou réseau : pause générale puis on retente (sans mettre l'échec en cache) */
+      itunesPauseUntil = Date.now() + 15000
+      if (++job.tries < 3 && ++itunesFailStreak < 12) { itunesQueue.push(job); continue }
+      itunesPending.delete(job.key)
+      job.resolve({ art: '', genre: '' })
+      if (itunesFailStreak >= 12) {
+        for (const j of itunesQueue.splice(0)) { itunesPending.delete(j.key); j.resolve({ art: '', genre: '' }) }
+        itunesFailStreak = 0
+      }
+    }
+  }
+  itunesWorkers--
+}
+
+/* Miniatures de la liste principale : chargées seulement quand elles deviennent visibles */
+const thumbObserver = new IntersectionObserver(entries => {
+  for (const e of entries) {
+    if (!e.isIntersecting) continue
+    thumbObserver.unobserve(e.target)
+    const t = tracks[+e.target.dataset.thumb]
+    if (t) itunesInfo(t, true).then(i => { if (i.art) e.target.style.backgroundImage = `url(${i.art})` })
+  }
+}, { rootMargin: '400px' })
 /* ────────────────────────────────────────────────────────────── */
 
 /* ── Spotify ─────────────────────────────────────────────────── */
@@ -718,13 +781,55 @@ function spToken() {
   return t && Date.now() < +sessionStorage.getItem('sp_exp') ? t : null
 }
 
-async function spFetch(token, path, opts = {}) {
+async function spFetch(token, path, opts = {}, tries = 4) {
   const res = await fetch('https://api.spotify.com/v1' + path, {
     ...opts,
     headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
   })
+  /* Trop de requêtes : on attend ce que Spotify demande puis on retente */
+  if (res.status === 429 && tries > 0) {
+    await sleep((+res.headers.get('Retry-After') || 2 * (5 - tries)) * 1000)
+    return spFetch(token, path, opts, tries - 1)
+  }
   if (!res.ok) throw new Error('Spotify ' + res.status)
   return res.json()
+}
+
+/* Titres radio souvent « sales » : (feat. X), [Radio Edit], - Remastered 2011… */
+const cleanTitle  = s => (s || '')
+  .replace(/\s*[([][^)\]]*(feat|ft\.|with|edit|remaster|version|mix|live)[^)\]]*[)\]]/gi, '')
+  .replace(/\s+-\s+.*(remaster|edit|version|mix|live).*$/i, '')
+  .replace(/\s+(feat\.?|ft\.?)\s.*$/i, '')
+  .trim()
+const firstArtist = s => (s || '').split(/\s+(?:feat\.?|ft\.?|featuring)\s+/i)[0].trim()
+const loose = s => norm(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
+
+/* Cache titre → URI Spotify (refaire une playlist ne relance pas toutes les recherches) */
+const SP_URI_STORE = 'sp_uri_cache_v1'
+const spUriCache = (() => { try { return JSON.parse(localStorage.getItem(SP_URI_STORE)) || {} } catch { return {} } })()
+const saveSpUriCache = () => { try { localStorage.setItem(SP_URI_STORE, JSON.stringify(spUriCache)) } catch {} }
+
+async function spFindTrack(token, t) {
+  const key = trackKey(t)
+  if (spUriCache[key]) return spUriCache[key]
+  const title  = cleanTitle(t.title) || t.title
+  const artist = firstArtist(t.artist)
+
+  /* 1. Recherche stricte titre + artiste */
+  const strict = encodeURIComponent(artist ? `track:${title} artist:${artist}` : `track:${title}`)
+  let r = await spFetch(token, `/search?q=${strict}&type=track&limit=1`)
+  let uri = r.tracks?.items?.[0]?.uri
+
+  /* 2. Sinon recherche libre, en vérifiant que l'artiste correspond */
+  if (!uri) {
+    r = await spFetch(token, `/search?q=${encodeURIComponent(`${artist} ${title}`.trim())}&type=track&limit=5`)
+    const la = loose(artist)
+    const hit = (r.tracks?.items || []).find(it =>
+      !la || it.artists.some(a => { const n = loose(a.name); return n && (la.includes(n) || n.includes(la)) }))
+    uri = hit?.uri
+  }
+  if (uri) { spUriCache[key] = uri; saveSpUriCache() }
+  return uri || null
 }
 
 async function createSpotifyPlaylist(selectedTracks) {
@@ -756,14 +861,11 @@ async function createSpotifyPlaylist(selectedTracks) {
   loader.classList.add('active')
 
   try {
-    lStep('Connexion Spotify…', 5)
-    const me = await spFetch(token, '/me')
-
-    lStep('Création de la playlist…', 12)
+    lStep('Création de la playlist…', 8)
     const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     const activeLabels = [...activeFilters].map(f => FILTER_LABELS[f] || f).join(', ')
     const playlistName = activeLabels ? `${activeLabels} · ${date}` : date
-    const playlist = await spFetch(token, `/users/${me.id}/playlists`, {
+    const playlist = await spFetch(token, '/me/playlists', {
       method: 'POST',
       body: JSON.stringify({
         name: playlistName,
@@ -772,26 +874,31 @@ async function createSpotifyPlaylist(selectedTracks) {
       })
     })
 
-    const uris        = []
-    const seenUris    = new Set()
+    /* Recherches en parallèle (4 à la fois), ordre de la sélection conservé */
+    const found = new Array(selectedTracks.length)
+    let next = 0, done = 0
+    lStep(`Recherche des titres · 0 / ${selectedTracks.length}`, 12)
+    await Promise.all(Array.from({ length: 4 }, async () => {
+      while (next < selectedTracks.length) {
+        const i = next++
+        try { found[i] = await spFindTrack(token, selectedTracks[i]) } catch { found[i] = null }
+        done++
+        lStep(`Recherche des titres · ${done} / ${selectedTracks.length}`, 12 + Math.round(done / selectedTracks.length * 68))
+      }
+    }))
+
+    const uris         = []
+    const seenUris     = new Set()
     const missedTracks = []
-    let notFound = 0
-    for (let i = 0; i < selectedTracks.length; i++) {
-      const pct = 12 + Math.round((i / selectedTracks.length) * 68)
-      lStep(`Recherche des titres · ${i + 1} / ${selectedTracks.length}`, pct)
-      try {
-        const sq = encodeURIComponent(`track:${selectedTracks[i].title} artist:${selectedTracks[i].artist}`)
-        const r  = await spFetch(token, `/search?q=${sq}&type=track&limit=1`)
-        if (r.tracks?.items?.length) {
-          const uri = r.tracks.items[0].uri
-          if (!seenUris.has(uri)) { seenUris.add(uri); uris.push(uri) }
-        } else { notFound++; missedTracks.push(selectedTracks[i]) }
-      } catch { notFound++; missedTracks.push(selectedTracks[i]) }
-    }
+    found.forEach((uri, i) => {
+      if (!uri) missedTracks.push(selectedTracks[i])
+      else if (!seenUris.has(uri)) { seenUris.add(uri); uris.push(uri) }
+    })
+    const notFound = missedTracks.length
 
     lStep('Ajout des titres…', 85)
     for (let i = 0; i < uris.length; i += 100) {
-      await spFetch(token, `/playlists/${playlist.id}/tracks`, {
+      await spFetch(token, `/playlists/${playlist.id}/items`, {
         method: 'POST',
         body: JSON.stringify({ uris: uris.slice(i, i+100) })
       })
@@ -842,23 +949,21 @@ async function createSpotifyPlaylist(selectedTracks) {
 }
 
 /* ── Filtres modal ───────────────────────────────────────────── */
-const genreCache  = new Map()
 const activeFilters = new Set()
-let   trackGenres = new Map() // realIdx → genre string
+let   modalList   = []        // titres uniques : { title, artist, at (dernier passage), plays }
+let   trackGenres = new Map() // index modalList → genre
+let   modalSession = 0
 
-async function fetchGenre(artist, title) {
-  const key = `${artist}|${title}`
-  if (genreCache.has(key)) return genreCache.get(key)
-  const itunesGenre = async term => {
-    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=1`)
-    const d   = await res.json()
-    return d.results?.[0]?.primaryGenreName || ''
+/* Un titre passé plusieurs fois n'apparaît qu'une fois (dernier passage + nombre de passages) */
+function buildModalList() {
+  const byKey = new Map()
+  for (const t of tracks) {
+    const k = trackKey(t)
+    const e = byKey.get(k)
+    if (e) { e.plays++; e.at = Math.max(e.at, t.at) }
+    else byKey.set(k, { title: t.title, artist: t.artist, at: t.at, plays: 1 })
   }
-  try {
-    let g = await itunesGenre(`${artist} ${title}`)
-    if (!g && title) g = await itunesGenre(title)
-    genreCache.set(key, g); return g
-  } catch { genreCache.set(key, ''); return '' }
+  return [...byKey.values()].sort((a, b) => a.at - b.at)
 }
 
 function visibleRows() {
@@ -896,10 +1001,10 @@ function updateModalCount() {
   el("selAll").checked           = total > 0 && checked === total
 }
 
-function rowMatchesFilters(t, realIdx) {
+function rowMatchesFilters(t, idx) {
   if (!activeFilters.size) return true
   const now   = Date.now()
-  const genre = (trackGenres.get(realIdx) || '').toLowerCase()
+  const genre = (trackGenres.get(idx) || '').toLowerCase()
   for (const f of activeFilters) {
     if (f === '4h'  && now - t.at <= 4  * 3600000) return true
     if (f === '12h' && now - t.at <= 12 * 3600000) return true
@@ -912,30 +1017,44 @@ function rowMatchesFilters(t, realIdx) {
 
 function applyFilters() {
   document.querySelectorAll('.modal-track').forEach((row, i) => {
-    const realIdx = tracks.length - 1 - i
-    const visible = rowMatchesFilters(tracks[realIdx], realIdx)
+    const visible = rowMatchesFilters(modalList[i], i)
+    const wasHidden = row.style.display === 'none'
     row.style.display = visible ? '' : 'none'
-    if (visible && activeFilters.size) row.querySelector('.sp-pick').checked = true
+    if (visible && wasHidden && activeFilters.size) row.querySelector('.sp-pick').checked = true
   })
   updateModalCount()
   updateBreadcrumb()
 }
 
-async function loadGenresForModal() {
-  const genreSet = new Set()
-  const ordered  = [...tracks].reverse()
-  await Promise.all(ordered.map(async (t, i) => {
-    const realIdx = tracks.length - 1 - i
-    const genre   = await fetchGenre(t.artist, t.title)
-    if (genre) { trackGenres.set(realIdx, genre); genreSet.add(genre) }
-  }))
-  if (!genreSet.size) return
+function renderGenreChips() {
+  const genres = [...new Set(trackGenres.values())].sort()
+  if (!genres.length) return
   el("genreGroup").style.display = ''
-  el("genreChips").innerHTML = [...genreSet].sort().map(g =>
-    `<button class="filter-chip genre" data-filter="${g}">${g}</button>`
+  el("genreChips").innerHTML = genres.map(g =>
+    `<button class="filter-chip genre${activeFilters.has(g) ? ' active' : ''}" data-filter="${esc(g)}">${esc(g)}</button>`
   ).join('')
-  const moodActive = [...activeFilters].some(f => MOOD_GENRES[f])
-  if (moodActive) applyFilters()
+}
+
+/* Genres + miniatures via la file iTunes ; l'affichage se met à jour au fil de l'eau */
+async function loadGenresForModal() {
+  const session = ++modalSession
+  let refresh = null
+  const scheduleRefresh = () => {
+    if (refresh) return
+    refresh = setTimeout(() => {
+      refresh = null
+      if (session !== modalSession) return
+      renderGenreChips()
+      if (activeFilters.size) applyFilters()
+    }, 500)
+  }
+  const thumbs = el("modalTracks").querySelectorAll('.mt-thumb')
+  await Promise.all(modalList.map(async (t, i) => {
+    const info = await itunesInfo(t)
+    if (session !== modalSession) return
+    if (info.art && thumbs[i]) thumbs[i].style.backgroundImage = `url(${info.art})`
+    if (info.genre) { trackGenres.set(i, info.genre); scheduleRefresh() }
+  }))
 }
 
 function showPlaylistModal() {
@@ -945,16 +1064,15 @@ function showPlaylistModal() {
   el("genreGroup").style.display  = 'none'
   el("genreChips").innerHTML    = ''
 
-  const ordered = [...tracks].reverse()
-  el("modalTracks").innerHTML = ordered.map((t, i) => {
-    const realIdx = tracks.length - 1 - i
-    const art = artCache.get(`${t.artist}|${t.title}`) || ''
+  modalList = buildModalList()
+  el("modalTracks").innerHTML = modalList.map((t, i) => {
+    const art = itunesCache.get(trackKey(t))?.art || ''
     return `<label class="modal-track">
-      <input type="checkbox" class="sp-pick" data-idx="${realIdx}" checked>
+      <input type="checkbox" class="sp-pick" data-idx="${i}" checked>
       <div class="mt-thumb" style="${art ? `background-image:url(${art})` : ''}"></div>
       <div class="mt-info">
         <div class="mt-title">${esc(t.title)}</div>
-        <div class="mt-artist">${esc(t.artist)||'&nbsp;'}</div>
+        <div class="mt-artist">${esc(t.artist)||'&nbsp;'}${t.plays > 1 ? ` <span class="mt-plays">×${t.plays}</span>` : ''}</div>
       </div>
     </label>`
   }).join('')
@@ -992,7 +1110,7 @@ el("modalClose").onclick = el("modalCancel").onclick = () => {
 el("modalConfirm").onclick = async () => {
   const selected = visibleRows()
     .filter(r => r.querySelector('.sp-pick')?.checked)
-    .map(r => tracks[+r.querySelector('.sp-pick').dataset.idx])
+    .map(r => modalList[+r.querySelector('.sp-pick').dataset.idx])
   await createSpotifyPlaylist(selected)
 }
 
@@ -1012,8 +1130,13 @@ el("spotifyBtnTop").onclick = openSpotifyModal
 sb.channel('plays-live')
   .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'plays' }, ({ new: r }) => {
     if (tracks.some(t => t.id === r.id)) return
-    tracks.unshift({ id: r.id, title: r.title, artist: r.artist, at: new Date(r.played_at).getTime() })
+    tracks.unshift(rowToTrack(r))
     render()
+  })
+  .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'plays' }, ({ old: r }) => {
+    const n = tracks.length
+    tracks = tracks.filter(t => t.id !== r.id)
+    if (tracks.length !== n) render()
   })
   .subscribe()
 
@@ -1021,20 +1144,9 @@ sb.channel('plays-live')
 ;(async () => {
   el("statusDot").classList.add("on")
 
-  /* Nettoyage silencieux des doublons existants au démarrage */
-  await cleanDuplicates(true)
-
-  const { data } = await sb
-    .from('plays')
-    .select('id, title, artist, played_at')
-    .order('played_at', { ascending: false })
-  if (data) {
-    tracks = data.map(r => ({ id: r.id, title: r.title, artist: r.artist, at: new Date(r.played_at).getTime() }))
-    lastInserted = tracks[0] ? { title: tracks[0].title, artist: tracks[0].artist } : null
-    render()
-  }
+  await loadTracks()
   poll()
-  timer = setInterval(poll, POLL_MS)
+  setInterval(poll, POLL_MS)
 
   /* Retour après login Spotify → échange le code et crée la playlist */
   const params = new URLSearchParams(window.location.search)

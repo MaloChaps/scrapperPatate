@@ -1,9 +1,10 @@
 -- ============================================================
 -- ETAPE 3 — à coller APRES avoir déployé la Edge Function
--- Remplace YOUR_PROJECT_REF et YOUR_ANON_KEY
+-- (project ref et anon key déjà renseignés)
 -- ============================================================
 
--- Active pg_net (requêtes HTTP depuis postgres)
+-- Active pg_cron (planificateur) et pg_net (requêtes HTTP depuis postgres)
+create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;
 
 -- Lance la Edge Function toutes les minutes
@@ -12,9 +13,9 @@ select cron.schedule(
   '* * * * *',
   $$
   select net.http_post(
-    url     := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/poll-radio',
+    url     := 'https://wnbcoczjfqyxggkfyooh.supabase.co/functions/v1/poll-radio',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer YOUR_ANON_KEY',
+      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduYmNvY3pqZnF5eGdna2Z5b29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTQ1MDYsImV4cCI6MjA5NjkzMDUwNn0.0mO3O7xqMDwTLGx-5zrVLzW8ed0WoNDKP03eHji2v9o',
       'Content-Type',  'application/json'
     ),
     body    := '{}'::jsonb
