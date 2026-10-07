@@ -87,6 +87,10 @@
   a.btn-ghost{display:inline-flex;align-items:center;border-radius:999px;font-family:var(--font-mono);font-weight:500;text-decoration:none}
   /* Accès au générateur : en haut à droite de la page */
   .topbar{display:flex;justify-content:flex-end;margin-bottom:16px}
+  /* Grand titre : crème dans un pavé rouge, comme Le Mix */
+  .hero{padding:clamp(4px,3vw,32px) 0 clamp(20px,4vw,36px)}
+  h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(56px,16vw,140px);line-height:.88;letter-spacing:-.02em}
+  h1 em{font-style:italic}
   .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--red);color:var(--on-red);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
   @media (hover:hover){.btn-mix:hover{opacity:.85}}
   .btn-ghost:hover{background:var(--card)}
@@ -156,8 +160,12 @@
 
 
   <header class="topbar">
-    <a class="btn-mix" href="generateur.html">✦ Le Mix</a>
+    <a class="btn-mix" href="generateur.html">Le Mix</a>
   </header>
+
+  <section class="hero">
+    <h1>La <em>Radio</em></h1>
+  </section>
 
   <div class="custom-player">
     <audio id="radioAudio" preload="none"></audio>
@@ -203,7 +211,6 @@
     <button class="btn-ghost" id="copyBtn">Copier la liste</button>
     <button class="btn-ghost" id="csvBtn">Télécharger .csv</button>
     <button class="btn-ghost" id="dedupeBtn">Nettoyer les doublons</button>
-    <button class="btn-ghost" id="clearBtn">Tout effacer</button>
   </div>
 
   <p class="footnote">
@@ -437,14 +444,6 @@ el("dedupeBtn").onclick = async () => {
   setStatus("Recherche des doublons…")
   await cleanDuplicates()
   await loadTracks()
-}
-
-el("clearBtn").onclick = async () => {
-  if (!tracks.length) return
-  if (!confirm("Effacer tout l'historique en base ?")) return
-  await sb.from('plays').delete().gte('id', 0)
-  tracks = []
-  render()
 }
 
 /* ── Player radio ────────────────────────────────────────────── */
