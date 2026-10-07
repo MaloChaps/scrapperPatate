@@ -34,6 +34,9 @@
 
   /* Mode « Juste mes playlists » : pas de réglage de découvertes */
   body[data-mode="mix"] .filters [data-for="discover"]{display:none}
+  /* Source : liens Spotify, ou titres de la radio (ouvert depuis la page radio) */
+  body[data-source="radio"] .filters [data-for="spotify"],
+  body:not([data-source="radio"]) .filters [data-for="radio"]{display:none}
 
   /* Deux écrans : réglages puis résultat */
   body[data-screen="form"] .result,
@@ -65,7 +68,6 @@
   /* Pastilles et boutons (comme les filtres du site cocktail) */
   .pill-button{padding:8px 14px;border:1px solid var(--ink);border-radius:99px;background:transparent;color:var(--ink);font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;transition:background-color .2s,color .2s}
   .pill-button--filled{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
-  .pill-button--big{padding:13px 22px;font-size:13px}
   .pill-button:disabled{opacity:.4;cursor:default}
   @media (hover:hover){.pill-button:not(:disabled):hover{background:var(--ink);color:var(--bg)}}
 
@@ -220,7 +222,7 @@
 
   <section class="hero">
     <h1>Le <em>Mix</em></h1>
-    <p class="intro">Jusqu'à trois playlists Spotify que tu aimes : le générateur garde tes meilleurs titres, ajoute des découvertes du même univers et les enchaîne.</p>
+    <p class="intro" id="intro">Jusqu'à trois playlists Spotify que tu aimes : le générateur garde tes meilleurs titres, ajoute des découvertes du même univers et les enchaîne.</p>
   </section>
 
   <div class="filters">
@@ -228,9 +230,13 @@
     <div class="filters__chips filters__chips--scroll" id="mode"></div>
     <p class="filters__note" id="modeDesc"></p>
 
-    <p class="label">Playlists</p>
-    <div class="seeds" id="seeds"></div>
-    <p class="filters__note saved" id="saved"></p>
+    <p class="label" data-for="spotify">Playlists</p>
+    <div class="seeds" id="seeds" data-for="spotify"></div>
+    <p class="filters__note saved" id="saved" data-for="spotify"></p>
+
+    <p class="label" data-for="radio">Période</p>
+    <div class="filters__chips filters__chips--scroll" id="period" data-for="radio"></div>
+    <p class="filters__note" id="radioNote" data-for="radio">Chargement des titres de la radio…</p>
 
     <p class="label">Thème</p>
     <div class="filters__chips filters__chips--scroll" id="themes"></div>
@@ -238,7 +244,7 @@
 
     <p class="label">Styles</p>
     <div class="filters__chips" id="styles"></div>
-    <p class="filters__note">Aucun choisi : tous les styles de tes playlists.</p>
+    <p class="filters__note" id="stylesNote">Aucun choisi : tous les styles de tes playlists.</p>
 
     <p class="label">Niveau</p>
     <div class="filters__chips filters__chips--scroll" id="niche"></div>
@@ -324,7 +330,23 @@ const NICHE = {
   equilibre: { label: 'Équilibré',           desc: 'Un mélange de classiques et de pépites' },
   pepites:   { label: 'Pépites',             desc: 'Artistes confidentiels (moins de 30 000 fans) : deep cuts, rare groove' }
 }
-const MODES = {
+/* Source : ?source=radio (bouton de la page radio), sinon les liens Spotify.
+   Au retour de la connexion Spotify, l'adresse n'a plus de paramètre : on reprend la source enregistrée */
+const startParams = new URLSearchParams(location.search)
+const SOURCE = startParams.get('source') === 'radio' ||
+  (startParams.get('code') && localStorage.getItem('mix_source') === 'radio') ? 'radio' : 'spotify'
+document.body.dataset.source = SOURCE
+const FORM_KEY = SOURCE === 'radio' ? 'mix_form_radio' : 'mix_form'
+
+if (SOURCE === 'radio') {
+  THEMES.libre = { label: 'Comme la radio', desc: 'Pas de thème : le style, le tempo et la rareté des titres de la radio' }
+  NICHE.auto   = { label: 'Comme la radio', desc: 'Même niveau de rareté que les titres de la radio' }
+}
+
+const MODES = SOURCE === 'radio' ? {
+  discover: { label: 'Radio + découvertes', desc: 'Garde les meilleurs titres de la radio et ajoute des artistes proches' },
+  mix:      { label: 'Juste la radio',      desc: 'Aucun titre ajouté : les titres de la radio filtrés et enchaînés par tempo' }
+} : {
   discover: { label: 'Mes titres + découvertes', desc: 'Garde tes meilleurs titres et ajoute des artistes proches' },
   mix:      { label: 'Juste mes playlists',      desc: 'Aucun titre ajouté : tes playlists filtrées, mélangées et enchaînées par tempo' }
 }
@@ -411,7 +433,7 @@ async function readPlaylist(id, src) {
 }
 
 /* ── Formulaire ─────────────────────────────────────────────── */
-const state = { mode: 'discover', theme: 'libre', niche: 'auto', curve: 'theme', styles: new Set() }
+const state = { mode: SOURCE === 'radio' ? 'mix' : 'discover', period: 'tout', theme: 'libre', niche: 'auto', curve: 'theme', styles: new Set() }
 const seedInputs = []
 const canPaste = !!navigator.clipboard?.readText
 el("seeds").innerHTML = [0, 1, 2].map(i => `
@@ -523,6 +545,47 @@ function syncMode() {
   syncSliders()
 }
 renderChoice('mode', MODES, 'mode', syncMode)
+
+/* ── Source « radio » : titres relevés par le robot (table plays), par période ── */
+const PERIODS = { '4h': { label: '4 h', h: 4 }, '12h': { label: '12 h', h: 12 }, '24h': { label: '24 h', h: 24 }, tout: { label: 'Tout', h: Infinity } }
+const RADIO_MAX = 160  // au-delà, tirage au hasard (sans ISRC, chaque titre coûte deux recherches Deezer)
+let radioPlays = null
+async function loadRadio() {
+  const all = []
+  for (let from = 0; ; from += 1000) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/plays?select=title,artist,played_at&order=played_at.desc&offset=${from}&limit=1000`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } })
+    const page = res.ok ? await res.json() : []
+    all.push(...page)
+    if (page.length < 1000) break
+  }
+  radioPlays = all.map(r => ({ title: r.title, artist: r.artist, at: Date.parse(r.played_at) }))
+  syncRadio()
+}
+/* Titres uniques passés sur la période (le passage le plus récent compte) */
+function radioTitles(period = state.period) {
+  const since = Date.now() - PERIODS[period].h * 3600000
+  const seen = new Map()
+  for (const t of radioPlays || []) {
+    if (t.at < since) break
+    const k = `${norm(t.artist)}|${norm(t.title)}`
+    if (!seen.has(k)) seen.set(k, { title: t.title, artist: t.artist })
+  }
+  return [...seen.values()]
+}
+function syncRadio() {
+  if (SOURCE !== 'radio' || !radioPlays) return
+  el("period").querySelectorAll('[data-k]').forEach(c => c.innerHTML = `${PERIODS[c.dataset.k].label}<small style="margin-left:7px;opacity:.6">${radioTitles(c.dataset.k).length}</small>`)
+  const n = radioTitles().length
+  el("radioNote").textContent = `${n} titre${n > 1 ? 's' : ''} passé${n > 1 ? 's' : ''} à la radio sur cette période` +
+    (n > RADIO_MAX ? ` (${RADIO_MAX} tirés au hasard pour le calcul)` : '')
+}
+renderChoice('period', PERIODS, 'period', syncRadio)
+if (SOURCE === 'radio') {
+  el("stylesNote").textContent = 'Aucun choisi : tous les styles de la radio.'
+  el("intro").textContent = 'Les titres passés à la radio, filtrés par thème et styles et enchaînés par tempo. Écoute les extraits avant de créer la playlist Spotify.'
+  loadRadio()
+}
 renderChoice('themes', THEMES, 'theme', syncDescs)
 renderChoice('niche', NICHE, 'niche', syncDescs)
 renderChoice('curve', CURVES, 'curve')
@@ -547,17 +610,18 @@ syncMode()
 
 /* Le formulaire survit à l'aller-retour de connexion Spotify */
 function saveForm() {
-  localStorage.setItem('mix_form', JSON.stringify({
-    seeds: seedInputs.map(x => x.value), mode: state.mode, theme: state.theme, niche: state.niche, curve: state.curve,
+  localStorage.setItem('mix_source', SOURCE)
+  localStorage.setItem(FORM_KEY, JSON.stringify({
+    seeds: seedInputs.map(x => x.value), mode: state.mode, period: state.period, theme: state.theme, niche: state.niche, curve: state.curve,
     styles: [...state.styles], len: el("len").value, disc: el("disc").value
   }))
 }
 function restoreForm() {
   try {
-    const f = JSON.parse(localStorage.getItem('mix_form'))
+    const f = JSON.parse(localStorage.getItem(FORM_KEY))
     if (!f) return
     f.seeds.forEach((v, i) => seedInputs[i].value = v)
-    for (const [key, id] of [['mode', 'mode'], ['theme', 'themes'], ['niche', 'niche'], ['curve', 'curve']])
+    for (const [key, id] of [['mode', 'mode'], ['period', 'period'], ['theme', 'themes'], ['niche', 'niche'], ['curve', 'curve']])
       el(id).querySelector(`[data-k="${f[key]}"]`)?.click()
     for (const s of f.styles || []) el("styles").querySelector(`[data-k="${s}"]`)?.click()
     el("len").value = f.len; el("disc").value = f.disc
@@ -650,6 +714,13 @@ el("go").onclick = async () => {
   if (!spToken()) return spLogin()
   saveForm()  // l'app se souvient des derniers réglages
   el("error").classList.remove('on')
+  if (SOURCE === 'radio') {
+    if (!radioPlays) return showError('Les titres de la radio sont encore en chargement, réessaie dans un instant.')
+    const titles = radioTitles()
+    if (!titles.length) return showError('Aucun titre passé à la radio sur cette période.')
+    lastSeeds = titles.length > RADIO_MAX ? titles.sort(() => Math.random() - 0.5).slice(0, RADIO_MAX) : titles
+    return generate(lastSeeds)
+  }
   const ids = [...new Set(seedInputs.map(x => playlistId(x.value)).filter(Boolean))]
   if (!ids.length) return showError('Colle au moins un lien de playlist Spotify.')
 
@@ -682,7 +753,7 @@ function renderResult() {
   stopPreview()
   const mix = result.mode === 'mix'
   const fresh = result.tracks.filter(t => !t.seed).length
-  const title = mix && resultTheme === 'libre' ? 'Mes playlists' : THEMES[resultTheme].label
+  const title = mix && resultTheme === 'libre' ? (SOURCE === 'radio' ? 'La radio' : 'Mes playlists') : THEMES[resultTheme].label
   el("resTitle").innerHTML = `${esc(title)} <small>(${result.tracks.length})</small>`
   el("profile").innerHTML =
     (mix ? `<span class="tag tag--fill">★ ${result.tracks.length} titres sur ${result.available} qui passent les filtres</span>`
@@ -695,7 +766,7 @@ function renderResult() {
   if (s > 0) {
     const why = lastBody?.styles?.length && result.rejected?.style >= result.rejected?.niche ? 'les styles choisis' : 'le niveau de rareté'
     el("shortText").textContent = mix
-      ? `Seulement ${result.tracks.length} titres de tes playlists passent ces filtres : choisis d'autres styles ou un autre thème.` :
+      ? `Seulement ${result.tracks.length} titres ${SOURCE === 'radio' ? 'de la radio' : 'de tes playlists'} passent ces filtres : choisis d'autres styles, un autre thème${SOURCE === 'radio' ? ' ou une période plus longue' : ''}.` :
       `Il manque ${s} titre${s > 1 ? 's' : ''} : ${why} ${why.startsWith('les') ? 'écartent' : 'écarte'} trop de titres de ces playlists.` +
       (result.relaxed ? ' Même en assouplissant, il n\'y en a pas plus : essaie une autre playlist de départ ou un autre style.' : '') +
       (!result.lastfm && why.startsWith('les') ? ' (Styles déduits de Deezer, approximatifs.)' : '')
@@ -865,7 +936,7 @@ showScreen('form')
     await spExchange(code)
   }
   updateHint()
-  seedInputs.forEach((x, i) => x.value && checkSeed(i))
+  if (SOURCE === 'spotify') seedInputs.forEach((x, i) => x.value && checkSeed(i))
 })()
 </script>
 </body>
