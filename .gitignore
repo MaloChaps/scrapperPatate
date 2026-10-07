@@ -1,1 +1,9 @@
 supabase/.temp/
+
+# Polices d'essai (licence « Trial » : évaluation uniquement, ni usage web ni distribution)
+fonts/HW Left Trial/
+fonts/HWAnimoTRIAL/
+*TRIAL*.ttf
+*TRIAL*.otf
+*TRIAL*.woff
+*TRIAL*.woff2
