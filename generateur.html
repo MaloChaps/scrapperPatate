@@ -757,8 +757,9 @@ el("go").onclick = async () => {
     if (!pool.length) return showError(state.styles.size ? 'Aucun titre de ces styles sur cette période : choisis une période plus longue ou d\'autres styles.' : 'Aucun titre passé à la radio sur cette période.')
     lastSeeds = (pool.length > RADIO_MAX ? [...pool].sort(() => Math.random() - 0.5).slice(0, RADIO_MAX) : pool)
       .map(({ title, artist }) => ({ title, artist }))
-    /* Styles déjà appliqués ici sur toute la radio : le serveur n'a plus à les refiltrer */
-    return generate(lastSeeds, { styles: [] })
+    /* Styles déjà appliqués ici sur toute la radio : le serveur ne refiltre pas ces titres,
+       mais filtre les découvertes (mode « Radio + découvertes ») */
+    return generate(lastSeeds, state.mode === 'mix' ? { styles: [] } : { seedsFiltered: true })
   }
   const ids = [...new Set(seedInputs.map(x => playlistId(x.value)).filter(Boolean))]
   if (!ids.length) return showError('Colle au moins un lien de playlist Spotify.')

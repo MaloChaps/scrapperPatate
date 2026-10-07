@@ -256,7 +256,8 @@ Deno.serve(async req => {
 
   try {
     const { seeds = [], theme = 'libre', length = 30, discovery = 0.5, mode = 'discover',
-            niche = 'auto', styles: wanted = [], curve: curveIn = 'theme', relax = false, keep: keepIn = [] } = await req.json()
+            niche = 'auto', styles: wanted = [], curve: curveIn = 'theme', relax = false, keep: keepIn = [],
+            seedsFiltered = false } = await req.json()
     const th = THEMES[theme]
     if (!th) return json({ error: 'thème inconnu' }, 400)
     if (!Array.isArray(seeds) || !seeds.length) return json({ error: 'aucun titre de départ' }, 400)
@@ -374,9 +375,10 @@ Deno.serve(async req => {
     /* 4. Styles choisis : seuls les titres qui en font partie (jamais ceux au style inconnu) */
     const exactStyle = (t: Track) => t.styles.some(s => wantedStyles.includes(s))
     const nearStyle = (t: Track) => (relax || !t.precise) && t.styles.some(s => wantedStyles.some(w => NEIGHBORS[w]?.includes(s)))
-    const styleOk = (t: Track) => (t.seed || fitsNiche(t.fans)) && (!wantedStyles.length || exactStyle(t) || nearStyle(t))
+    /* seedsFiltered : la page a déjà trié les titres de départ par style (source radio, genres connus) */
+    const styleOk = (t: Track) => (t.seed || fitsNiche(t.fans)) && (!wantedStyles.length || (t.seed && seedsFiltered) || exactStyle(t) || nearStyle(t))
     /* Style certain d'abord : un titre retenu seulement par voisinage passe après */
-    const rank = (t: Track) => (t.score || 0) + (wantedStyles.length && exactStyle(t) ? 0.15 : 0)
+    const rank = (t: Track) => (t.score || 0) + (wantedStyles.length && (exactStyle(t) || (t.seed && seedsFiltered)) ? 0.15 : 0)
 
     /* 5. Sélection : part de découvertes demandée, 2 titres max par artiste */
     const perArtist = new Map<string, number>()
@@ -444,7 +446,9 @@ Deno.serve(async req => {
 
       /* Score : tempo et styles du thème, un peu de hasard pour que « Régénérer » varie */
       const kept = tracks0.filter(keepIt)
-      for (const t of kept) t.score = (th.bpm ? 0.55 * bpmFit(t.bpm, range) + 0.45 * styleFit(t.styles) : 0.5) + Math.random() * 0.15
+      /* Thème : un tempo dans la plage d'abord, inconnu ensuite (Deezer n'a pas le BPM de beaucoup de titres), hors plage en dernier */
+      const tempoFit = (t: Track) => t.bpm ? bpmFit(t.bpm, range) : 0.35
+      for (const t of kept) t.score = (th.bpm ? 0.65 * tempoFit(t) + 0.35 * styleFit(t.styles) : 0.5) + Math.random() * 0.1
         + (wantedStyles.length && exact(t) ? 1 : 0)  // style exact d'abord, les voisins ne font que compléter
 
       /* Sélection équilibrée entre les playlists (tour à tour), 3 titres max par artiste */
