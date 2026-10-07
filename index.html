@@ -547,6 +547,18 @@ async function fetchAllPlays(ascending = false) {
     if (data.length < PAGE) return all
   }
 }
+/* Genres + miniatures calculés côté serveur (table track_info, remplie par la Edge Function) */
+async function loadTrackInfo() {
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb.from('track_info')
+      .select('artist, title, genre, art').order('key').range(from, from + PAGE - 1)
+    if (error || !data) return
+    for (const r of data) itunesCache.set(trackKey(r), { art: r.art, genre: r.genre })
+    if (data.length < PAGE) return
+  }
+}
+
 async function loadTracks() {
   const data = await fetchAllPlays()
   if (!data) return setStatus("Impossible de charger l'historique.", true)
@@ -1330,6 +1342,7 @@ sb.channel('plays-live')
 ;(async () => {
   el("statusDot").classList.add("on")
 
+  await loadTrackInfo()  // avant l'affichage, sinon les miniatures repartent sur iTunes
   await loadTracks()
   poll()
   setInterval(poll, POLL_MS)
