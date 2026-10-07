@@ -1,4 +1,4 @@
-/* DA partagée (reprise des fiches du site CookChap's) : polices, palette */
+/* DA partagée : polices du site CookChap's, palette « Café Paquebot » */
 
 @font-face { font-family: "Denver Serial"; src: url("fonts/Denver-Serial/Denver-Serial-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: "Denver Serial"; src: url("fonts/Denver-Serial/Denver-Serial-RegularItalic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
@@ -11,15 +11,16 @@
 @font-face { font-family: "Apercu Mono"; src: url("fonts/Apercu-Mono/ApercuMonoProBold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 
 :root {
-  --color-maroon: #5B241A;
-  --color-brown: #733126;
-  --color-red: #FF3F2A;
-  --color-beige: #F2E6D4;
+  --color-khaki: #938965;
+  --color-red: #E3301A;
+  --color-cream: #EFDBB3;
+  --color-olive: #1F1D14;   /* ajouté pour la lisibilité du texte sur le kaki */
 
-  /* Thème des fiches recette : fond beige, texte brun, grands titres en rouge */
-  --bg: var(--color-beige);
-  --ink: var(--color-brown);
+  /* Fond kaki, texte brun-olive ; rouge et crème pour les grands éléments (titres, boutons pleins) */
+  --bg: var(--color-khaki);
+  --ink: var(--color-olive);
   --accent: var(--color-red);
+  --on-accent: var(--color-cream);
   --field: color-mix(in srgb, var(--ink) 12%, var(--bg));   /* champs et pastilles inactives */
   --line: color-mix(in srgb, var(--ink) 20%, transparent);
   --line-strong: color-mix(in srgb, var(--ink) 45%, transparent);

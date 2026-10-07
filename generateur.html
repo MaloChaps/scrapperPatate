@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Le Mix</title>
 <meta name="description" content="Générateur de playlists Spotify à partir de tes playlists préférées">
-<meta name="theme-color" content="#F2E6D4">
+<meta name="theme-color" content="#938965">
 <link rel="manifest" href="mix.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -32,6 +32,9 @@
     max-width:1040px;margin:0 auto;padding:0 var(--gutter-r) calc(120px + env(safe-area-inset-bottom)) var(--gutter-l);
   }
 
+  /* Mode « Juste mes playlists » : pas de réglage de découvertes */
+  body[data-mode="mix"] .filters [data-for="discover"]{display:none}
+
   /* Deux écrans : réglages puis résultat */
   body[data-screen="form"] .result,
   body[data-screen="result"] .hero,
@@ -54,19 +57,20 @@
   .back{text-decoration:none}
 
   .hero{padding:clamp(20px,6vw,64px) 0 8px;border-bottom:1px solid var(--line-strong)}
-  h1{margin:0;color:var(--accent);font-family:var(--font-display);font-weight:400;font-size:clamp(56px,16vw,140px);line-height:.88;letter-spacing:-.02em}
+  /* Grand titre : crème dans un pavé rouge */
+  h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(56px,16vw,140px);line-height:.88;letter-spacing:-.02em}
   h1 em{font-style:italic}
   .intro{max-width:46ch;margin:18px 0 22px}
 
   /* Pastilles et boutons (comme les filtres du site cocktail) */
   .pill-button{padding:8px 14px;border:1px solid var(--ink);border-radius:99px;background:transparent;color:var(--ink);font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;transition:background-color .2s,color .2s}
-  .pill-button--filled{background:var(--ink);color:var(--bg)}
+  .pill-button--filled{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
   .pill-button--big{padding:13px 22px;font-size:13px}
   .pill-button:disabled{opacity:.4;cursor:default}
   @media (hover:hover){.pill-button:not(:disabled):hover{background:var(--ink);color:var(--bg)}}
 
   .chip{display:inline-flex;align-items:center;padding:6px 12px;border:0;border-radius:99px;background:var(--field);color:var(--ink);font:400 14px var(--font-mono);transition:background-color .2s,color .2s}
-  .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+  .chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
   .chip__close{display:inline-block;max-width:0;margin-left:0;overflow:hidden;opacity:0;font-size:16px;line-height:1;transform:rotate(-90deg) scale(.4);transition:max-width .25s ease,margin-left .25s ease,opacity .2s ease,transform .25s ease}
   .chip--multi[aria-pressed="true"] .chip__close{max-width:1em;margin-left:8px;opacity:1;transform:none}
   @media (hover:hover){.chip:hover{background:var(--ink);color:var(--bg)}}
@@ -87,14 +91,14 @@
   .seed__paste{position:absolute;right:5px;top:50%;transform:translateY(-50%);padding:6px 11px;font-size:11px;background:var(--bg)}
   .seed-state{flex:0 0 240px;display:flex;align-items:center;gap:8px;min-width:0;font:400 12px var(--font-mono)}
   .seed-state:empty{visibility:hidden}
-  .seed-state.err{color:var(--accent)}
+  .seed-state.err{color:var(--ink)}
   .seed-state.wait{opacity:.6}
   .seed-state__cover{width:28px;height:28px;flex-shrink:0;border-radius:4px;background:var(--field) center/cover}
   .seed-state__text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .seed-state__text b{font-weight:500}
   .seed-state .pill-button{padding:5px 10px;font-size:11px}
   .field.ok{box-shadow:0 0 0 1px var(--ink)}
-  .field.err{box-shadow:0 0 0 1px var(--accent)}
+  .field.err{box-shadow:0 0 0 2px var(--accent)}
   .saved{display:flex;flex-wrap:wrap;gap:8px}
   .saved:empty{display:none}
   .range{display:flex;align-items:center;gap:14px;max-width:520px}
@@ -112,7 +116,7 @@
   .actionbar__inner{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
   .actionbar .hint{text-align:center}
   .actionbar .hint:empty{display:none}
-  .btn-cta{width:100%;min-height:52px;padding:14px 22px;border:0;border-radius:99px;background:var(--ink);color:var(--bg);font:500 14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+  .btn-cta{width:100%;min-height:52px;padding:14px 22px;border:0;border-radius:99px;background:var(--accent);color:var(--on-accent);font:500 14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
   .btn-cta:disabled{opacity:.4;cursor:default}
   @media (min-width:600px){.btn-cta{width:auto;align-self:center;min-width:320px}}
 
@@ -135,25 +139,25 @@
   .loading{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center;gap:4px;
     padding:24px;background:color-mix(in srgb, var(--bg) 96%, transparent);text-align:center}
   .loading.on{display:flex}
-  .loading__title{margin:0 0 12px;color:var(--accent);font-family:var(--font-display);font-weight:400;font-size:clamp(44px,12vw,72px);line-height:.9}
+  .loading__title{margin:0 0 12px;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(44px,12vw,72px);line-height:.9}
   .loading__step{margin:0;font:500 13px var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
   .loading__bar{width:min(320px,80%);height:2px;margin:18px auto;background:var(--line)}
   .loading__bar span{display:block;height:100%;width:0;background:var(--ink);transition:width .6s ease}
   .loading .pill-button{margin-top:18px}
-  .error{display:none;margin-top:20px;padding:12px 16px;border:1px solid var(--accent);border-radius:4px;color:var(--accent);font:400 14px var(--font-mono)}
+  .error{display:none;margin-top:20px;padding:12px 16px;border-radius:4px;background:var(--accent);color:var(--on-accent);font:400 14px var(--font-mono)}
   .error.on{display:block}
 
   /* Résultat : liste en grands titres */
   .result{margin-top:clamp(20px,5vw,48px)}
   .section-header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 16px;padding-bottom:16px;border-bottom:1px solid var(--line-strong)}
-  .section-title{margin:0;color:var(--accent);font-family:var(--font-display);font-weight:400;font-size:clamp(36px,9vw,56px);line-height:.95;letter-spacing:-.02em}
+  .section-title{margin:0;color:var(--ink);font-family:var(--font-display);font-weight:400;font-size:clamp(36px,9vw,56px);line-height:.95;letter-spacing:-.02em}
   .section-title small{font:400 13px var(--font-mono);letter-spacing:.04em;vertical-align:.9em}
   .profile{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px}
-  .short{display:none;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:14px 0 6px;padding:14px 16px;border:1px solid var(--accent);border-radius:4px;color:var(--accent);font:400 13px var(--font-mono)}
+  .short{display:none;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:14px 0 6px;padding:14px 16px;border-radius:4px;background:var(--accent);color:var(--on-accent);font:400 13px var(--font-mono)}
   .short.on{display:flex}
   .short p{margin:0;flex:1;min-width:220px}
   .tag{font:400 12px var(--font-mono);padding:3px 9px;border:1px solid var(--line-strong);border-radius:99px;white-space:nowrap}
-  .tag--fill{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .tag--fill{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 
   .tracks{margin:8px 0 0;padding:0;list-style:none}
   .track{display:grid;grid-template-columns:28px 44px 1fr auto 24px;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;-webkit-user-select:none;transition:background-color .15s,color .15s,padding .15s,opacity .15s}
@@ -166,6 +170,14 @@
   .track.off{opacity:.35}
   .track__index{font:400 12px var(--font-mono)}
   .track__cover{width:44px;height:44px;border-radius:4px;background:var(--field) center/cover}
+  /* Pochette = bouton d'écoute de l'extrait (30 s, Deezer) */
+  .track__play{position:relative;border:0;padding:0;overflow:hidden}
+  .track__play::after{content:'▶';position:absolute;inset:0;display:grid;place-items:center;font-size:14px;
+    background:color-mix(in srgb, var(--ink) 55%, transparent);color:var(--bg);opacity:0;transition:opacity .15s}
+  .track__play:not([disabled]):hover::after,.track.playing .track__play::after{opacity:1}
+  .track.playing .track__play::after{content:'❚❚'}
+  .track__play[disabled]{cursor:default}
+  .track.playing{background:color-mix(in srgb, var(--ink) 8%, transparent)}
   .track__name,.track__artist{display:block}
   .track__name{margin:0;font-family:var(--font-display);font-weight:400;font-size:clamp(20px,4.6vw,30px);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .track__artist{margin-top:4px;font:400 13px var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -206,6 +218,10 @@
   </section>
 
   <div class="filters">
+    <p class="label">Mode</p>
+    <div class="filters__chips filters__chips--scroll" id="mode"></div>
+    <p class="filters__note" id="modeDesc"></p>
+
     <p class="label">Playlists</p>
     <div class="seeds" id="seeds"></div>
     <p class="filters__note saved" id="saved"></p>
@@ -228,8 +244,8 @@
     <p class="label">Longueur</p>
     <div class="range"><input type="range" id="len" min="15" max="60" step="5" value="30"><output id="lenVal"></output></div>
 
-    <p class="label">Découvertes</p>
-    <div class="range"><input type="range" id="disc" min="0" max="100" step="10" value="50"><output id="discVal"></output></div>
+    <p class="label" data-for="discover">Découvertes</p>
+    <div class="range" data-for="discover"><input type="range" id="disc" min="0" max="100" step="10" value="50"><output id="discVal"></output></div>
   </div>
 
   <div class="error" id="error"></div>
@@ -237,6 +253,7 @@
   <section class="result" id="result">
     <div class="section-header">
       <h2 class="section-title" id="resTitle"></h2>
+      <button class="pill-button" id="listenAll">▶ Écouter le mix</button>
     </div>
     <div class="profile" id="profile"></div>
     <div class="short" id="short">
@@ -301,6 +318,11 @@ const NICHE = {
   equilibre: { label: 'Équilibré',           desc: 'Un mélange de classiques et de pépites' },
   pepites:   { label: 'Pépites',             desc: 'Artistes confidentiels (moins de 30 000 fans) : deep cuts, rare groove' }
 }
+const MODES = {
+  discover: { label: 'Mes titres + découvertes', desc: 'Garde tes meilleurs titres et ajoute des artistes proches' },
+  mix:      { label: 'Juste mes playlists',      desc: 'Aucun titre ajouté : tes playlists filtrées, mélangées et enchaînées par tempo' }
+}
+const LEN_ALL = 105  // dernier cran du curseur en mode « Juste mes playlists » : tous les titres
 const CURVES = { theme: 'Selon le thème', rise: '↗ Montée', fall: '↘ Descente', wave: '∿ Vagues', none: 'Mélangé' }
 
 /* ── Spotify (PKCE, même app que la page principale) ────────── */
@@ -367,7 +389,7 @@ async function spFetch(path, opts = {}, tries = 4) {
 const playlistId = s => (s.match(/playlist[/:]([A-Za-z0-9]{22})/) || s.trim().match(/^([A-Za-z0-9]{22})$/))?.[1]
 
 /* Titres d'une playlist : titre, premier artiste, ISRC (si fourni) et URI Spotify */
-async function readPlaylist(id) {
+async function readPlaylist(id, src) {
   const out = []
   let path = `/playlists/${id}/items?limit=100`
   while (path) {
@@ -375,7 +397,7 @@ async function readPlaylist(id) {
     for (const it of r.items || []) {
       const tr = it.item ?? it.track
       if (!tr || tr.type !== 'track' || tr.is_local || !tr.uri) continue
-      out.push({ title: tr.name, artist: tr.artists?.[0]?.name || '', isrc: tr.external_ids?.isrc, uri: tr.uri })
+      out.push({ title: tr.name, artist: tr.artists?.[0]?.name || '', isrc: tr.external_ids?.isrc, uri: tr.uri, src })
     }
     path = r.next
   }
@@ -383,7 +405,7 @@ async function readPlaylist(id) {
 }
 
 /* ── Formulaire ─────────────────────────────────────────────── */
-const state = { theme: 'libre', niche: 'auto', curve: 'theme', styles: new Set() }
+const state = { mode: 'discover', theme: 'libre', niche: 'auto', curve: 'theme', styles: new Set() }
 const seedInputs = []
 const canPaste = !!navigator.clipboard?.readText
 el("seeds").innerHTML = [0, 1, 2].map(i => `
@@ -481,9 +503,20 @@ function renderChoice(id, options, key, onPick) {
   }
 }
 const syncDescs = () => {
+  el("modeDesc").textContent  = MODES[state.mode].desc
   el("themeDesc").textContent = THEMES[state.theme].desc
   el("nicheDesc").textContent = NICHE[state.niche].desc
 }
+/* Mode « Juste mes playlists » : curseur de longueur jusqu'à « Tous », pas de découvertes */
+function syncMode() {
+  document.body.dataset.mode = state.mode
+  const len = el("len")
+  len.max = state.mode === 'mix' ? LEN_ALL : 60
+  if (+len.value > +len.max) len.value = len.max
+  syncDescs()
+  syncSliders()
+}
+renderChoice('mode', MODES, 'mode', syncMode)
 renderChoice('themes', THEMES, 'theme', syncDescs)
 renderChoice('niche', NICHE, 'niche', syncDescs)
 renderChoice('curve', CURVES, 'curve')
@@ -500,16 +533,16 @@ el("styles").onclick = e => {
 }
 
 const syncSliders = () => {
-  el("lenVal").textContent  = `${el("len").value} titres`
+  el("lenVal").textContent  = state.mode === 'mix' && +el("len").value >= LEN_ALL ? 'Tous' : `${el("len").value} titres`
   el("discVal").textContent = `${el("disc").value} %`
 }
 el("len").oninput = el("disc").oninput = syncSliders
-syncSliders()
+syncMode()
 
 /* Le formulaire survit à l'aller-retour de connexion Spotify */
 function saveForm() {
   localStorage.setItem('mix_form', JSON.stringify({
-    seeds: seedInputs.map(x => x.value), theme: state.theme, niche: state.niche, curve: state.curve,
+    seeds: seedInputs.map(x => x.value), mode: state.mode, theme: state.theme, niche: state.niche, curve: state.curve,
     styles: [...state.styles], len: el("len").value, disc: el("disc").value
   }))
 }
@@ -518,10 +551,10 @@ function restoreForm() {
     const f = JSON.parse(localStorage.getItem('mix_form'))
     if (!f) return
     f.seeds.forEach((v, i) => seedInputs[i].value = v)
-    el("len").value = f.len; el("disc").value = f.disc
-    for (const [key, id] of [['theme', 'themes'], ['niche', 'niche'], ['curve', 'curve']])
+    for (const [key, id] of [['mode', 'mode'], ['theme', 'themes'], ['niche', 'niche'], ['curve', 'curve']])
       el(id).querySelector(`[data-k="${f[key]}"]`)?.click()
     for (const s of f.styles || []) el("styles").querySelector(`[data-k="${s}"]`)?.click()
+    el("len").value = f.len; el("disc").value = f.disc
     syncSliders()
   } catch {}
 }
@@ -555,14 +588,17 @@ function showError(msg) {
 el("cancel").onclick = () => aborter?.abort()
 
 /* Étapes affichées pendant le calcul serveur (pas de suivi en direct) */
-function startSteps() {
-  const steps = [[0, 'Analyse des styles et des tempos'], [15, 'Recherche d\'artistes proches'],
-                 [35, 'Écoute des titres candidats'], [55, 'Sélection et mise en ordre']]
+function startSteps(mode) {
+  const steps = mode === 'mix'
+    ? [[0, 'Lecture des tempos de tes titres'], [25, 'Filtrage par thème et styles'], [38, 'Enchaînement des tempos']]
+    : [[0, 'Analyse des styles et des tempos'], [15, 'Recherche d\'artistes proches'],
+       [35, 'Écoute des titres candidats'], [55, 'Sélection et mise en ordre']]
+  const total = mode === 'mix' ? 45 : 70
   const t0 = Date.now()
   const tick = () => {
     const s = (Date.now() - t0) / 1000
     el("step").textContent = steps.filter(([at]) => s >= at).pop()[1] + '…'
-    el("bar").style.width = Math.min(95, 10 + s / 70 * 85) + '%'
+    el("bar").style.width = Math.min(95, 10 + s / total * 85) + '%'
   }
   tick()
   return setInterval(tick, 1000)
@@ -572,14 +608,14 @@ function startSteps() {
 let lastBody = null
 async function generate(seeds, extra = {}) {
   const body = extra.keep ? { ...lastBody, ...extra } : {
-    seeds, theme: state.theme, niche: state.niche, curve: state.curve, styles: [...state.styles],
-    length: +el("len").value, discovery: el("disc").value / 100
+    seeds, mode: state.mode, theme: state.theme, niche: state.niche, curve: state.curve, styles: [...state.styles],
+    length: state.mode === 'mix' && +el("len").value >= LEN_ALL ? 0 : +el("len").value, discovery: el("disc").value / 100
   }
   if (!extra.keep) lastBody = body
   el("error").classList.remove('on')
   setLoading(true)
   el("go").disabled = el("regen").disabled = true
-  const timer = startSteps()
+  const timer = startSteps(body.mode)
   aborter = new AbortController()
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/build-playlist`, {
@@ -616,8 +652,8 @@ el("go").onclick = async () => {
   el("bar").style.width = '5%'
   el("go").disabled = true
   const seeds = [], failed = []
-  for (const id of ids) {
-    try { seeds.push(...await readPlaylist(id)) } catch (e) { failed.push(e.message) }
+  for (const [src, id] of ids.entries()) {
+    try { seeds.push(...await readPlaylist(id, src)) } catch (e) { failed.push(e.message) }
   }
   el("go").disabled = false
   if (!seeds.length) {
@@ -637,10 +673,14 @@ el("complete").onclick = () => {
 const fansLabel = n => n == null ? '' : n < 1000 ? `${n} fans` : n < 1e6 ? `${Math.round(n / 1000)} k fans` : `${(n / 1e6).toFixed(1)} M fans`
 
 function renderResult() {
+  stopPreview()
+  const mix = result.mode === 'mix'
   const fresh = result.tracks.filter(t => !t.seed).length
-  el("resTitle").innerHTML = `${esc(THEMES[resultTheme].label)} <small>(${result.tracks.length})</small>`
+  const title = mix && resultTheme === 'libre' ? 'Mes playlists' : THEMES[resultTheme].label
+  el("resTitle").innerHTML = `${esc(title)} <small>(${result.tracks.length})</small>`
   el("profile").innerHTML =
-    `<span class="tag tag--fill">★ ${result.tracks.length - fresh} de tes playlists</span><span class="tag tag--fill">✦ ${fresh} découvertes</span>` +
+    (mix ? `<span class="tag tag--fill">★ ${result.tracks.length} titres sur ${result.available} qui passent les filtres</span>`
+         : `<span class="tag tag--fill">★ ${result.tracks.length - fresh} de tes playlists</span><span class="tag tag--fill">✦ ${fresh} découvertes</span>`) +
     `<span class="tag">${esc(CURVES[result.curve] || CURVES.none)}</span>` +
     result.profile.map(p => `<span class="tag">${esc(STYLES[p.style] || p.style)} ${p.share} %</span>`).join('')
   /* Pas assez de titres : on dit pourquoi et on propose de compléter */
@@ -648,16 +688,19 @@ function renderResult() {
   el("short").classList.toggle('on', s > 0)
   if (s > 0) {
     const why = lastBody?.styles?.length && result.rejected?.style >= result.rejected?.niche ? 'les styles choisis' : 'le niveau de rareté'
-    el("shortText").textContent = `Il manque ${s} titre${s > 1 ? 's' : ''} : ${why} ${why.startsWith('les') ? 'écartent' : 'écarte'} trop de titres de ces playlists.` +
+    el("shortText").textContent = mix
+      ? `Seulement ${result.tracks.length} titres de tes playlists passent ces filtres : choisis d'autres styles ou un autre thème.` :
+      `Il manque ${s} titre${s > 1 ? 's' : ''} : ${why} ${why.startsWith('les') ? 'écartent' : 'écarte'} trop de titres de ces playlists.` +
       (result.relaxed ? ' Même en assouplissant, il n\'y en a pas plus : essaie une autre playlist de départ ou un autre style.' : '') +
       (!result.lastfm && why.startsWith('les') ? ' (Styles déduits de Deezer, approximatifs.)' : '')
-    el("complete").style.display = result.relaxed ? 'none' : ''
+    el("complete").style.display = result.relaxed || mix ? 'none' : ''
   }
   el("list").innerHTML = result.tracks.map((t, i) => `
     <li><label class="track">
       <input type="checkbox" data-i="${i}" checked>
       <span class="track__index">${String(i + 1).padStart(2, '0')}</span>
-      <span class="track__cover" style="${t.cover ? `background-image:url(${esc(t.cover)})` : ''}"></span>
+      <button class="track__cover track__play" type="button" data-play="${i}" ${t.preview ? 'aria-label="Écouter l\'extrait"' : 'disabled aria-label="Pas d\'extrait"'}
+        style="${t.cover ? `background-image:url(${esc(t.cover)})` : ''}"></button>
       <span class="track__info">
         <span class="track__name">${esc(t.title)}</span>
         <span class="track__artist">${esc(t.artist)}</span>
@@ -666,7 +709,7 @@ function renderResult() {
         ${t.styles.slice(0, 2).map(s => `<span class="tag">${esc(STYLES[s] || s)}</span>`).join('')}
         ${t.bpm ? `<span class="tag">${t.bpm} bpm</span>` : ''}
         ${t.fans != null ? `<span class="tag">${fansLabel(t.fans)}</span>` : ''}
-        <span class="tag">${t.seed ? '★' : '✦'}</span>
+        ${mix ? '' : `<span class="tag">${t.seed ? '★' : '✦'}</span>`}
       </span>
       <span class="track__check" aria-hidden="true"></span>
     </label></li>`).join('')
@@ -676,6 +719,53 @@ function renderResult() {
   el("createStep").textContent = ''
   updateCreateCount()
 }
+/* ── Écoute : extraits Deezer de 30 s, un titre ou tout le mix à la suite ── */
+const audio = new Audio()
+let playingIdx = -1, autoplay = false, stallTimer = null
+function markPlaying() {
+  el("list").querySelectorAll('.track').forEach((r, i) => r.classList.toggle('playing', i === playingIdx))
+  el("listenAll").textContent = autoplay ? '■ Arrêter l\'écoute' : '▶ Écouter le mix'
+}
+function stopPreview() {
+  clearTimeout(stallTimer)
+  audio.pause()
+  playingIdx = -1; autoplay = false
+  markPlaying()
+}
+function playPreview(i) {
+  const t = result?.tracks[i]
+  if (!t?.preview) return autoplay ? playNext(i) : stopPreview()
+  playingIdx = i
+  audio.src = t.preview
+  audio.play().catch(() => autoplay ? playNext(i) : stopPreview())
+  /* Extrait qui ne démarre pas (lien expiré, réseau) : on passe au suivant */
+  clearTimeout(stallTimer)
+  stallTimer = setTimeout(() => { if (playingIdx === i && audio.currentTime < 0.5) autoplay ? playNext(i) : stopPreview() }, 6000)
+  markPlaying()
+  el("list").querySelectorAll('.track')[i]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+/* Titre suivant parmi ceux qui restent cochés */
+function playNext(from) {
+  const boxes = [...el("list").querySelectorAll('input')]
+  const next = boxes.findIndex((c, i) => i > from && c.checked && result.tracks[i].preview)
+  next < 0 ? stopPreview() : playPreview(next)
+}
+audio.onended = audio.onerror = () => autoplay ? playNext(playingIdx) : stopPreview()
+el("list").addEventListener('click', e => {
+  const b = e.target.closest('[data-play]')
+  if (!b) return
+  e.preventDefault()
+  const i = +b.dataset.play
+  if (i === playingIdx) return stopPreview()
+  autoplay = false
+  playPreview(i)
+})
+el("listenAll").onclick = () => {
+  if (autoplay) return stopPreview()
+  autoplay = true
+  playNext(playingIdx >= 0 ? playingIdx - 1 : -1)
+}
+
 const pickedTracks = () => [...el("list").querySelectorAll('input:checked')].map(c => result.tracks[+c.dataset.i])
 function updateCreateCount() {
   const n = el("list").querySelectorAll('input:checked').length

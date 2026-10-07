@@ -9,16 +9,19 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   /* Palette de la DA (da.css) sous les noms historiques de la page :
-     wine = fond, cream = texte, amber = accent rouge, pink = second accent sombre */
+     wine = fond kaki, cream = texte brun-olive, amber / pink = petits accents (brun-olive, lisible sur le kaki),
+     red / on-red = grands éléments (boutons pleins, choix actifs) */
   :root{
-    --wine:var(--color-beige);
-    --wine-2:color-mix(in srgb, var(--color-brown) 5%, var(--color-beige));
-    --cream:var(--color-brown);
-    --cream-dim:color-mix(in srgb, var(--color-brown) 72%, var(--color-beige));
-    --amber:var(--color-red);
-    --pink:var(--color-maroon);
-    --line:color-mix(in srgb, var(--color-brown) 20%, transparent);
-    --card:color-mix(in srgb, var(--color-brown) 5%, transparent);
+    --wine:var(--bg);
+    --wine-2:color-mix(in srgb, var(--ink) 5%, var(--bg));
+    --cream:var(--ink);
+    --cream-dim:color-mix(in srgb, var(--ink) 72%, var(--bg));
+    --amber:var(--ink);
+    --pink:var(--ink);
+    --red:var(--accent);
+    --on-red:var(--on-accent);
+    --line:color-mix(in srgb, var(--ink) 20%, transparent);
+    --card:color-mix(in srgb, var(--ink) 5%, transparent);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{background:var(--wine);color:var(--cream)}
@@ -78,13 +81,13 @@
   button{font-family:var(--font-mono);cursor:pointer;border:none;border-radius:999px;font-weight:500;letter-spacing:.02em;transition:transform .12s ease, background .2s ease, opacity .2s}
   button:active{transform:scale(.97)}
   button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-  .btn-main{background:var(--amber);color:var(--wine);font-size:16px;padding:13px 24px;display:inline-flex;align-items:center;gap:9px}
-  .btn-main.live{background:var(--pink);color:var(--wine)}
+  .btn-main{background:var(--red);color:var(--on-red);font-size:16px;padding:13px 24px;display:inline-flex;align-items:center;gap:9px}
+  .btn-main.live{background:var(--cream);color:var(--wine)}
   .btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--cream);padding:10px 16px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
   a.btn-ghost{display:inline-flex;align-items:center;border-radius:999px;font-family:var(--font-mono);font-weight:500;text-decoration:none}
   /* Accès au générateur : en haut à droite de la page */
   .topbar{display:flex;justify-content:flex-end;margin-bottom:16px}
-  .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--amber);color:var(--wine);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+  .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--red);color:var(--on-red);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
   @media (hover:hover){.btn-mix:hover{opacity:.85}}
   .btn-ghost:hover{background:var(--card)}
   .count{font-family:var(--font-mono);font-size:13px;color:var(--cream-dim);margin-left:auto}
@@ -138,7 +141,7 @@
   .filter-group-label{font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;padding-top:10px}
   .filter-chips{display:flex;flex-wrap:wrap;gap:8px}
   .filter-chip{display:inline-flex;align-items:center;min-height:36px;padding:7px 14px;border:0;border-radius:999px;background:var(--field);color:var(--cream);font:400 14px var(--font-mono);letter-spacing:0;white-space:nowrap;transition:background-color .2s,color .2s}
-  .filter-chip.active{background:var(--cream);color:var(--wine)}
+  .filter-chip.active{background:var(--red);color:var(--on-red)}
   .filter-chip small{margin-left:7px;font-size:12px;opacity:.6}
   @media (hover:hover){.filter-chip:hover{background:var(--cream);color:var(--wine)}}
   .filter-chip.src.loading{opacity:.55;cursor:wait}
@@ -203,7 +206,7 @@
   .mt-title{font-family:var(--font-display);font-size:20px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mt-artist{font:400 12px var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
   .modal-footer{padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--wine)}
-  .modal-cta{width:100%;min-height:52px;padding:14px 22px;border:0;border-radius:999px;background:var(--cream);color:var(--wine);font:500 14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+  .modal-cta{width:100%;min-height:52px;padding:14px 22px;border:0;border-radius:999px;background:var(--red);color:var(--on-red);font:500 14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
   .modal-cta:disabled{opacity:.4;cursor:default}
 
   .hour-sep{padding:10px 16px 6px;display:flex;align-items:center;gap:10px;background:transparent}
@@ -262,12 +265,12 @@
     <div class="vinyl" id="vinyl">
       <img id="nowCover" src="" alt="">
       <svg viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="49" fill="#3d160f"/>
+        <circle cx="50" cy="50" r="49" fill="#1F1D14"/>
         <circle cx="50" cy="50" r="49" fill="none" stroke="color-mix(in srgb, var(--cream) 8%, transparent)" stroke-width="1"/>
         <circle cx="50" cy="50" r="40" fill="none" stroke="color-mix(in srgb, var(--cream) 6%, transparent)" stroke-width="1"/>
         <circle cx="50" cy="50" r="31" fill="none" stroke="color-mix(in srgb, var(--cream) 6%, transparent)" stroke-width="1"/>
-        <circle cx="50" cy="50" r="18" fill="#FF3F2A"/>
-        <circle cx="50" cy="50" r="4.5" fill="#3d160f"/>
+        <circle cx="50" cy="50" r="18" fill="#E3301A"/>
+        <circle cx="50" cy="50" r="4.5" fill="#1F1D14"/>
         <circle cx="62" cy="38" r="2" fill="rgba(255,255,255,.25)"/>
       </svg>
     </div>

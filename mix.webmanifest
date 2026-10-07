@@ -7,8 +7,8 @@
   "start_url": "./generateur.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#F2E6D4",
-  "theme_color": "#F2E6D4",
+  "background_color": "#938965",
+  "theme_color": "#938965",
   "icons": [
     {
       "src": "icons/icon-192.png",
