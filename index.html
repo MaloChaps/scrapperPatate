@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>La frite</title>
 <link rel="stylesheet" href="da.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍠</text></svg>">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   /* Palette de la DA (da.css) sous les noms historiques de la page :
@@ -55,7 +55,9 @@
   .now-artist{font-size:14px;color:var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cp-controls{display:flex;gap:12px;align-items:center;margin-top:14px}
   .vol-wrap{display:flex;align-items:center;gap:8px}
-  .vol-icon{font-size:16px;cursor:pointer;line-height:1;user-select:none;transition:transform .1s}
+  .vol-icon{display:flex;cursor:pointer;user-select:none;transition:transform .1s}
+  .vol-icon .ico{width:20px;height:20px}
+  .btn-main .ico{width:.9em;height:.9em;flex:0 0 auto}
   .vol-icon:active{transform:scale(.88)}
   input[type=range].vol{
     -webkit-appearance:none;appearance:none;
@@ -86,12 +88,12 @@
   .btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--cream);padding:10px 16px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
   a.btn-ghost{display:inline-flex;align-items:center;border-radius:999px;font-family:var(--font-mono);font-weight:500;text-decoration:none}
   /* Accès au générateur : en haut à droite de la page */
-  .topbar{display:flex;justify-content:flex-end;margin-bottom:16px}
+  /* Grand titre à gauche, CTA Le Mix à droite, centrés sur la même ligne */
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:clamp(20px,4vw,36px)}
   /* Grand titre : crème dans un pavé rouge, comme Le Mix */
-  .hero{padding:clamp(4px,3vw,32px) 0 clamp(20px,4vw,36px)}
-  h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(56px,16vw,140px);line-height:.88;letter-spacing:-.02em}
+  h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(40px,12vw,140px);line-height:.88;letter-spacing:-.02em}
   h1 em{font-style:italic}
-  .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--red);color:var(--on-red);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+  .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--red);color:var(--on-red);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;flex:0 0 auto;white-space:nowrap}
   @media (hover:hover){.btn-mix:hover{opacity:.85}}
   .btn-ghost:hover{background:var(--card)}
   .count{font-family:var(--font-mono);font-size:13px;color:var(--cream-dim);margin-left:auto}
@@ -160,12 +162,9 @@
 
 
   <header class="topbar">
+    <h1>La <em>Radio</em></h1>
     <a class="btn-mix" href="generateur.html">Le Mix</a>
   </header>
-
-  <section class="hero">
-    <h1>La <em>Radio</em></h1>
-  </section>
 
   <div class="custom-player">
     <audio id="radioAudio" preload="none"></audio>
@@ -188,9 +187,9 @@
       <div class="now-artist" id="nowArtist"></div>
       <div class="now-links" id="nowLinks"></div>
       <div class="cp-controls">
-        <button class="btn-main" id="radioPlayBtn">▶ Écouter</button>
+        <button class="btn-main" id="radioPlayBtn"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg> Écouter</button>
         <div class="vol-wrap">
-          <span class="vol-icon" id="volIcon">🔊</span>
+          <span class="vol-icon" id="volIcon" role="button" aria-label="Couper le son"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
           <input type="range" class="vol" id="volSlider" min="0" max="1" step="0.01" value="1">
         </div>
       </div>
@@ -446,6 +445,17 @@ el("dedupeBtn").onclick = async () => {
   await loadTracks()
 }
 
+/* Icônes SVG (couleur du texte) à la place des emojis */
+const ICON = {
+  play:  '<path d="M7 4.5v15l13-7.5z"/>',
+  pause: '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>',
+  stop:  '<path d="M6 6h12v12H6z"/>',
+  volHigh: '<path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  volLow:  '<path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  volMute: '<path d="M3 9v6h4l5 4V5L7 9z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+}
+const icon = name => `<svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${ICON[name]}</svg>`
+
 /* ── Player radio ────────────────────────────────────────────── */
 const STREAM_URL = 'https://www.radioking.com/play/radio-jockey'
 
@@ -480,7 +490,7 @@ function setVol(v) {
   el("volSlider").value = v
   el("volSlider").style.background =
     `linear-gradient(to right,var(--amber) ${v*100}%,var(--line) ${v*100}%)`
-  el("volIcon").textContent = v === 0 ? '🔇' : v < 0.4 ? '🔈' : '🔊'
+  el("volIcon").innerHTML = icon(v === 0 ? 'volMute' : v < 0.4 ? 'volLow' : 'volHigh')
 }
 
 el("volSlider").oninput = e => { prevVol = +e.target.value || prevVol; setVol(+e.target.value) }
@@ -496,7 +506,7 @@ el("radioPlayBtn").onclick = () => {
     clearTimeout(reconnectTimer)
     audio.src = STREAM_URL
     audio.play()
-    el("radioPlayBtn").textContent = "⏸ Pause"
+    el("radioPlayBtn").innerHTML = `${icon('pause')} Pause`
     el("radioPlayBtn").classList.add("live")
   } else {
     intentionalStop = true
@@ -504,7 +514,7 @@ el("radioPlayBtn").onclick = () => {
     audio.pause()
     audio.src = ''
     setStatus("")
-    el("radioPlayBtn").textContent = "▶ Écouter"
+    el("radioPlayBtn").innerHTML = `${icon('play')} Écouter`
     el("radioPlayBtn").classList.remove("live")
   }
 }

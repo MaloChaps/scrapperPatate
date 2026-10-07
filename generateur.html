@@ -67,6 +67,7 @@
 
   /* Pastilles et boutons (comme les filtres du site cocktail) */
   .pill-button{padding:8px 14px;border:1px solid var(--ink);border-radius:99px;background:transparent;color:var(--ink);font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;transition:background-color .2s,color .2s}
+  .pill-button .ico{width:1.1em;height:1.1em;margin-right:.4em;vertical-align:-.2em}
   .pill-button--filled{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
   .pill-button:disabled{opacity:.4;cursor:default}
   @media (hover:hover){.pill-button:not(:disabled):hover{background:var(--ink);color:var(--bg)}}
@@ -176,14 +177,13 @@
   .track__cover{width:72px;height:72px;border-radius:4px;background:var(--field) center/cover}
   /* Pochette = bouton d'écoute de l'extrait (30 s, Deezer) */
   .track__play{position:relative;border:0;padding:0;overflow:hidden}
-  /* Pastille ▶ toujours visible : on comprend qu'on peut écouter */
-  .track__play::after{content:'▶';position:absolute;right:6px;bottom:6px;width:28px;height:28px;border-radius:50%;
-    display:grid;place-items:center;padding-left:2px;font-size:11px;line-height:1;
-    background:var(--on-accent);color:var(--accent);box-shadow:0 1px 4px rgb(0 0 0 / .25);transition:transform .15s,background-color .15s,color .15s}
+  /* Pastille lecture toujours visible : on comprend qu'on peut écouter (icônes aux couleurs de da.css) */
+  .track__play::after{content:'';position:absolute;right:6px;bottom:6px;width:28px;height:28px;border-radius:50%;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23E3301A' d='M7 4.5v15l13-7.5z'/%3E%3C/svg%3E") 55% 50%/12px no-repeat,var(--on-accent);box-shadow:0 1px 4px rgb(0 0 0 / .25);transition:transform .15s,background-color .15s,color .15s}
   .track__play::before{content:'';position:absolute;inset:0;background:color-mix(in srgb, var(--ink) 35%, transparent);opacity:0;transition:opacity .15s}
   .track__play:not([disabled]):hover::after{transform:scale(1.12)}
   .track__play:not([disabled]):hover::before,.track.playing .track__play::before{opacity:1}
-  .track.playing .track__play::after{content:'❚❚';padding-left:0;font-size:9px;background:var(--accent);color:var(--on-accent)}
+  .track.playing .track__play::after{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23EFDBB3' d='M6 4h4v16H6zM14 4h4v16h-4z'/%3E%3C/svg%3E") center/11px no-repeat,var(--accent)}
   .track__play[disabled]::after{content:none}
   .track__play[disabled]{cursor:default}
   .track.playing{background:color-mix(in srgb, var(--ink) 8%, transparent)}
@@ -249,7 +249,7 @@
     <div class="filters__chips" id="styles"></div>
     <p class="filters__note" id="stylesNote">Aucun choisi : tous les styles de tes playlists.</p>
 
-    <p class="label">Niveau</p>
+    <p class="label">Type d'artiste</p>
     <div class="filters__chips filters__chips--scroll" id="niche"></div>
     <p class="filters__note" id="nicheDesc"></p>
 
@@ -268,7 +268,7 @@
   <section class="result" id="result">
     <div class="section-header">
       <h2 class="section-title" id="resTitle"></h2>
-      <button class="pill-button" id="listenAll">▶ Écouter le mix</button>
+      <button class="pill-button" id="listenAll"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>Écouter le mix</button>
     </div>
     <div class="profile" id="profile"></div>
     <div class="short" id="short">
@@ -326,8 +326,8 @@ const STYLES = {
 const NICHE = {
   auto:      { label: 'Comme mes playlists', desc: 'Même niveau de rareté que tes playlists' },
   connu:     { label: 'Connu',               desc: 'Artistes reconnus (plus de 20 000 fans)' },
-  equilibre: { label: 'Équilibré',           desc: 'Un mélange de classiques et de pépites' },
-  pepites:   { label: 'Pépites',             desc: 'Artistes confidentiels (moins de 30 000 fans) : deep cuts, rare groove' }
+  equilibre: { label: 'Un peu de tout',      desc: 'Un mélange de classiques et de pépites' },
+  pepites:   { label: 'Niche',               desc: 'Artistes confidentiels (moins de 30 000 fans) : deep cuts, rare groove' }
 }
 /* Source : ?source=radio (bouton de la page radio), sinon les liens Spotify.
    Au retour de la connexion Spotify, l'adresse n'a plus de paramètre : on reprend la source enregistrée */
@@ -835,12 +835,20 @@ function renderResult() {
   el("createStep").textContent = ''
   updateCreateCount()
 }
+/* Icônes SVG (couleur du texte) à la place des emojis */
+const ICON = {
+  play:  '<path d="M7 4.5v15l13-7.5z"/>',
+  pause: '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>',
+  stop:  '<path d="M6 6h12v12H6z"/>',
+}
+const icon = name => `<svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${ICON[name]}</svg>`
+
 /* ── Écoute : extraits Deezer de 30 s, un titre ou tout le mix à la suite ── */
 const audio = new Audio()
 let playingIdx = -1, autoplay = false, stallTimer = null
 function markPlaying() {
   el("list").querySelectorAll('.track').forEach((r, i) => r.classList.toggle('playing', i === playingIdx))
-  el("listenAll").textContent = autoplay ? '■ Arrêter l\'écoute' : '▶ Écouter le mix'
+  el("listenAll").innerHTML = autoplay ? `${icon('stop')}Arrêter l'écoute` : `${icon('play')}Écouter le mix`
 }
 function stopPreview() {
   clearTimeout(stallTimer)
