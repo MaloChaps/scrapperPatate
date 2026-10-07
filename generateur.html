@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le Mix · La Patate Douce</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍠</text></svg>">
+<style>
+  :root{
+    --wine:#2A0C1B;
+    --wine-2:#3C1227;
+    --cream:#F5EDC4;
+    --cream-dim:#cfc69f;
+    --amber:#E8853B;
+    --pink:#E0588E;
+    --green:#1DB954;
+    --line:rgba(245,237,196,.14);
+    --card:rgba(245,237,196,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--wine);color:var(--cream)}
+  body{
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    min-height:100vh;
+    line-height:1.45;
+    background:
+      radial-gradient(1100px 500px at 85% -10%, rgba(232,133,59,.16), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(224,88,142,.13), transparent 55%),
+      var(--wine);
+    padding:clamp(16px,4vw,48px);
+  }
+  .wrap{max-width:780px;margin:0 auto}
+  a{color:inherit}
+
+  .back{font-family:"DM Mono",monospace;font-size:12px;color:var(--cream-dim);text-decoration:none;opacity:.7}
+  .back:hover{opacity:1}
+  .eyebrow{font-family:"DM Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-top:22px}
+  h1{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(40px,9vw,76px);line-height:.92;letter-spacing:-.02em;margin:14px 0 6px}
+  h1 em{font-style:italic;color:var(--amber)}
+  .sub{color:var(--cream-dim);font-size:15px;max-width:52ch}
+
+  .card{margin-top:24px;background:var(--wine-2);border:1px solid var(--line);border-radius:22px;padding:clamp(16px,3vw,24px);display:flex;flex-direction:column;gap:22px}
+  .field-label{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--cream-dim);opacity:.6;margin-bottom:10px;display:flex;justify-content:space-between;gap:10px}
+  .field-label b{color:var(--cream);opacity:1;font-weight:500}
+
+  .seed{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .seed input{flex:1;min-width:0;font-family:"Space Grotesk",sans-serif;font-size:14px;padding:11px 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--cream)}
+  .seed input::placeholder{color:var(--cream-dim);opacity:.45}
+  .seed input:focus{outline:none;border-color:var(--amber)}
+  .seed-state{font-size:12px;color:var(--cream-dim);width:150px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seed-state.ok{color:var(--green)}
+  .seed-state.err{color:var(--pink)}
+  .saved{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+  .saved:empty{display:none}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-family:"Space Grotesk",sans-serif;font-size:13px;font-weight:500;padding:7px 14px;border-radius:999px;border:1px solid var(--line);color:var(--cream-dim);background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
+  .chip:hover{border-color:rgba(245,237,196,.35);color:var(--cream);background:var(--card)}
+  .chip.active{background:var(--amber);color:var(--wine);border-color:var(--amber);font-weight:700}
+  .chip.src{border-color:rgba(29,185,84,.4);color:rgba(29,185,84,.9);font-size:12px;padding:5px 12px}
+  .chip.src:hover{border-color:var(--green);color:var(--green)}
+  .theme-desc{font-size:12px;color:var(--cream-dim);opacity:.7;margin-top:8px;min-height:18px}
+
+  .sliders{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  input[type=range]{width:100%;accent-color:var(--amber)}
+  .range-ends{display:flex;justify-content:space-between;font-size:11px;color:var(--cream-dim);opacity:.55;margin-top:2px}
+
+  button{font-family:"Space Grotesk",sans-serif;cursor:pointer;border:none;border-radius:999px;font-weight:600;transition:transform .12s ease, background .2s ease, opacity .2s}
+  button:active{transform:scale(.97)}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  button:disabled{opacity:.45;cursor:default;transform:none}
+  .btn-main{background:var(--amber);color:var(--wine);font-size:16px;padding:13px 26px}
+  .btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--line);padding:11px 18px;font-size:14px}
+  .btn-ghost:hover{background:var(--card)}
+  .btn-spotify{background:var(--green);color:#000;font-size:15px;padding:12px 22px}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .hint{font-size:12px;color:var(--cream-dim);opacity:.7}
+
+  /* Chargement */
+  .loading{margin-top:24px;display:none;flex-direction:column;align-items:center;gap:16px;padding:40px 20px;text-align:center;border:1px solid var(--line);border-radius:22px;background:var(--card)}
+  .loading.on{display:flex}
+  .spinner{width:38px;height:38px;border-radius:50%;border:3px solid rgba(245,237,196,.12);border-top-color:var(--amber);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spinner{animation-duration:3s}}
+  .step{font-family:"DM Mono",monospace;font-size:12px;letter-spacing:.06em;color:var(--cream-dim)}
+  .bar-wrap{width:min(260px,80%);height:3px;background:rgba(245,237,196,.1);border-radius:2px;overflow:hidden}
+  .bar{height:100%;width:0;background:var(--amber);transition:width .6s ease}
+  .error{color:var(--pink);font-size:14px;margin-top:14px;display:none}
+  .error.on{display:block}
+
+  /* Résultat */
+  .result{margin-top:28px;display:none}
+  .result.on{display:block}
+  .result-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:12px}
+  .result-head h2{font-family:"Fraunces",serif;font-size:28px;font-weight:600;flex:1;min-width:200px}
+  .profile{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+  .tag{font-family:"DM Mono",monospace;font-size:11px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--cream-dim);white-space:nowrap}
+  .tag.seed{border-color:rgba(232,133,59,.5);color:var(--amber)}
+  .tag.new{border-color:rgba(224,88,142,.5);color:var(--pink)}
+  .list{display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+  .row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card);cursor:pointer}
+  .row:hover{background:rgba(245,237,196,.08)}
+  .row input{accent-color:var(--amber);width:16px;height:16px;flex-shrink:0;cursor:pointer}
+  .row .idx{font-family:"DM Mono",monospace;font-size:11px;color:var(--cream-dim);width:20px;text-align:right;flex-shrink:0}
+  .row .thumb{width:40px;height:40px;border-radius:6px;flex-shrink:0;background:var(--card) center/cover;border:1px solid var(--line)}
+  .row .info{min-width:0;flex:1}
+  .row .t,.row .a{display:block}
+  .row .t{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .a{font-size:12px;color:var(--cream-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .tags{display:flex;gap:5px;flex-shrink:0}
+  .row.off{opacity:.4}
+  .create{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .create input{flex:1;min-width:200px;font-family:"Space Grotesk",sans-serif;font-size:14px;padding:12px 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--cream)}
+  .create input:focus{outline:none;border-color:var(--green)}
+  .done{margin-top:14px;font-size:14px;display:none}
+  .done.on{display:block}
+  .done a{color:var(--green);font-weight:600}
+
+  @media (max-width:600px){
+    .sliders{grid-template-columns:1fr}
+    .seed{flex-wrap:wrap}
+    .seed-state{width:100%;padding-left:16px}
+    .row .tags .tag.genre{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← Mes Pépites</a>
+  <div class="eyebrow">La Patate Douce · générateur</div>
+  <h1>Le <em>Mix</em> 🍠</h1>
+  <p class="sub">Donne jusqu'à trois playlists Spotify que tu aimes et un thème : le générateur garde tes meilleurs titres, ajoute des découvertes proches et les enchaîne dans le bon tempo.</p>
+
+  <div class="card">
+    <div>
+      <div class="field-label">Tes playlists de départ</div>
+      <div id="seeds"></div>
+      <div class="saved" id="saved"></div>
+    </div>
+
+    <div>
+      <div class="field-label">Thème</div>
+      <div class="chips" id="themes"></div>
+      <div class="theme-desc" id="themeDesc"></div>
+    </div>
+
+    <div class="sliders">
+      <div>
+        <div class="field-label">Longueur <b id="lenVal">30 titres</b></div>
+        <input type="range" id="len" min="15" max="60" step="5" value="30">
+      </div>
+      <div>
+        <div class="field-label">Découvertes <b id="discVal">50 %</b></div>
+        <input type="range" id="disc" min="0" max="100" step="10" value="50">
+        <div class="range-ends"><span>Que mes playlists</span><span>Que du neuf</span></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-main" id="go">Générer le mix</button>
+      <span class="hint" id="goHint"></span>
+    </div>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="step" id="step"></div>
+    <div class="bar-wrap"><div class="bar" id="bar"></div></div>
+    <div class="hint">Compte environ une minute.</div>
+  </div>
+  <div class="error" id="error"></div>
+
+  <div class="result" id="result">
+    <div class="result-head">
+      <h2 id="resTitle"></h2>
+      <button class="btn-ghost" id="regen">↻ Régénérer</button>
+    </div>
+    <div class="profile" id="profile"></div>
+    <div class="list" id="list"></div>
+    <div class="create">
+      <input id="plName" placeholder="Nom de la playlist">
+      <button class="btn-spotify" id="create">Créer sur Spotify</button>
+    </div>
+    <div class="hint" id="createStep" style="margin-top:10px"></div>
+    <div class="done" id="done"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL      = 'https://wnbcoczjfqyxggkfyooh.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduYmNvY3pqZnF5eGdna2Z5b29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTQ1MDYsImV4cCI6MjA5NjkzMDUwNn0.0mO3O7xqMDwTLGx-5zrVLzW8ed0WoNDKP03eHji2v9o'
+const SPOTIFY_CLIENT_ID = '92f0ed53408d48e29b72e5bc027a3a10'
+
+const el   = id => document.getElementById(id)
+const esc  = s  => (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const norm = s  => (s||"").toLowerCase().replace(/\s+/g, ' ').trim()
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+const THEMES = {
+  apero:    { label: '🍷 Apéro',          desc: 'Soul, funk, brésilien, jazz · 92–118 BPM · tempo qui monte doucement' },
+  soiree:   { label: '🪩 Soirée',         desc: 'Dance, électro, funk, hip-hop · 110–128 BPM · ça monte' },
+  nuit:     { label: '🌙 Fin de nuit',    desc: 'Électro, jazz, R&B · 85–115 BPM · on redescend' },
+  dimanche: { label: '☕ Dimanche matin', desc: 'Jazz, folk, soul, chanson · 70–105 BPM · tranquille' },
+  route:    { label: '🚗 Road trip',      desc: 'Rock, pop, soul, hip-hop · 100–135 BPM · en vagues' },
+  focus:    { label: '🎧 Concentration',  desc: 'Électro, jazz, classique · 80–120 BPM · régulier' },
+  sport:    { label: '🏃 Sport',          desc: 'Dance, électro, hip-hop, rock · 120–150 BPM · ça monte' }
+}
+
+/* ── Spotify (PKCE, même app que la page principale) ────────── */
+const SP_REDIRECT = window.location.origin + window.location.pathname
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
+
+async function spLogin() {
+  const a = new Uint8Array(32); crypto.getRandomValues(a)
+  const v = b64url(a)
+  sessionStorage.setItem('sp_v', v)
+  saveForm()
+  const p = new URLSearchParams({
+    client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: SP_REDIRECT,
+    scope: 'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative',
+    code_challenge_method: 'S256',
+    code_challenge: b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)))
+  })
+  window.location = 'https://accounts.spotify.com/authorize?' + p
+}
+
+async function spExchange(code) {
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code', code, redirect_uri: SP_REDIRECT,
+      client_id: SPOTIFY_CLIENT_ID, code_verifier: sessionStorage.getItem('sp_v')
+    })
+  })
+  const d = await res.json()
+  if (d.access_token) {
+    sessionStorage.setItem('sp_token', d.access_token)
+    sessionStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
+    sessionStorage.removeItem('sp_v')
+  }
+  return d.access_token
+}
+
+function spToken() {
+  const t = sessionStorage.getItem('sp_token')
+  return t && Date.now() < +sessionStorage.getItem('sp_exp') ? t : null
+}
+
+async function spFetch(path, opts = {}, tries = 4) {
+  const res = await fetch(path.startsWith('http') ? path : 'https://api.spotify.com/v1' + path, {
+    ...opts,
+    headers: { Authorization: 'Bearer ' + spToken(), 'Content-Type': 'application/json' }
+  })
+  if (res.status === 429 && tries > 0) {
+    await sleep((+res.headers.get('Retry-After') || 2) * 1000)
+    return spFetch(path, opts, tries - 1)
+  }
+  if (!res.ok) throw new Error('Spotify ' + res.status)
+  return res.json()
+}
+
+const playlistId = s => (s.match(/playlist[/:]([A-Za-z0-9]{22})/) || s.trim().match(/^([A-Za-z0-9]{22})$/))?.[1]
+
+/* Titres d'une playlist : titre, premier artiste, ISRC (si fourni) et URI Spotify */
+async function readPlaylist(id) {
+  const out = []
+  let path = `/playlists/${id}/items?limit=100`
+  while (path) {
+    const r = await spFetch(path)
+    for (const it of r.items || []) {
+      const tr = it.item ?? it.track
+      if (!tr || tr.type !== 'track' || tr.is_local || !tr.uri) continue
+      out.push({ title: tr.name, artist: tr.artists?.[0]?.name || '', isrc: tr.external_ids?.isrc, uri: tr.uri })
+    }
+    path = r.next
+  }
+  return out
+}
+
+/* ── Formulaire ─────────────────────────────────────────────── */
+let theme = 'apero'
+const seedInputs = []
+el("seeds").innerHTML = [0, 1, 2].map(i => `
+  <div class="seed">
+    <input id="seed${i}" placeholder="Lien de playlist Spotify ${i + 1}${i ? ' (facultatif)' : ''}" autocomplete="off">
+    <span class="seed-state" id="seedState${i}"></span>
+  </div>`).join('')
+for (let i = 0; i < 3; i++) {
+  const input = el(`seed${i}`)
+  seedInputs.push(input)
+  input.addEventListener('change', () => checkSeed(i))
+}
+
+/* Vérifie le lien et affiche le nom de la playlist */
+async function checkSeed(i) {
+  const state = el(`seedState${i}`)
+  const v = seedInputs[i].value.trim()
+  state.className = 'seed-state'
+  if (!v) { state.textContent = ''; return }
+  const id = playlistId(v)
+  if (!id) { state.className = 'seed-state err'; state.textContent = 'Lien non reconnu'; return }
+  if (!spToken()) { state.textContent = ''; return }
+  state.textContent = '…'
+  try {
+    const p = await spFetch(`/playlists/${id}?fields=name`)
+    state.className = 'seed-state ok'; state.textContent = '✓ ' + p.name
+  } catch (e) {
+    state.className = 'seed-state err'; state.textContent = 'Inaccessible (' + e.message + ')'
+  }
+}
+
+/* Playlists déjà ajoutées sur la page principale : un clic pour les reprendre */
+const saved = (() => { try { return JSON.parse(localStorage.getItem('sp_sources_v1')) || [] } catch { return [] } })()
+el("saved").innerHTML = saved.map(s => `<button class="chip src" data-id="${esc(s.id)}">+ ${esc(s.name)}</button>`).join('')
+el("saved").addEventListener('click', e => {
+  const b = e.target.closest('[data-id]')
+  if (!b) return
+  const i = seedInputs.findIndex(x => !x.value.trim())
+  if (i < 0) return
+  seedInputs[i].value = `https://open.spotify.com/playlist/${b.dataset.id}`
+  checkSeed(i)
+})
+
+el("themes").innerHTML = Object.entries(THEMES).map(([k, t]) =>
+  `<button class="chip${k === theme ? ' active' : ''}" data-theme="${k}">${t.label}</button>`).join('')
+el("themes").addEventListener('click', e => {
+  const b = e.target.closest('[data-theme]')
+  if (!b) return
+  theme = b.dataset.theme
+  document.querySelectorAll('#themes .chip').forEach(c => c.classList.toggle('active', c === b))
+  el("themeDesc").textContent = THEMES[theme].desc
+})
+el("themeDesc").textContent = THEMES[theme].desc
+
+const syncSliders = () => {
+  el("lenVal").textContent  = `${el("len").value} titres`
+  el("discVal").textContent = `${el("disc").value} %`
+}
+el("len").oninput = el("disc").oninput = syncSliders
+
+/* Le formulaire survit à l'aller-retour de connexion Spotify */
+function saveForm() {
+  sessionStorage.setItem('mix_form', JSON.stringify({
+    seeds: seedInputs.map(x => x.value), theme, len: el("len").value, disc: el("disc").value
+  }))
+}
+function restoreForm() {
+  try {
+    const f = JSON.parse(sessionStorage.getItem('mix_form'))
+    if (!f) return
+    f.seeds.forEach((v, i) => seedInputs[i].value = v)
+    el("len").value = f.len; el("disc").value = f.disc
+    el(`themes`).querySelector(`[data-theme="${f.theme}"]`)?.click()
+    syncSliders()
+  } catch {}
+}
+
+function updateHint() {
+  el("goHint").textContent = spToken() ? '' : 'Connexion Spotify demandée au premier clic'
+}
+
+/* ── Génération ─────────────────────────────────────────────── */
+let lastSeeds = null, result = null
+
+function showError(msg) {
+  el("error").textContent = msg
+  el("error").classList.add('on')
+}
+
+/* Étapes affichées pendant le calcul serveur (pas de suivi en direct) */
+function startSteps() {
+  const steps = [[0, 'Analyse des genres et des tempos…'], [20, 'Recherche d\'artistes proches…'],
+                 [40, 'Écoute des titres candidats…'], [55, 'Sélection et mise en ordre…']]
+  const t0 = Date.now()
+  const tick = () => {
+    const s = (Date.now() - t0) / 1000
+    el("step").textContent = steps.filter(([at]) => s >= at).pop()[1]
+    el("bar").style.width = Math.min(95, 10 + s / 65 * 85) + '%'
+  }
+  tick()
+  return setInterval(tick, 1000)
+}
+
+async function generate(seeds) {
+  el("error").classList.remove('on')
+  el("result").classList.remove('on')
+  el("loading").classList.add('on')
+  el("go").disabled = el("regen").disabled = true
+  const timer = startSteps()
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/build-playlist`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seeds, theme, length: +el("len").value, discovery: el("disc").value / 100 })
+    })
+    const d = await res.json().catch(() => ({ error: 'réponse illisible (' + res.status + ')' }))
+    if (!res.ok || d.error) throw new Error(d.error || 'Erreur ' + res.status)
+    result = d
+    renderResult()
+  } catch (e) {
+    showError('La génération a échoué : ' + e.message)
+  } finally {
+    clearInterval(timer)
+    el("loading").classList.remove('on')
+    el("go").disabled = el("regen").disabled = false
+  }
+}
+
+el("go").onclick = async () => {
+  if (!spToken()) return spLogin()
+  el("error").classList.remove('on')
+  const ids = [...new Set(seedInputs.map(x => playlistId(x.value)).filter(Boolean))]
+  if (!ids.length) return showError('Colle au moins un lien de playlist Spotify.')
+
+  el("loading").classList.add('on')
+  el("step").textContent = 'Lecture des playlists…'
+  el("bar").style.width = '5%'
+  el("go").disabled = true
+  const seeds = [], failed = []
+  for (const id of ids) {
+    try { seeds.push(...await readPlaylist(id)) } catch (e) { failed.push(e.message) }
+  }
+  el("go").disabled = false
+  if (!seeds.length) {
+    el("loading").classList.remove('on')
+    return showError(`Impossible de lire ces playlists (${failed.join(', ') || 'vides'}). Spotify bloque les playlists éditoriales et parfois celles des autres : essaie avec les tiennes.`)
+  }
+  lastSeeds = seeds
+  await generate(seeds)
+  if (failed.length) showError(`${failed.length} playlist(s) illisible(s), le mix a été fait avec les autres.`)
+}
+el("regen").onclick = () => lastSeeds && generate(lastSeeds)
+
+function renderResult() {
+  const fresh = result.tracks.filter(t => !t.seed).length
+  el("resTitle").textContent = `${THEMES[theme].label.replace(/^\S+\s/, '')} · ${result.tracks.length} titres`
+  el("profile").innerHTML =
+    `<span class="tag seed">★ ${result.tracks.length - fresh} de tes playlists</span><span class="tag new">✦ ${fresh} découvertes</span>` +
+    result.profile.map(p => `<span class="tag">${esc(p.genre)} ${p.share} %</span>`).join('')
+  el("list").innerHTML = result.tracks.map((t, i) => `
+    <label class="row">
+      <input type="checkbox" data-i="${i}" checked>
+      <span class="idx">${i + 1}</span>
+      <span class="thumb" style="${t.cover ? `background-image:url(${esc(t.cover)})` : ''}"></span>
+      <span class="info">
+        <span class="t">${esc(t.title)}</span>
+        <span class="a">${esc(t.artist)}</span>
+      </span>
+      <span class="tags">
+        ${t.genres[0] ? `<span class="tag genre">${esc(t.genres[0])}</span>` : ''}
+        ${t.bpm ? `<span class="tag">${t.bpm}</span>` : ''}
+        <span class="tag ${t.seed ? 'seed' : 'new'}">${t.seed ? '★' : '✦'}</span>
+      </span>
+    </label>`).join('')
+  const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+  el("plName").value = `${THEMES[theme].label} · ${date}`
+  el("done").classList.remove('on')
+  el("createStep").textContent = ''
+  el("result").classList.add('on')
+  el("result").scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+el("list").addEventListener('change', e => e.target.closest('.row')?.classList.toggle('off', !e.target.checked))
+
+/* ── Création sur Spotify ───────────────────────────────────── */
+const loose = s => norm(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
+
+/* URI Spotify : direct pour les titres de tes playlists, sinon par ISRC (exact), sinon recherche vérifiée */
+async function findUri(t) {
+  if (t.uri) return t.uri
+  if (t.isrc) {
+    const r = await spFetch(`/search?q=${encodeURIComponent('isrc:' + t.isrc)}&type=track&limit=1`)
+    if (r.tracks?.items?.[0]) return r.tracks.items[0].uri
+  }
+  const r = await spFetch(`/search?q=${encodeURIComponent(`${t.artist} ${t.title}`)}&type=track&limit=5`)
+  const la = loose(t.artist)
+  return (r.tracks?.items || []).find(it => it.artists.some(a => {
+    const n = loose(a.name); return n && (la.includes(n) || n.includes(la))
+  }))?.uri || null
+}
+
+el("create").onclick = async () => {
+  if (!spToken()) return spLogin()
+  const picked = [...el("list").querySelectorAll('input:checked')].map(c => result.tracks[+c.dataset.i])
+  if (!picked.length) return
+  const step = el("createStep")
+  el("create").disabled = true
+  try {
+    const uris = new Array(picked.length)
+    let next = 0, done = 0
+    await Promise.all(Array.from({ length: 4 }, async () => {
+      while (next < picked.length) {
+        const i = next++
+        try { uris[i] = await findUri(picked[i]) } catch { uris[i] = null }
+        step.textContent = `Recherche sur Spotify · ${++done} / ${picked.length}`
+      }
+    }))
+    const found = [...new Set(uris.filter(Boolean))]
+    step.textContent = 'Création de la playlist…'
+    const pl = await spFetch('/me/playlists', {
+      method: 'POST',
+      body: JSON.stringify({ name: el("plName").value || 'Le Mix', description: `Généré par Le Mix 🍠 · ${THEMES[theme].desc}`, public: false })
+    })
+    for (let i = 0; i < found.length; i += 100) {
+      await spFetch(`/playlists/${pl.id}/items`, { method: 'POST', body: JSON.stringify({ uris: found.slice(i, i + 100) }) })
+    }
+    const missed = picked.length - found.length
+    step.textContent = ''
+    el("done").innerHTML = `✓ ${found.length} titres ajoutés${missed ? ` · ${missed} introuvable${missed > 1 ? 's' : ''} sur Spotify` : ''} — <a href="${esc(pl.external_urls.spotify)}" target="_blank" rel="noopener">Ouvrir sur Spotify</a>`
+    el("done").classList.add('on')
+  } catch (e) {
+    step.textContent = 'Erreur Spotify : ' + e.message
+  } finally {
+    el("create").disabled = false
+  }
+}
+
+/* ── Démarrage : retour de connexion Spotify ────────────────── */
+;(async () => {
+  restoreForm()
+  const code = new URLSearchParams(location.search).get('code')
+  if (code) {
+    history.replaceState({}, '', location.pathname)
+    await spExchange(code)
+  }
+  updateHint()
+  seedInputs.forEach((x, i) => x.value && checkSeed(i))
+})()
+</script>
+</body>
+</html>
