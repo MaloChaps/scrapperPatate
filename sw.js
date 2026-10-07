@@ -2,7 +2,7 @@
    pages en réseau d'abord (toujours à jour, version en cache hors ligne),
    polices / styles / icônes en cache d'abord. Les API (Supabase, Spotify) ne sont jamais mises en cache.
    Après une modification des fichiers listés, incrémenter CACHE. */
-const CACHE = 'le-mix-v5'
+const CACHE = 'le-mix-v6'
 const SHELL = [
   'generateur.html', 'da.css', 'mix.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',

@@ -12,25 +12,25 @@ const TIME_BUDGET_MS = 110_000  // la fonction est coupée à 150 s
 const MIX_MAX = 250             // mode « Juste mes playlists » : titres analysés au plus
 
 /* ── Styles : étiquettes Last.fm (précises) ou genres d'album Deezer (secours) ── */
-const STYLES: Record<string, { tags: string[], deezer: string[] }> = {
-  funk:      { tags: ['funk', 'p-funk', 'deep funk', 'funk rock', 'jazz funk', 'jazz-funk', 'afro-funk', 'afro funk', 'latin funk', 'rare groove', 'boogie'], deezer: ['Soul & Funk'] },
-  soul:      { tags: ['soul', 'northern soul', 'southern soul', 'deep soul', 'modern soul', 'neo-soul', 'psychedelic soul', 'philly soul', 'motown', 'rare groove'], deezer: ['Soul & Funk', 'Soul'] },
-  disco:     { tags: ['disco', 'boogie', 'post-disco', 'italo disco', 'nu disco', 'nu-disco', 'cosmic disco'], deezer: ['Disco'] },
-  jazz:      { tags: ['jazz', 'jazz funk', 'jazz-funk', 'soul jazz', 'jazz fusion', 'fusion', 'spiritual jazz', 'latin jazz', 'acid jazz', 'ethio-jazz'], deezer: ['Jazz'] },
-  afro:      { tags: ['afrobeat', 'afro-funk', 'afro funk', 'highlife', 'african', 'afro', 'ethio-jazz', 'afro-beat', 'semba'], deezer: ['Musique africaine'] },
-  bresil:    { tags: ['mpb', 'bossa nova', 'samba', 'brazilian', 'brazil', 'tropicalia', 'samba soul', 'brasil'], deezer: ['Musique brésilienne'] },
-  latin:     { tags: ['latin', 'salsa', 'latin jazz', 'boogaloo', 'cumbia', 'latin funk', 'afro-cuban', 'latin soul'], deezer: ['Latino', 'Salsa'] },
-  rnb:       { tags: ['rnb', 'r&b', 'rhythm and blues', 'contemporary r&b', 'new jack swing'], deezer: ['R&B'] },
-  house:     { tags: ['house', 'deep house', 'electronic', 'electronica', 'techno', 'dance', 'french house'], deezer: ['Electro', 'Techno/House', 'Dance'] },
-  hiphop:    { tags: ['hip-hop', 'hip hop', 'rap', 'jazz rap', 'boom bap'], deezer: ['Rap/Hip Hop'] },
-  reggae:    { tags: ['reggae', 'dub', 'roots reggae', 'rocksteady', 'ska', 'lovers rock'], deezer: ['Reggae'] },
-  rock:      { tags: ['rock', 'classic rock', 'psychedelic rock', 'indie rock', 'garage rock', 'psychedelic'], deezer: ['Rock'] },
-  pop:       { tags: ['pop', 'synthpop', 'indie pop', 'dream pop', 'city pop'], deezer: ['Pop', 'Pop Indé', 'Pop internationale'] },
-  folk:      { tags: ['folk', 'singer-songwriter', 'acoustic', 'country'], deezer: ['Folk', 'Country'] },
-  chanson:   { tags: ['chanson', 'french', 'chanson francaise', 'variete francaise', 'french pop'], deezer: ['Chanson française'] },
-  chill:     { tags: ['chillout', 'downtempo', 'chill', 'ambient', 'trip-hop', 'lounge', 'balearic'], deezer: [] },
-  classique: { tags: ['classical', 'soundtrack', 'score'], deezer: ['Classique', 'Films/Jeux vidéo'] },
-  metal:     { tags: ['metal', 'heavy metal', 'hard rock', 'punk'], deezer: ['Metal'] }
+const STYLES: Record<string, { tags: string[] }> = {
+  funk:      { tags: ['funk', 'p-funk', 'deep funk', 'funk rock', 'jazz funk', 'jazz-funk', 'afro-funk', 'afro funk', 'latin funk', 'rare groove', 'boogie'] },
+  soul:      { tags: ['soul', 'northern soul', 'southern soul', 'deep soul', 'modern soul', 'neo-soul', 'psychedelic soul', 'philly soul', 'motown', 'rare groove'] },
+  disco:     { tags: ['disco', 'boogie', 'post-disco', 'italo disco', 'nu disco', 'nu-disco', 'cosmic disco'] },
+  jazz:      { tags: ['jazz', 'jazz funk', 'jazz-funk', 'soul jazz', 'jazz fusion', 'fusion', 'spiritual jazz', 'latin jazz', 'acid jazz', 'ethio-jazz'] },
+  afro:      { tags: ['afrobeat', 'afro-funk', 'afro funk', 'highlife', 'african', 'afro', 'ethio-jazz', 'afro-beat', 'semba'] },
+  bresil:    { tags: ['mpb', 'bossa nova', 'samba', 'brazilian', 'brazil', 'tropicalia', 'samba soul', 'brasil'] },
+  latin:     { tags: ['latin', 'salsa', 'latin jazz', 'boogaloo', 'cumbia', 'latin funk', 'afro-cuban', 'latin soul'] },
+  rnb:       { tags: ['rnb', 'r&b', 'rhythm and blues', 'contemporary r&b', 'new jack swing'] },
+  house:     { tags: ['house', 'deep house', 'electronic', 'electronica', 'techno', 'dance', 'french house'] },
+  hiphop:    { tags: ['hip-hop', 'hip hop', 'rap', 'jazz rap', 'boom bap'] },
+  reggae:    { tags: ['reggae', 'dub', 'roots reggae', 'rocksteady', 'ska', 'lovers rock'] },
+  rock:      { tags: ['rock', 'classic rock', 'psychedelic rock', 'indie rock', 'garage rock', 'psychedelic'] },
+  pop:       { tags: ['pop', 'synthpop', 'indie pop', 'dream pop', 'city pop'] },
+  folk:      { tags: ['folk', 'singer-songwriter', 'acoustic', 'country'] },
+  chanson:   { tags: ['chanson', 'french', 'chanson francaise', 'variete francaise', 'french pop'] },
+  chill:     { tags: ['chillout', 'downtempo', 'chill', 'ambient', 'trip-hop', 'lounge', 'balearic'] },
+  classique: { tags: ['classical', 'soundtrack', 'score'] },
+  metal:     { tags: ['metal', 'heavy metal', 'hard rock', 'punk'] }
 }
 const TAG_TO_STYLES = new Map<string, string[]>()
 for (const [id, s] of Object.entries(STYLES)) for (const t of s.tags) TAG_TO_STYLES.set(t, [...(TAG_TO_STYLES.get(t) || []), id])
@@ -41,7 +41,16 @@ const NEIGHBORS: Record<string, string[]> = {
   house: ['disco'], bresil: ['latin', 'jazz'], latin: ['bresil', 'afro'], hiphop: ['rnb'], chill: ['jazz', 'house'], jazz: ['chill', 'funk'],
   afro: ['funk', 'jazz', 'latin'], reggae: ['afro'], folk: ['chanson'], chanson: ['folk', 'pop'], rock: ['pop'], pop: ['rnb']
 }
-const fromDeezer = (genres: string[]) => [...new Set(genres.flatMap(g => Object.entries(STYLES).filter(([, s]) => s.deezer.includes(g)).map(([id]) => id)))]
+/* Genres d'album Deezer → styles (mêmes règles que la page : « Rock indé », « Pop indé/Folk »… compris) */
+const DEEZER_RULES: [string, RegExp][] = [
+  ['funk', /funk/i], ['soul', /soul/i], ['rnb', /r&b|rnb|rhythm/i], ['disco', /disco|boogie/i],
+  ['jazz', /jazz|blues/i], ['afro', /afro|africa/i], ['bresil', /brésil|bresil|mpb|samba|bossa/i],
+  ['latin', /latin|salsa|bolero|cumbia|reggaeton/i], ['house', /electro|house|techno|dance/i],
+  ['hiphop', /hip.?hop|\brap\b/i], ['reggae', /reggae|\bdub\b|\bska\b/i],
+  ['rock', /rock|alternative|indé|indie|punk/i], ['pop', /pop/i], ['folk', /folk|country|singer/i],
+  ['chanson', /chanson|variété|french/i], ['classique', /classi|film|soundtrack/i], ['metal', /metal/i]
+]
+const fromDeezer = (genres: string[]) => DEEZER_RULES.filter(([, re]) => genres.some(g => re.test(g))).map(([id]) => id)
 
 /* ── Thèmes prédéfinis ───────────────────────────────────────── */
 type Curve = 'rise' | 'fall' | 'wave' | 'none'
@@ -436,6 +445,7 @@ Deno.serve(async req => {
       /* Score : tempo et styles du thème, un peu de hasard pour que « Régénérer » varie */
       const kept = tracks0.filter(keepIt)
       for (const t of kept) t.score = (th.bpm ? 0.55 * bpmFit(t.bpm, range) + 0.45 * styleFit(t.styles) : 0.5) + Math.random() * 0.15
+        + (wantedStyles.length && exact(t) ? 1 : 0)  // style exact d'abord, les voisins ne font que compléter
 
       /* Sélection équilibrée entre les playlists (tour à tour), 3 titres max par artiste */
       const bySrc = new Map<number, Track[]>()

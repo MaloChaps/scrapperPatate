@@ -73,9 +73,11 @@
 
   .chip{display:inline-flex;align-items:center;padding:6px 12px;border:0;border-radius:99px;background:var(--field);color:var(--ink);font:400 14px var(--font-mono);transition:background-color .2s,color .2s}
   .chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+  .chip .count{margin-left:7px;font-size:12px;opacity:.6}
+  .chip:disabled{opacity:.35;cursor:default}
   .chip__close{display:inline-block;max-width:0;margin-left:0;overflow:hidden;opacity:0;font-size:16px;line-height:1;transform:rotate(-90deg) scale(.4);transition:max-width .25s ease,margin-left .25s ease,opacity .2s ease,transform .25s ease}
   .chip--multi[aria-pressed="true"] .chip__close{max-width:1em;margin-left:8px;opacity:1;transform:none}
-  @media (hover:hover){.chip:hover{background:var(--ink);color:var(--bg)}}
+  @media (hover:hover){.chip:not(:disabled):hover{background:var(--ink);color:var(--bg)}}
   @media (prefers-reduced-motion:reduce){.chip,.chip__close{transition:none}}
 
   /* Réglages : étiquette à gauche, choix à droite */
@@ -549,17 +551,37 @@ renderChoice('mode', MODES, 'mode', syncMode)
 /* ── Source « radio » : titres relevés par le robot (table plays), par période ── */
 const PERIODS = { '4h': { label: '4 h', h: 4 }, '12h': { label: '12 h', h: 12 }, '24h': { label: '24 h', h: 24 }, tout: { label: 'Tout', h: Infinity } }
 const RADIO_MAX = 160  // au-delà, tirage au hasard (sans ISRC, chaque titre coûte deux recherches Deezer)
-let radioPlays = null
-async function loadRadio() {
+
+/* Genres Deezer (table track_info, déjà calculés pour toute la radio) → styles du générateur */
+const GENRE_STYLES = [
+  ['funk', /funk/i], ['soul', /soul/i], ['rnb', /r&b|rnb|rhythm/i], ['disco', /disco|boogie/i],
+  ['jazz', /jazz|blues/i], ['afro', /afro|africa/i], ['bresil', /brésil|bresil|mpb|samba|bossa/i],
+  ['latin', /latin|salsa|bolero|cumbia|reggaeton/i], ['house', /electro|house|techno|dance/i],
+  ['hiphop', /hip.?hop|\brap\b/i], ['reggae', /reggae|\bdub\b|\bska\b/i],
+  ['rock', /rock|alternative|indé|indie|metal|punk/i], ['pop', /pop/i],
+  ['folk', /folk|country|singer/i], ['chanson', /chanson|variété|french/i]
+]
+const stylesOfGenre = genre => genre ? GENRE_STYLES.filter(([, re]) => re.test(genre)).map(([id]) => id) : []
+const radioKey = t => `${norm(t.artist)}|${norm(t.title)}`
+
+async function fetchAll(table, select) {
   const all = []
   for (let from = 0; ; from += 1000) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/plays?select=title,artist,played_at&order=played_at.desc&offset=${from}&limit=1000`,
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${select}&offset=${from}&limit=1000`,
       { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } })
     const page = res.ok ? await res.json() : []
     all.push(...page)
-    if (page.length < 1000) break
+    if (page.length < 1000) return all
   }
-  radioPlays = all.map(r => ({ title: r.title, artist: r.artist, at: Date.parse(r.played_at) }))
+}
+let radioPlays = null
+async function loadRadio() {
+  const [plays, info] = await Promise.all([
+    fetchAll('plays', 'title,artist,played_at&order=played_at.desc'),
+    fetchAll('track_info', 'artist,title,genre')
+  ])
+  const styles = new Map(info.map(r => [radioKey(r), stylesOfGenre(r.genre)]))
+  radioPlays = plays.map(r => ({ title: r.title, artist: r.artist, at: Date.parse(r.played_at), styles: styles.get(radioKey(r)) || [] }))
   syncRadio()
 }
 /* Titres uniques passés sur la période (le passage le plus récent compte) */
@@ -568,16 +590,27 @@ function radioTitles(period = state.period) {
   const seen = new Map()
   for (const t of radioPlays || []) {
     if (t.at < since) break
-    const k = `${norm(t.artist)}|${norm(t.title)}`
-    if (!seen.has(k)) seen.set(k, { title: t.title, artist: t.artist })
+    if (!seen.has(radioKey(t))) seen.set(radioKey(t), t)
   }
   return [...seen.values()]
 }
+/* Le filtre Styles s'applique ici, sur toute la radio, avant tout tirage au hasard */
+const inStyles = (t, styles = state.styles) => !styles.size || t.styles.some(x => styles.has(x))
+const radioPool = (period = state.period) => radioTitles(period).filter(t => inStyles(t))
+
+/* Compteurs : titres par période (styles choisis compris) et par style (période choisie) */
 function syncRadio() {
   if (SOURCE !== 'radio' || !radioPlays) return
-  el("period").querySelectorAll('[data-k]').forEach(c => c.innerHTML = `${PERIODS[c.dataset.k].label}<small style="margin-left:7px;opacity:.6">${radioTitles(c.dataset.k).length}</small>`)
-  const n = radioTitles().length
-  el("radioNote").textContent = `${n} titre${n > 1 ? 's' : ''} passé${n > 1 ? 's' : ''} à la radio sur cette période` +
+  el("period").querySelectorAll('[data-k]').forEach(c =>
+    c.innerHTML = `${PERIODS[c.dataset.k].label}<small class="count">${radioPool(c.dataset.k).length}</small>`)
+  const titles = radioTitles()
+  el("styles").querySelectorAll('[data-k]').forEach(c => {
+    const n = titles.filter(t => t.styles.includes(c.dataset.k)).length
+    c.innerHTML = `${esc(STYLES[c.dataset.k])}<small class="count">${n}</small><span class="chip__close" aria-hidden="true">×</span>`
+    c.disabled = n === 0 && c.getAttribute('aria-pressed') !== 'true'
+  })
+  const n = radioPool().length
+  el("radioNote").textContent = `${n} titre${n > 1 ? 's' : ''} de la radio sur cette période${state.styles.size ? ' dans ces styles' : ''}` +
     (n > RADIO_MAX ? ` (${RADIO_MAX} tirés au hasard pour le calcul)` : '')
 }
 renderChoice('period', PERIODS, 'period', syncRadio)
@@ -599,6 +632,7 @@ el("styles").onclick = e => {
   const on = !state.styles.has(b.dataset.k)
   on ? state.styles.add(b.dataset.k) : state.styles.delete(b.dataset.k)
   b.setAttribute('aria-pressed', on)
+  syncRadio()
 }
 
 const syncSliders = () => {
@@ -679,7 +713,8 @@ let lastBody = null
 async function generate(seeds, extra = {}) {
   const body = extra.keep ? { ...lastBody, ...extra } : {
     seeds, mode: state.mode, theme: state.theme, niche: state.niche, curve: state.curve, styles: [...state.styles],
-    length: state.mode === 'mix' && +el("len").value >= LEN_ALL ? 0 : +el("len").value, discovery: el("disc").value / 100
+    length: state.mode === 'mix' && +el("len").value >= LEN_ALL ? 0 : +el("len").value, discovery: el("disc").value / 100,
+    ...extra
   }
   if (!extra.keep) lastBody = body
   el("error").classList.remove('on')
@@ -716,10 +751,12 @@ el("go").onclick = async () => {
   el("error").classList.remove('on')
   if (SOURCE === 'radio') {
     if (!radioPlays) return showError('Les titres de la radio sont encore en chargement, réessaie dans un instant.')
-    const titles = radioTitles()
-    if (!titles.length) return showError('Aucun titre passé à la radio sur cette période.')
-    lastSeeds = titles.length > RADIO_MAX ? titles.sort(() => Math.random() - 0.5).slice(0, RADIO_MAX) : titles
-    return generate(lastSeeds)
+    const pool = radioPool()
+    if (!pool.length) return showError(state.styles.size ? 'Aucun titre de ces styles sur cette période : choisis une période plus longue ou d\'autres styles.' : 'Aucun titre passé à la radio sur cette période.')
+    lastSeeds = (pool.length > RADIO_MAX ? [...pool].sort(() => Math.random() - 0.5).slice(0, RADIO_MAX) : pool)
+      .map(({ title, artist }) => ({ title, artist }))
+    /* Styles déjà appliqués ici sur toute la radio : le serveur n'a plus à les refiltrer */
+    return generate(lastSeeds, { styles: [] })
   }
   const ids = [...new Set(seedInputs.map(x => playlistId(x.value)).filter(Boolean))]
   if (!ids.length) return showError('Colle au moins un lien de playlist Spotify.')
@@ -741,7 +778,7 @@ el("go").onclick = async () => {
   await generate(seeds)
   if (failed.length) showError(`${failed.length} playlist(s) illisible(s), le mix a été fait avec les autres.`)
 }
-el("regen").onclick = () => lastSeeds && generate(lastSeeds)
+el("regen").onclick = () => lastSeeds && generate(lastSeeds, SOURCE === 'radio' ? { styles: [] } : {})
 el("complete").onclick = () => {
   if (!lastBody || !result) return
   generate(lastBody.seeds, { keep: pickedTracks(), relax: true })
