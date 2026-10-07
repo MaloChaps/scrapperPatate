@@ -210,7 +210,12 @@ const THEMES = {
 }
 
 /* ── Spotify (PKCE, même app que la page principale) ────────── */
-const SP_REDIRECT = window.location.origin + window.location.pathname
+/* Spotify n'accepte que l'adresse de retour déjà enregistrée : celle de la page principale,
+   qui renvoie ensuite ici (state=mix) */
+const spRedirect = () => {
+  try { const r = localStorage.getItem('sp_redirect'); if (r) return r } catch {}
+  return location.origin + location.pathname.replace(/[^/]*$/, '')
+}
 const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
 
 async function spLogin() {
@@ -218,8 +223,10 @@ async function spLogin() {
   const v = b64url(a)
   sessionStorage.setItem('sp_v', v)
   saveForm()
+  const redirect = spRedirect()
+  sessionStorage.setItem('sp_redirect_used', redirect)
   const p = new URLSearchParams({
-    client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: SP_REDIRECT,
+    client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: redirect, state: 'mix',
     scope: 'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative',
     code_challenge_method: 'S256',
     code_challenge: b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)))
@@ -232,7 +239,7 @@ async function spExchange(code) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type: 'authorization_code', code, redirect_uri: SP_REDIRECT,
+      grant_type: 'authorization_code', code, redirect_uri: sessionStorage.getItem('sp_redirect_used') || spRedirect(),
       client_id: SPOTIFY_CLIENT_ID, code_verifier: sessionStorage.getItem('sp_v')
     })
   })

@@ -796,6 +796,11 @@ const thumbObserver = new IntersectionObserver(entries => {
 
 /* ── Spotify ─────────────────────────────────────────────────── */
 const SP_REDIRECT = window.location.origin + window.location.pathname
+/* Adresse de retour enregistrée chez Spotify : le générateur la réutilise */
+try { localStorage.setItem('sp_redirect', SP_REDIRECT) } catch {}
+
+/* Connexion lancée depuis le générateur : on lui renvoie le code sans l'utiliser ici */
+if (new URLSearchParams(location.search).get('state') === 'mix') location.replace('generateur.html' + location.search)
 
 function b64url(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
@@ -1396,7 +1401,7 @@ sb.channel('plays-live')
   /* Retour après login Spotify → échange le code et crée la playlist */
   const params = new URLSearchParams(window.location.search)
   const code   = params.get('code')
-  if (code) {
+  if (code && params.get('state') !== 'mix') {
     history.replaceState({}, '', window.location.pathname)
     const token = await spExchange(code)
     if (token) showPlaylistModal()
