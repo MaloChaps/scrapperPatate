@@ -2,12 +2,12 @@
    pages en réseau d'abord (toujours à jour, version en cache hors ligne),
    polices / styles / icônes en cache d'abord. Les API (Supabase, Spotify) ne sont jamais mises en cache.
    Après une modification des fichiers listés, incrémenter CACHE. */
-const CACHE = 'le-mix-v6'
+const CACHE = 'le-mix-v7'
 const SHELL = [
   'generateur.html', 'da.css', 'mix.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
-  'fonts/Denver-Serial/Denver-Serial-Regular.woff2', 'fonts/Denver-Serial/Denver-Serial-RegularItalic.woff2',
-  'fonts/Blanco/Blanco-Regular.woff2', 'fonts/Blanco/Blanco-Italic.woff2', 'fonts/Blanco/Blanco-Bold.woff2',
+  'fonts/HWAnimoTRIAL/HWAnimoTRIAL-R500.ttf',
+  'fonts/HW%20Left%20Trial/HWLeftTRIAL-Regular.ttf', 'fonts/HW%20Left%20Trial/HWLeftTRIAL-Bold.ttf',
   'fonts/Apercu-Mono/ApercuMonoProRegular.woff2', 'fonts/Apercu-Mono/ApercuMonoProMedium.woff2'
 ]
 

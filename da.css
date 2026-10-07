@@ -1,11 +1,12 @@
 /* DA partagée : polices du site CookChap's, palette « Café Paquebot » */
 
-@font-face { font-family: "Denver Serial"; src: url("fonts/Denver-Serial/Denver-Serial-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: "Denver Serial"; src: url("fonts/Denver-Serial/Denver-Serial-RegularItalic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
-@font-face { font-family: "Denver Serial"; src: url("fonts/Denver-Serial/Denver-Serial-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
-@font-face { font-family: "Blanco"; src: url("fonts/Blanco/Blanco-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: "Blanco"; src: url("fonts/Blanco/Blanco-Italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
-@font-face { font-family: "Blanco"; src: url("fonts/Blanco/Blanco-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+/* Titres : HW Animo (chasse R500 = largeur normale ; R250 très étroit → R990 très large) */
+@font-face { font-family: "HW Animo"; src: url("fonts/HWAnimoTRIAL/HWAnimoTRIAL-R500.ttf") format("truetype"); font-weight: 400 700; font-style: normal; font-display: swap; }
+/* Texte courant : HW Left */
+@font-face { font-family: "HW Left"; src: url("fonts/HW%20Left%20Trial/HWLeftTRIAL-Light.ttf") format("truetype"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "HW Left"; src: url("fonts/HW%20Left%20Trial/HWLeftTRIAL-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "HW Left"; src: url("fonts/HW%20Left%20Trial/HWLeftTRIAL-Medium.ttf") format("truetype"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "HW Left"; src: url("fonts/HW%20Left%20Trial/HWLeftTRIAL-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
 @font-face { font-family: "Apercu Mono"; src: url("fonts/Apercu-Mono/ApercuMonoProRegular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Apercu Mono"; src: url("fonts/Apercu-Mono/ApercuMonoProMedium.woff2") format("woff2"); font-weight: 500; font-display: swap; }
 @font-face { font-family: "Apercu Mono"; src: url("fonts/Apercu-Mono/ApercuMonoProBold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
@@ -25,8 +26,8 @@
   --line: color-mix(in srgb, var(--ink) 20%, transparent);
   --line-strong: color-mix(in srgb, var(--ink) 45%, transparent);
 
-  --font-display: "Denver Serial", Georgia, serif;
-  --font-body: "Blanco", Georgia, serif;
+  --font-display: "HW Animo", Georgia, serif;
+  --font-body: "HW Left", system-ui, sans-serif;
   --font-mono: "Apercu Mono", ui-monospace, Menlo, monospace;
 }
 
