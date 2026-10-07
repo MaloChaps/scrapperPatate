@@ -960,10 +960,28 @@ function buildModalList() {
   for (const t of tracks) {
     const k = trackKey(t)
     const e = byKey.get(k)
-    if (e) { e.plays++; e.at = Math.max(e.at, t.at) }
-    else byKey.set(k, { title: t.title, artist: t.artist, at: t.at, plays: 1 })
+    const h = new Date(t.at).getHours()
+    if (e) { e.plays++; e.at = Math.max(e.at, t.at); e.hours.push(h) }
+    else byKey.set(k, { title: t.title, artist: t.artist, at: t.at, plays: 1, hours: [h] })
   }
-  return [...byKey.values()].sort((a, b) => a.at - b.at)
+  const list = [...byKey.values()].sort((a, b) => a.at - b.at)
+  list.forEach(t => t.moods = trackMoods(t.hours))
+  return list
+}
+
+/* Ambiances = créneaux où la radio passe le titre (sa programmation suit la journée) */
+const MOOD_HOURS = {
+  matin: h => h >= 6  && h < 12,
+  aprem: h => h >= 12 && h < 18,
+  apero: h => h >= 18 && h < 22,
+  nuit:  h => h >= 22 || h < 6
+}
+
+/* Le ou les créneaux où le titre passe le plus souvent */
+function trackMoods(hours) {
+  const counts = Object.fromEntries(Object.entries(MOOD_HOURS).map(([m, inSlot]) => [m, hours.filter(inSlot).length]))
+  const max = Math.max(...Object.values(counts))
+  return Object.keys(counts).filter(m => counts[m] === max)
 }
 
 function visibleRows() {
@@ -973,14 +991,6 @@ function visibleRows() {
 const FILTER_LABELS = {
   '4h': '4 h', '12h': '12 h', '24h': '24 h',
   'matin': 'Matin', 'aprem': 'Aprem', 'apero': 'Apéro', 'nuit': 'Nuit'
-}
-
-/* Genres iTunes associés à chaque ambiance */
-const MOOD_GENRES = {
-  matin: ['acoustic', 'singer', 'folk', 'classical', 'ambient', 'bossa', 'jazz', 'easy listening', 'new age'],
-  aprem: ['pop', 'r&b', 'soul', 'indie', 'reggae', 'funk', 'gospel', 'blues'],
-  apero: ['jazz', 'soul', 'funk', 'electronic', 'house', 'nu jazz', 'bossa', 'latin', 'afrobeat', 'lounge', 'world'],
-  nuit:  ['electronic', 'dance', 'hip-hop', 'hip hop', 'rap', 'techno', 'house', 'edm', 'drum', 'alternative', 'metal', 'punk']
 }
 
 function updateBreadcrumb() {
@@ -1001,18 +1011,28 @@ function updateModalCount() {
   el("selAll").checked           = total > 0 && checked === total
 }
 
+const PERIOD_HOURS = { '4h': 4, '12h': 12, '24h': 24 }
+
+/* « ou » à l'intérieur d'un groupe, « et » entre les groupes (période × ambiance × genre) */
 function rowMatchesFilters(t, idx) {
-  if (!activeFilters.size) return true
-  const now   = Date.now()
-  const genre = (trackGenres.get(idx) || '').toLowerCase()
-  for (const f of activeFilters) {
-    if (f === '4h'  && now - t.at <= 4  * 3600000) return true
-    if (f === '12h' && now - t.at <= 12 * 3600000) return true
-    if (f === '24h' && now - t.at <= 24 * 3600000) return true
-    if (MOOD_GENRES[f] && genre && MOOD_GENRES[f].some(k => genre.includes(k))) return true
-    if (!FILTER_LABELS[f] && genre && genre.includes(f.toLowerCase()))           return true
-  }
-  return false
+  const f = [...activeFilters]
+  const periods = f.filter(x => PERIOD_HOURS[x])
+  const moods   = f.filter(x => MOOD_HOURS[x])
+  const genres  = f.filter(x => !FILTER_LABELS[x])
+  const genre   = trackGenres.get(idx)
+  return (!periods.length || periods.some(p => Date.now() - t.at <= PERIOD_HOURS[p] * 3600000))
+      && (!moods.length   || moods.some(m => t.moods.includes(m)))
+      && (!genres.length  || genres.includes(genre))
+}
+
+/* Nombre de titres par ambiance, affiché sur les boutons */
+function updateMoodCounts() {
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    const m = chip.dataset.filter
+    if (!MOOD_HOURS[m]) return
+    chip.dataset.label ??= chip.textContent
+    chip.textContent = `${chip.dataset.label} · ${modalList.filter(t => t.moods.includes(m)).length}`
+  })
 }
 
 function applyFilters() {
@@ -1065,6 +1085,7 @@ function showPlaylistModal() {
   el("genreChips").innerHTML    = ''
 
   modalList = buildModalList()
+  updateMoodCounts()
   el("modalTracks").innerHTML = modalList.map((t, i) => {
     const art = itunesCache.get(trackKey(t))?.art || ''
     return `<label class="modal-track">
