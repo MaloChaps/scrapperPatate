@@ -127,7 +127,7 @@
   .modal-overlay.open{opacity:1;pointer-events:all}
   .modal{
     background:var(--wine);border:1px solid var(--cream);border-radius:4px;
-    width:min(640px,94vw);height:min(88vh,900px);display:flex;flex-direction:column;
+    width:min(760px,94vw);height:min(88vh,900px);display:flex;flex-direction:column;
     overflow:hidden;transform:translateY(14px);transition:transform .22s;position:relative;
   }
   .modal-overlay.open .modal{transform:translateY(0)}
@@ -136,14 +136,20 @@
   .modal-close{background:transparent;border:1px solid var(--cream);color:var(--cream);font-size:15px;border-radius:50%;width:36px;height:36px;display:grid;place-items:center;padding:0;flex-shrink:0}
   .modal-body{flex:1;overflow-y:auto;overscroll-behavior:contain}
 
-  .modal-filters{padding:6px 20px 16px;display:flex;flex-direction:column;gap:14px;border-bottom:1px solid var(--line)}
-  .filter-group{display:flex;flex-direction:column;gap:8px}
-  .filter-group-label{font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;padding-top:10px}
-  .filter-chips{display:flex;flex-wrap:wrap;gap:8px}
-  .filter-chip{display:inline-flex;align-items:center;min-height:36px;padding:7px 14px;border:0;border-radius:999px;background:var(--field);color:var(--cream);font:400 14px var(--font-mono);letter-spacing:0;white-space:nowrap;transition:background-color .2s,color .2s}
+  /* Filtres : même présentation que Le Mix (étiquette à gauche, choix à droite, note dessous) */
+  .modal-filters{display:grid;grid-template-columns:132px 1fr;align-items:center;gap:16px 0;padding:18px 20px 20px;border-bottom:1px solid var(--line)}
+  .filter-group{display:contents}
+  .filter-group-label{margin:0;font:500 13px var(--font-mono);letter-spacing:.02em;text-transform:uppercase;align-self:start;padding-top:7px}
+  .filter-chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+  .filter-note{grid-column:2;margin:-8px 0 0;font:400 12px var(--font-mono);opacity:.75}
+  .filter-chip{display:inline-flex;align-items:center;padding:6px 12px;border:0;border-radius:999px;background:var(--field);color:var(--cream);font:400 14px var(--font-mono);letter-spacing:0;white-space:nowrap;transition:background-color .2s,color .2s}
   .filter-chip.active{background:var(--red);color:var(--on-red)}
   .filter-chip small{margin-left:7px;font-size:12px;opacity:.6}
   @media (hover:hover){.filter-chip:hover{background:var(--cream);color:var(--wine)}}
+  /* Choix multiples : la croix s'ouvre en douceur quand la pastille est active */
+  .chip__close{display:inline-block;max-width:0;margin-left:0;overflow:hidden;opacity:0;font-size:16px;line-height:1;transform:rotate(-90deg) scale(.4);transition:max-width .25s ease,margin-left .25s ease,opacity .2s ease,transform .25s ease}
+  .filter-chip.active .chip__close{max-width:1em;margin-left:8px;opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.filter-chip,.chip__close{transition:none}}
   .filter-chip.src.loading{opacity:.55;cursor:wait}
   .src-del{margin-left:8px;opacity:.6}
   .src-del:hover{opacity:1}
@@ -244,6 +250,9 @@
     .modal{width:100%;height:100dvh;border:0;border-radius:0}
     .modal-header{padding-top:calc(14px + env(safe-area-inset-top))}
     .modal-header,.modal-filters,.modal-selall,.modal-track,.modal-footer{padding-left:16px;padding-right:16px}
+    .modal-filters{grid-template-columns:1fr;gap:8px}
+    .filter-group-label{padding-top:12px}
+    .filter-note{grid-column:1;margin:0}
     .filter-chip{min-height:40px;padding:8px 15px}
     .filter-chips--scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 4px}
     .filter-chips--scroll::-webkit-scrollbar{display:none}
@@ -316,29 +325,32 @@
       <div class="modal-body">
         <div class="modal-filters" id="modalFilters">
           <div class="filter-group">
-            <span class="filter-group-label">Période</span>
+            <p class="filter-group-label">Période</p>
             <div class="filter-chips filter-chips--scroll" data-single>
               <button class="filter-chip" data-filter="4h">4 h</button>
               <button class="filter-chip" data-filter="12h">12 h</button>
               <button class="filter-chip" data-filter="24h">24 h</button>
               <button class="filter-chip" data-filter="tout">Tout</button>
             </div>
+            <p class="filter-note">Titres passés à la radio sur cette durée</p>
           </div>
           <div class="filter-group">
-            <span class="filter-group-label">Ambiance</span>
+            <p class="filter-group-label">Ambiance</p>
             <div class="filter-chips filter-chips--scroll">
               <button class="filter-chip" data-filter="matin">Matin</button>
               <button class="filter-chip" data-filter="aprem">Aprem</button>
               <button class="filter-chip" data-filter="apero">Apéro</button>
               <button class="filter-chip" data-filter="nuit">Nuit</button>
             </div>
+            <p class="filter-note">Le créneau où le titre passe le plus souvent</p>
           </div>
           <div class="filter-group" id="genreGroup" style="display:none">
-            <span class="filter-group-label">Styles</span>
+            <p class="filter-group-label">Styles</p>
             <div class="filter-chips" id="genreChips"></div>
+            <p class="filter-note">Aucun choisi : tous les styles</p>
           </div>
           <div class="filter-group">
-            <span class="filter-group-label">Ajouter tes playlists</span>
+            <p class="filter-group-label">Playlists</p>
             <div class="filter-chips">
               <span id="srcChips" style="display:contents"></span>
               <form class="src-add" id="srcAdd">
@@ -347,6 +359,7 @@
               </form>
               <span class="src-msg" id="srcMsg"></span>
             </div>
+            <p class="filter-note">Ajoute les titres d'une de tes playlists Spotify à la sélection</p>
           </div>
         </div>
         <div class="modal-selall">
@@ -1134,7 +1147,7 @@ function updateMoodCounts() {
     const m = chip.dataset.filter
     if (!MOOD_HOURS[m]) return
     chip.dataset.label ??= chip.textContent
-    chip.innerHTML = `${esc(chip.dataset.label)}<small>${modalList.filter(t => t.moods.includes(m)).length}</small>`
+    chip.innerHTML = `${esc(chip.dataset.label)}<small>${modalList.filter(t => t.moods.includes(m)).length}</small><span class="chip__close" aria-hidden="true">×</span>`
   })
 }
 
@@ -1156,7 +1169,7 @@ function renderGenreChips() {
   if (!counts.size) return
   el("genreGroup").style.display = ''
   el("genreChips").innerHTML = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([g, n]) =>
-    `<button class="filter-chip${activeFilters.has(g) ? ' active' : ''}" data-filter="${g}">${esc(STYLE_LABELS[g])}<small>${n}</small></button>`
+    `<button class="filter-chip${activeFilters.has(g) ? ' active' : ''}" data-filter="${g}">${esc(STYLE_LABELS[g])}<small>${n}</small><span class="chip__close" aria-hidden="true">×</span></button>`
   ).join('')
 }
 
