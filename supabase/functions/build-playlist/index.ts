@@ -109,8 +109,8 @@ const songKey = (artist: string, title: string) => loose(firstArtist(artist)) + 
 
 type Track = {
   title: string, artist: string, artistId?: number, isrc?: string, uri?: string,
-  deezerId?: number, bpm: number, genres: string[], styles: string[], precise?: boolean, fans: number | null,
-  cover: string, rank: number, seed: boolean, score?: number
+  deezerId?: number, bpm: number, styles: string[], precise?: boolean, fans: number | null,
+  cover: string, seed: boolean, score?: number
 }
 
 /* Caches de la requête : genres d'album, fans et étiquettes par artiste */
@@ -152,8 +152,8 @@ async function trackFromDeezer(d: any, seed: boolean, extra: Partial<Track> = {}
   ])
   return {
     title: d.title, artist, artistId: d.artist?.id, isrc: d.isrc, deezerId: d.id,
-    bpm: d.bpm || 0, genres, styles: tagStyles.length ? tagStyles : fromDeezer(genres), precise: tagStyles.length > 0, fans,
-    cover: d.album?.cover_small || '', rank: d.rank || 0, seed, ...extra
+    bpm: d.bpm || 0, styles: tagStyles.length ? tagStyles : fromDeezer(genres), precise: tagStyles.length > 0, fans,
+    cover: d.album?.cover_small || '', seed, ...extra
   }
 }
 
@@ -169,7 +169,7 @@ async function resolveSeed(s: { title: string, artist: string, isrc?: string, ur
   }
   if (!d) {
     const styles = await artistStyles(firstArtist(s.artist))
-    return { title: s.title, artist: s.artist, uri: s.uri, isrc: s.isrc, bpm: 0, genres: [], styles, precise: true, fans: null, cover: '', rank: 0, seed: true }
+    return { title: s.title, artist: s.artist, uri: s.uri, isrc: s.isrc, bpm: 0, styles, precise: true, fans: null, cover: '', seed: true }
   }
   return trackFromDeezer(d, true, { title: s.title, artist: s.artist, uri: s.uri, isrc: d.isrc || s.isrc })
 }
@@ -234,8 +234,8 @@ Deno.serve(async req => {
     const curve: Curve = ['rise', 'fall', 'wave', 'none'].includes(curveIn) ? curveIn : th.curve
     /* Titres déjà retenus (complétion) : gardés tels quels, on ne fait que compléter */
     const keep: Track[] = (Array.isArray(keepIn) ? keepIn : []).slice(0, N).map((t: Track) => ({
-      ...t, bpm: t.bpm || 0, styles: t.styles || [], genres: t.genres || [], fans: t.fans ?? null,
-      cover: t.cover || '', rank: 0, seed: !!t.seed, score: t.score || 1
+      ...t, bpm: t.bpm || 0, styles: t.styles || [], fans: t.fans ?? null,
+      cover: t.cover || '', seed: !!t.seed, score: 1
     }))
 
     /* 1. Profil : un échantillon des playlists (jusqu'à 70 titres) */
@@ -382,8 +382,7 @@ Deno.serve(async req => {
     const tracks = order(chosen, curve, range).map(t => ({
       title: t.title, artist: t.artist, artistId: t.artistId || null, isrc: t.isrc || null, uri: t.uri || null,
       deezerId: t.deezerId || null, bpm: Math.round(effBpm(t.bpm, range)) || null,
-      styles: t.styles, genres: t.genres, fans: t.fans, cover: t.cover, seed: t.seed,
-      score: Math.round((t.score || 0) * 100) / 100
+      styles: t.styles, fans: t.fans, cover: t.cover, seed: t.seed
     }))
     const profile = [...styleShare.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([style, s]) => ({ style, share: Math.round(s * 100) }))
     return json({

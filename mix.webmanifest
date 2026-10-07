@@ -1,0 +1,18 @@
+{
+  "id": "./generateur.html",
+  "name": "Le Mix",
+  "short_name": "Le Mix",
+  "description": "Générateur de playlists Spotify à partir de tes playlists préférées",
+  "lang": "fr",
+  "start_url": "./generateur.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F2E6D4",
+  "theme_color": "#F2E6D4",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

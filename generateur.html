@@ -3,8 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Le Mix · La Patate Douce</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍠</text></svg>">
+<title>Le Mix</title>
+<meta name="description" content="Générateur de playlists Spotify à partir de tes playlists préférées">
+<meta name="theme-color" content="#F2E6D4">
+<link rel="manifest" href="mix.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Le Mix">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="da.css">
 <style>
   *,*::before,*::after{box-sizing:border-box}
@@ -135,7 +143,7 @@
 <div class="wrap">
   <header class="masthead">
     <a class="back pill-button" href="./">← Radio</a>
-    <p class="label">La Patate Douce<br>générateur</p>
+    <p class="label">Générateur<br>de playlists</p>
     <span></span>
   </header>
 
@@ -249,10 +257,10 @@ const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(
 async function spLogin() {
   const a = new Uint8Array(32); crypto.getRandomValues(a)
   const v = b64url(a)
-  sessionStorage.setItem('sp_v', v)
+  localStorage.setItem('sp_v', v)
   saveForm()
   const redirect = spRedirect()
-  sessionStorage.setItem('sp_redirect_used', redirect)
+  localStorage.setItem('sp_redirect_used', redirect)
   const p = new URLSearchParams({
     client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: redirect, state: 'mix',
     scope: 'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative',
@@ -267,22 +275,22 @@ async function spExchange(code) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type: 'authorization_code', code, redirect_uri: sessionStorage.getItem('sp_redirect_used') || spRedirect(),
-      client_id: SPOTIFY_CLIENT_ID, code_verifier: sessionStorage.getItem('sp_v')
+      grant_type: 'authorization_code', code, redirect_uri: localStorage.getItem('sp_redirect_used') || spRedirect(),
+      client_id: SPOTIFY_CLIENT_ID, code_verifier: localStorage.getItem('sp_v')
     })
   })
   const d = await res.json()
   if (d.access_token) {
-    sessionStorage.setItem('sp_token', d.access_token)
-    sessionStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
-    sessionStorage.removeItem('sp_v')
+    localStorage.setItem('sp_token', d.access_token)
+    localStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
+    localStorage.removeItem('sp_v')
   }
   return d.access_token
 }
 
 function spToken() {
-  const t = sessionStorage.getItem('sp_token')
-  return t && Date.now() < +sessionStorage.getItem('sp_exp') ? t : null
+  const t = localStorage.getItem('sp_token')
+  return t && Date.now() < +localStorage.getItem('sp_exp') ? t : null
 }
 
 async function spFetch(path, opts = {}, tries = 4) {
@@ -428,14 +436,14 @@ syncSliders()
 
 /* Le formulaire survit à l'aller-retour de connexion Spotify */
 function saveForm() {
-  sessionStorage.setItem('mix_form', JSON.stringify({
+  localStorage.setItem('mix_form', JSON.stringify({
     seeds: seedInputs.map(x => x.value), theme: state.theme, niche: state.niche, curve: state.curve,
     styles: [...state.styles], len: el("len").value, disc: el("disc").value
   }))
 }
 function restoreForm() {
   try {
-    const f = JSON.parse(sessionStorage.getItem('mix_form'))
+    const f = JSON.parse(localStorage.getItem('mix_form'))
     if (!f) return
     f.seeds.forEach((v, i) => seedInputs[i].value = v)
     el("len").value = f.len; el("disc").value = f.disc
@@ -507,6 +515,7 @@ async function generate(seeds, extra = {}) {
 
 el("go").onclick = async () => {
   if (!spToken()) return spLogin()
+  saveForm()  // l'app se souvient des derniers réglages
   el("error").classList.remove('on')
   const ids = [...new Set(seedInputs.map(x => playlistId(x.value)).filter(Boolean))]
   if (!ids.length) return showError('Colle au moins un lien de playlist Spotify.')
@@ -616,7 +625,7 @@ el("create").onclick = async () => {
     step.textContent = 'Création de la playlist…'
     const pl = await spFetch('/me/playlists', {
       method: 'POST',
-      body: JSON.stringify({ name: el("plName").value || 'Le Mix', description: `Généré par Le Mix 🍠 · ${THEMES[resultTheme].desc}`, public: false })
+      body: JSON.stringify({ name: el("plName").value || 'Le Mix', description: `Généré par Le Mix · ${THEMES[resultTheme].desc}`, public: false })
     })
     for (let i = 0; i < found.length; i += 100) {
       await spFetch(`/playlists/${pl.id}/items`, { method: 'POST', body: JSON.stringify({ uris: found.slice(i, i + 100) }) })
@@ -632,7 +641,9 @@ el("create").onclick = async () => {
   }
 }
 
-/* ── Démarrage : retour de connexion Spotify ────────────────── */
+/* ── Démarrage : app installable, retour de connexion Spotify ── */
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {})
+
 ;(async () => {
   restoreForm()
   const code = new URLSearchParams(location.search).get('code')

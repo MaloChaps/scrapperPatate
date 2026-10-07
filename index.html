@@ -813,7 +813,7 @@ async function spChallenge(v) {
 
 async function spLogin() {
   const v = spVerifier()
-  sessionStorage.setItem('sp_v', v)
+  localStorage.setItem('sp_v', v)
   const p = new URLSearchParams({
     client_id: SPOTIFY_CLIENT_ID, response_type: 'code',
     redirect_uri: SP_REDIRECT,
@@ -831,21 +831,21 @@ async function spExchange(code) {
       grant_type: 'authorization_code', code,
       redirect_uri: SP_REDIRECT,
       client_id: SPOTIFY_CLIENT_ID,
-      code_verifier: sessionStorage.getItem('sp_v')
+      code_verifier: localStorage.getItem('sp_v')
     })
   })
   const d = await res.json()
   if (d.access_token) {
-    sessionStorage.setItem('sp_token', d.access_token)
-    sessionStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
-    sessionStorage.removeItem('sp_v')
+    localStorage.setItem('sp_token', d.access_token)
+    localStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
+    localStorage.removeItem('sp_v')
   }
   return d.access_token
 }
 
 function spToken() {
-  const t = sessionStorage.getItem('sp_token')
-  return t && Date.now() < +sessionStorage.getItem('sp_exp') ? t : null
+  const t = localStorage.getItem('sp_token')
+  return t && Date.now() < +localStorage.getItem('sp_exp') ? t : null
 }
 
 async function spFetch(token, path, opts = {}, tries = 4) {
