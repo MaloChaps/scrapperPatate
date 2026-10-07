@@ -150,6 +150,16 @@
   .filter-chip.genre{border-color:rgba(224,88,142,.35);color:rgba(224,88,142,.8)}
   .filter-chip.genre:hover{border-color:var(--pink);color:var(--pink);background:rgba(224,88,142,.08)}
   .filter-chip.genre.active{background:var(--pink);color:#fff;border-color:var(--pink)}
+  .filter-chip.src{border-color:rgba(29,185,84,.4);color:rgba(29,185,84,.9)}
+  .filter-chip.src:hover{border-color:#1DB954;color:#1DB954;background:rgba(29,185,84,.08)}
+  .filter-chip.src.active{background:#1DB954;color:#fff;border-color:#1DB954}
+  .filter-chip.src.loading{opacity:.55;cursor:wait}
+  .src-del{margin-left:8px;opacity:.6}
+  .src-del:hover{opacity:1}
+  .src-add{display:flex;gap:6px;flex:1 1 240px;min-width:0}
+  .src-add input{flex:1;min-width:0;font-family:"Space Grotesk",sans-serif;font-size:13px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--cream)}
+  .src-add input::placeholder{color:var(--cream-dim);opacity:.5}
+  .src-msg{width:100%;font-size:12px;color:var(--cream-dim);opacity:.75}
 
   .modal-loader{
     position:absolute;inset:0;background:rgba(28,6,18,.94);
@@ -304,6 +314,7 @@
             <button class="filter-chip" data-filter="4h">4 h</button>
             <button class="filter-chip" data-filter="12h">12 h</button>
             <button class="filter-chip" data-filter="24h">24 h</button>
+            <button class="filter-chip" data-filter="tout">Tout</button>
           </div>
         </div>
         <div class="filter-group">
@@ -318,6 +329,17 @@
         <div class="filter-group" id="genreGroup" style="display:none">
           <span class="filter-group-label">Genre</span>
           <div class="filter-chips" id="genreChips"></div>
+        </div>
+        <div class="filter-group">
+          <span class="filter-group-label">Playlists</span>
+          <div class="filter-chips">
+            <span id="srcChips" style="display:contents"></span>
+            <form class="src-add" id="srcAdd">
+              <input id="srcInput" placeholder="Lien d'une playlist Spotify" autocomplete="off">
+              <button class="filter-chip" type="submit">+ Ajouter</button>
+            </form>
+            <span class="src-msg" id="srcMsg"></span>
+          </div>
         </div>
       </div>
       <div class="modal-selall">
@@ -647,7 +669,8 @@ el("radioPlayBtn").onclick = () => {
 /* ── iTunes (miniature + genre) ─────────────────────────────── */
 /* Une seule requête par titre, file d'attente limitée (iTunes bloque les rafales)
    et cache persistant dans le navigateur pour ne pas tout refaire à chaque visite */
-const ITUNES_STORE = 'itunes_cache_v1'
+const ITUNES_STORE = 'itunes_cache_v2'  // v2 : genre vérifié (artiste concordant)
+try { localStorage.removeItem('itunes_cache_v1') } catch {}
 const ITUNES_CONCURRENCY = 4
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const trackKey = t => `${norm(t.artist)}|${norm(t.title)}`
@@ -670,9 +693,21 @@ let   itunesPauseUntil = 0
 let   itunesFailStreak = 0  // trop d'échecs de suite → iTunes nous bloque, on abandonne la file
 
 async function itunesSearch(term) {
-  const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=1`)
+  const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=5`)
   if (!res.ok) throw new Error('iTunes ' + res.status)
-  return (await res.json()).results?.[0]
+  return (await res.json()).results || []
+}
+
+/* Résultat iTunes qui correspond vraiment au titre : même artiste (et titre proche si pas d'artiste) */
+const VAGUE_GENRES = new Set(['music', 'musique'])
+function itunesMatch(results, t) {
+  const la = loose(firstArtist(t.artist))
+  const lt = loose(cleanTitle(t.title) || t.title)
+  const near = (a, b) => a && b && (a.includes(b) || b.includes(a))
+  return results.find(r => {
+    const ra = loose(r.artistName), rt = loose(cleanTitle(r.trackName) || r.trackName)
+    return la ? near(la, ra) && (!lt || near(lt, rt)) : lt === rt
+  })
 }
 
 /* → { art, genre } ; priority = passe devant (miniatures visibles) */
@@ -697,9 +732,14 @@ async function itunesWorker() {
     const job = itunesQueue.shift()
     if (!job) break
     try {
-      let r = await itunesSearch(`${job.t.artist} ${job.t.title}`)
-      if (!r && job.t.title) r = await itunesSearch(job.t.title)
-      const info = { art: (r?.artworkUrl100 || '').replace('100x100bb', '60x60bb'), genre: r?.primaryGenreName || '' }
+      const title = cleanTitle(job.t.title) || job.t.title
+      let results = await itunesSearch(`${firstArtist(job.t.artist)} ${title}`)
+      let hit = itunesMatch(results, job.t)
+      if (!hit && title) { results = await itunesSearch(title); hit = itunesMatch(results, job.t) }
+      /* Genre seulement si le titre est confirmé ; la miniature peut venir du meilleur résultat */
+      const art   = (hit || results[0])?.artworkUrl100 || ''
+      const genre = hit?.primaryGenreName || ''
+      const info  = { art: art.replace('100x100bb', '60x60bb'), genre: VAGUE_GENRES.has(genre.toLowerCase()) ? '' : genre }
       itunesCache.set(job.key, info); saveItunesCache()
       itunesFailStreak = 0
       itunesPending.delete(job.key)
@@ -750,7 +790,7 @@ async function spLogin() {
   const p = new URLSearchParams({
     client_id: SPOTIFY_CLIENT_ID, response_type: 'code',
     redirect_uri: SP_REDIRECT,
-    scope: 'playlist-modify-public playlist-modify-private',
+    scope: 'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative',
     code_challenge_method: 'S256', code_challenge: await spChallenge(v)
   })
   window.location = 'https://accounts.spotify.com/authorize?' + p
@@ -810,6 +850,7 @@ const spUriCache = (() => { try { return JSON.parse(localStorage.getItem(SP_URI_
 const saveSpUriCache = () => { try { localStorage.setItem(SP_URI_STORE, JSON.stringify(spUriCache)) } catch {} }
 
 async function spFindTrack(token, t) {
+  if (t.uri) return t.uri  // titre venu d'une playlist Spotify : pas besoin de chercher
   const key = trackKey(t)
   if (spUriCache[key]) return spUriCache[key]
   const title  = cleanTitle(t.title) || t.title
@@ -864,7 +905,9 @@ async function createSpotifyPlaylist(selectedTracks) {
     lStep('Création de la playlist…', 8)
     const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     const activeLabels = [...activeFilters].map(f => FILTER_LABELS[f] || f).join(', ')
-    const playlistName = activeLabels ? `${activeLabels} · ${date}` : date
+    const srcNames     = savedSources.filter(s => activeSources.has(s.id)).map(s => s.name)
+    const nameParts    = [activeLabels, ...srcNames].filter(Boolean).join(' + ')
+    const playlistName = nameParts ? `${nameParts} · ${date}` : date
     const playlist = await spFetch(token, '/me/playlists', {
       method: 'POST',
       body: JSON.stringify({
@@ -977,11 +1020,18 @@ const MOOD_HOURS = {
   nuit:  h => h >= 22 || h < 6
 }
 
-/* Le ou les créneaux où le titre passe le plus souvent */
+/* Un seul créneau par titre : celui où il passe le plus souvent ;
+   en cas d'égalité, celui de son passage le plus récent (hours[0]) */
 function trackMoods(hours) {
   const counts = Object.fromEntries(Object.entries(MOOD_HOURS).map(([m, inSlot]) => [m, hours.filter(inSlot).length]))
-  const max = Math.max(...Object.values(counts))
-  return Object.keys(counts).filter(m => counts[m] === max)
+  const max  = Math.max(...Object.values(counts))
+  const tied = Object.keys(counts).filter(m => counts[m] === max)
+  if (tied.length === 1) return tied
+  for (const h of hours) {
+    const m = tied.find(m => MOOD_HOURS[m](h))
+    if (m) return [m]
+  }
+  return []
 }
 
 function visibleRows() {
@@ -989,12 +1039,12 @@ function visibleRows() {
 }
 
 const FILTER_LABELS = {
-  '4h': '4 h', '12h': '12 h', '24h': '24 h',
+  '4h': '4 h', '12h': '12 h', '24h': '24 h', 'tout': 'Tout',
   'matin': 'Matin', 'aprem': 'Aprem', 'apero': 'Apéro', 'nuit': 'Nuit'
 }
 
 function updateBreadcrumb() {
-  const total   = document.querySelectorAll('.modal-track').length
+  const total   = modalList.filter(t => !t.src || activeSources.has(t.src)).length
   const visible = visibleRows().length
   el("bcCount").textContent = activeFilters.size
     ? `${visible} / ${total}`
@@ -1011,15 +1061,17 @@ function updateModalCount() {
   el("selAll").checked           = total > 0 && checked === total
 }
 
-const PERIOD_HOURS = { '4h': 4, '12h': 12, '24h': 24 }
+const PERIOD_HOURS = { '4h': 4, '12h': 12, '24h': 24, 'tout': Infinity }
 
-/* « ou » à l'intérieur d'un groupe, « et » entre les groupes (période × ambiance × genre) */
+/* « ou » à l'intérieur d'un groupe, « et » entre les groupes (période × ambiance × genre).
+   Les titres des playlists ajoutées s'additionnent à la sélection radio : seul le genre les filtre */
 function rowMatchesFilters(t, idx) {
   const f = [...activeFilters]
   const periods = f.filter(x => PERIOD_HOURS[x])
   const moods   = f.filter(x => MOOD_HOURS[x])
   const genres  = f.filter(x => !FILTER_LABELS[x])
   const genre   = trackGenres.get(idx)
+  if (t.src) return activeSources.has(t.src) && (!genres.length || genres.includes(genre))
   return (!periods.length || periods.some(p => Date.now() - t.at <= PERIOD_HOURS[p] * 3600000))
       && (!moods.length   || moods.some(m => t.moods.includes(m)))
       && (!genres.length  || genres.includes(genre))
@@ -1056,8 +1108,7 @@ function renderGenreChips() {
 }
 
 /* Genres + miniatures via la file iTunes ; l'affichage se met à jour au fil de l'eau */
-async function loadGenresForModal() {
-  const session = ++modalSession
+async function loadGenresForModal(session, from = 0) {
   let refresh = null
   const scheduleRefresh = () => {
     if (refresh) return
@@ -1069,43 +1120,157 @@ async function loadGenresForModal() {
     }, 500)
   }
   const thumbs = el("modalTracks").querySelectorAll('.mt-thumb')
-  await Promise.all(modalList.map(async (t, i) => {
+  await Promise.all(modalList.slice(from).map(async (t, j) => {
+    const i = from + j
     const info = await itunesInfo(t)
     if (session !== modalSession) return
-    if (info.art && thumbs[i]) thumbs[i].style.backgroundImage = `url(${info.art})`
+    if (info.art && !t.art && thumbs[i]) thumbs[i].style.backgroundImage = `url(${info.art})`
     if (info.genre) { trackGenres.set(i, info.genre); scheduleRefresh() }
   }))
 }
 
+function modalRowHtml(t, i) {
+  const art = t.art || itunesCache.get(trackKey(t))?.art || ''
+  const tag = t.src ? ` <span class="mt-plays">♫ ${esc(t.srcName)}</span>`
+            : t.plays > 1 ? ` <span class="mt-plays">×${t.plays}</span>` : ''
+  return `<label class="modal-track">
+    <input type="checkbox" class="sp-pick" data-idx="${i}" checked>
+    <div class="mt-thumb" style="${art ? `background-image:url(${art})` : ''}"></div>
+    <div class="mt-info">
+      <div class="mt-title">${esc(t.title)}</div>
+      <div class="mt-artist">${esc(t.artist)||'&nbsp;'}${tag}</div>
+    </div>
+  </label>`
+}
+
 function showPlaylistModal() {
   activeFilters.clear()
+  activeSources.clear()
+  loadedSources.clear()
   trackGenres = new Map()
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'))
   el("genreGroup").style.display  = 'none'
   el("genreChips").innerHTML    = ''
+  el("srcMsg").textContent      = ''
+  renderSourceChips()
 
   modalList = buildModalList()
   updateMoodCounts()
-  el("modalTracks").innerHTML = modalList.map((t, i) => {
-    const art = itunesCache.get(trackKey(t))?.art || ''
-    return `<label class="modal-track">
-      <input type="checkbox" class="sp-pick" data-idx="${i}" checked>
-      <div class="mt-thumb" style="${art ? `background-image:url(${art})` : ''}"></div>
-      <div class="mt-info">
-        <div class="mt-title">${esc(t.title)}</div>
-        <div class="mt-artist">${esc(t.artist)||'&nbsp;'}${t.plays > 1 ? ` <span class="mt-plays">×${t.plays}</span>` : ''}</div>
-      </div>
-    </label>`
-  }).join('')
+  el("modalTracks").innerHTML = modalList.map(modalRowHtml).join('')
 
   updateModalCount()
   updateBreadcrumb()
   el("playlistModal").classList.add("open")
-  loadGenresForModal()
+  loadGenresForModal(++modalSession)
 }
 
+/* ── Playlists Spotify ajoutées (mémorisées dans le navigateur) ─ */
+const SRC_STORE = 'sp_sources_v1'
+let savedSources = (() => { try { return JSON.parse(localStorage.getItem(SRC_STORE)) || [] } catch { return [] } })()
+const saveSources   = () => { try { localStorage.setItem(SRC_STORE, JSON.stringify(savedSources)) } catch {} }
+const activeSources = new Set()  // playlists cochées pour cette playlist
+const loadedSources = new Set()  // playlists dont les titres sont déjà dans modalList
+const loadingSources = new Set()
+
+function renderSourceChips() {
+  el("srcChips").innerHTML = savedSources.map(s => {
+    const cls = (activeSources.has(s.id) ? ' active' : '') + (loadingSources.has(s.id) ? ' loading' : '')
+    return `<button class="filter-chip src${cls}" data-src="${esc(s.id)}">${esc(s.name)}<span class="src-del" data-del="${esc(s.id)}" title="Oublier cette playlist">✕</span></button>`
+  }).join('')
+}
+
+const spPlaylistId = s => (s.match(/playlist[/:]([A-Za-z0-9]{22})/) || s.trim().match(/^([A-Za-z0-9]{22})$/))?.[1]
+
+async function loadSource(id) {
+  const token = spToken()
+  if (!token) { await spLogin(); return false }
+  const session = modalSession
+  const src = savedSources.find(s => s.id === id)
+  const list = [], seen = new Set()
+  let path = `/playlists/${id}/items?limit=100`
+  while (path) {
+    const r = await spFetch(token, path)
+    for (const it of r.items || []) {
+      const tr = it.item ?? it.track
+      if (!tr || tr.type !== 'track' || tr.is_local || !tr.uri || seen.has(tr.uri)) continue
+      seen.add(tr.uri)
+      list.push({
+        title: tr.name, artist: (tr.artists || []).map(a => a.name).join(', '),
+        uri: tr.uri, art: tr.album?.images?.at(-1)?.url || '',
+        src: id, srcName: src?.name || '', at: 0, plays: 0, hours: [], moods: []
+      })
+    }
+    path = r.next ? r.next.replace('https://api.spotify.com/v1', '') : null
+  }
+  if (session !== modalSession) return false
+  if (!list.length) throw new Error('aucun titre accessible')
+  const from = modalList.length
+  modalList.push(...list)
+  el("modalTracks").insertAdjacentHTML('beforeend', list.map((t, j) => modalRowHtml(t, from + j)).join(''))
+  loadedSources.add(id)
+  loadGenresForModal(session, from)
+  return true
+}
+
+async function toggleSource(id) {
+  if (loadingSources.has(id)) return
+  if (activeSources.has(id)) activeSources.delete(id)
+  else {
+    activeSources.add(id)
+    if (!loadedSources.has(id)) {
+      loadingSources.add(id); renderSourceChips()
+      el("srcMsg").textContent = 'Chargement de la playlist…'
+      try {
+        if (!await loadSource(id)) activeSources.delete(id)
+        el("srcMsg").textContent = ''
+      } catch (e) {
+        activeSources.delete(id)
+        el("srcMsg").textContent = `Impossible de lire cette playlist (${e.message}). Spotify bloque les playlists éditoriales et parfois celles des autres.`
+      }
+      loadingSources.delete(id)
+    }
+  }
+  renderSourceChips()
+  applyFilters()
+}
+
+el("srcAdd").addEventListener('submit', async e => {
+  e.preventDefault()
+  const id = spPlaylistId(el("srcInput").value)
+  if (!id) { el("srcMsg").textContent = 'Lien non reconnu (attendu : open.spotify.com/playlist/…)'; return }
+  el("srcInput").value = ''
+  if (!savedSources.some(s => s.id === id)) {
+    const token = spToken()
+    if (!token) { await spLogin(); return }
+    try {
+      const p = await spFetch(token, `/playlists/${id}?fields=name`)
+      savedSources.push({ id, name: p.name || 'Playlist' })
+      saveSources()
+    } catch (err) {
+      el("srcMsg").textContent = `Playlist introuvable (${err.message}).`
+      return
+    }
+  }
+  if (!activeSources.has(id)) await toggleSource(id)
+})
+
+el("srcChips").addEventListener('click', e => {
+  const del = e.target.closest('.src-del')
+  if (del) {
+    const id = del.dataset.del
+    savedSources = savedSources.filter(s => s.id !== id)
+    saveSources()
+    activeSources.delete(id)
+    renderSourceChips()
+    applyFilters()
+    return
+  }
+  const chip = e.target.closest('.filter-chip.src')
+  if (chip) toggleSource(chip.dataset.src)
+})
+
 el("modalFilters").addEventListener('click', e => {
-  const chip = e.target.closest('.filter-chip')
+  const chip = e.target.closest('.filter-chip[data-filter]')
   if (!chip) return
   chip.classList.toggle('active')
   const f = chip.dataset.filter
