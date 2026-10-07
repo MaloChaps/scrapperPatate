@@ -2,191 +2,189 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Le Mix · La Patate Douce</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍠</text></svg>">
+<link rel="stylesheet" href="da.css">
 <style>
-  :root{
-    --wine:#2A0C1B;
-    --wine-2:#3C1227;
-    --cream:#F5EDC4;
-    --cream-dim:#cfc69f;
-    --amber:#E8853B;
-    --pink:#E0588E;
-    --green:#1DB954;
-    --line:rgba(245,237,196,.14);
-    --card:rgba(245,237,196,.05);
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{background:var(--wine);color:var(--cream)}
+  *,*::before,*::after{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
   body{
-    font-family:"Space Grotesk",system-ui,sans-serif;
-    min-height:100vh;
-    line-height:1.45;
-    background:
-      radial-gradient(1100px 500px at 85% -10%, rgba(232,133,59,.16), transparent 60%),
-      radial-gradient(900px 500px at 0% 110%, rgba(224,88,142,.13), transparent 55%),
-      var(--wine);
-    padding:clamp(16px,4vw,48px);
+    margin:0;min-height:100dvh;background:var(--bg);color:var(--ink);
+    font-family:var(--font-body);font-size:18px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
   }
-  .wrap{max-width:780px;margin:0 auto}
   a{color:inherit}
+  button{font:inherit;color:inherit;cursor:pointer}
+  .wrap{max-width:1040px;margin:0 auto;padding:calc(24px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(56px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))}
 
-  .back{font-family:"DM Mono",monospace;font-size:12px;color:var(--cream-dim);text-decoration:none;opacity:.7}
-  .back:hover{opacity:1}
-  .eyebrow{font-family:"DM Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-top:22px}
-  h1{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(40px,9vw,76px);line-height:.92;letter-spacing:-.02em;margin:14px 0 6px}
-  h1 em{font-style:italic;color:var(--amber)}
-  .sub{color:var(--cream-dim);font-size:15px;max-width:52ch}
+  .label{margin:0;font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 
-  .card{margin-top:24px;background:var(--wine-2);border:1px solid var(--line);border-radius:22px;padding:clamp(16px,3vw,24px);display:flex;flex-direction:column;gap:22px}
-  .field-label{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--cream-dim);opacity:.6;margin-bottom:10px;display:flex;justify-content:space-between;gap:10px}
-  .field-label b{color:var(--cream);opacity:1;font-weight:500}
+  /* En-tête : retour à gauche, nom centré */
+  .masthead{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding-bottom:24px}
+  .masthead .label{font-size:13px;letter-spacing:.02em;text-align:center;line-height:1.15}
+  .back{justify-self:start;text-decoration:none}
 
-  .seed{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-  .seed input{flex:1;min-width:0;font-family:"Space Grotesk",sans-serif;font-size:14px;padding:11px 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--cream)}
-  .seed input::placeholder{color:var(--cream-dim);opacity:.45}
-  .seed input:focus{outline:none;border-color:var(--amber)}
-  .seed-state{font-size:12px;color:var(--cream-dim);width:150px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .seed-state.ok{color:var(--green)}
-  .seed-state.err{color:var(--pink)}
-  .saved{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+  .hero{padding:clamp(24px,6vw,64px) 0 8px;border-bottom:1px solid var(--line-strong)}
+  h1{margin:0;font-family:var(--font-display);font-weight:400;font-size:clamp(64px,16vw,140px);line-height:.88;letter-spacing:-.02em}
+  h1 em{font-style:italic}
+  .intro{max-width:46ch;margin:18px 0 22px}
+
+  /* Pastilles et boutons (comme les filtres du site cocktail) */
+  .pill-button{padding:8px 14px;border:1px solid var(--ink);border-radius:99px;background:transparent;color:var(--ink);font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;transition:background-color .2s,color .2s}
+  .pill-button--filled{background:var(--ink);color:var(--bg)}
+  .pill-button--big{padding:13px 22px;font-size:13px}
+  .pill-button:disabled{opacity:.4;cursor:default}
+  @media (hover:hover){.pill-button:not(:disabled):hover{background:var(--ink);color:var(--bg)}}
+
+  .chip{display:inline-flex;align-items:center;padding:6px 12px;border:0;border-radius:99px;background:var(--field);color:var(--ink);font:400 14px var(--font-mono);transition:background-color .2s,color .2s}
+  .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+  .chip__close{display:inline-block;max-width:0;margin-left:0;overflow:hidden;opacity:0;font-size:16px;line-height:1;transform:rotate(-90deg) scale(.4);transition:max-width .25s ease,margin-left .25s ease,opacity .2s ease,transform .25s ease}
+  .chip--multi[aria-pressed="true"] .chip__close{max-width:1em;margin-left:8px;opacity:1;transform:none}
+  @media (hover:hover){.chip:hover{background:var(--ink);color:var(--bg)}}
+  @media (prefers-reduced-motion:reduce){.chip,.chip__close{transition:none}}
+
+  /* Réglages : étiquette à gauche, choix à droite */
+  .filters{display:grid;grid-template-columns:156px 1fr;align-items:center;gap:18px 0;margin-top:28px}
+  .filters .label{font-size:13px;letter-spacing:.02em;align-self:start;padding-top:7px}
+  .filters__chips{display:flex;flex-wrap:wrap;gap:8px}
+  .filters__note{grid-column:2;margin-top:-10px;font:400 12px var(--font-mono);opacity:.75}
+  .field{width:100%;min-width:0;padding:9px 22px;border:0;border-radius:99px;outline:none;background:var(--field);color:var(--ink);font:400 16px var(--font-mono);-webkit-appearance:none;appearance:none}
+  .field:focus-visible{box-shadow:0 0 0 1px var(--ink)}
+  .field::placeholder{color:var(--ink);opacity:.75}
+  .seeds{display:flex;flex-direction:column;gap:8px}
+  .seed{display:flex;align-items:center;gap:12px}
+  .seed-state{flex:0 0 190px;font:400 12px var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seed-state.err{color:var(--soft)}
+  .saved{display:flex;flex-wrap:wrap;gap:8px}
   .saved:empty{display:none}
+  .range{display:flex;align-items:center;gap:14px;max-width:520px}
+  .range input{flex:1;accent-color:var(--ink)}
+  .range output{min-width:84px;font:500 13px var(--font-mono);text-align:right}
 
-  .chips{display:flex;flex-wrap:wrap;gap:6px}
-  .chip{font-family:"Space Grotesk",sans-serif;font-size:13px;font-weight:500;padding:7px 14px;border-radius:999px;border:1px solid var(--line);color:var(--cream-dim);background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
-  .chip:hover{border-color:rgba(245,237,196,.35);color:var(--cream);background:var(--card)}
-  .chip.active{background:var(--amber);color:var(--wine);border-color:var(--amber);font-weight:700}
-  .chip.src{border-color:rgba(29,185,84,.4);color:rgba(29,185,84,.9);font-size:12px;padding:5px 12px}
-  .chip.src:hover{border-color:var(--green);color:var(--green)}
-  .theme-desc{font-size:12px;color:var(--cream-dim);opacity:.7;margin-top:8px;min-height:18px}
+  .actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:32px;padding-top:20px;border-top:1px solid var(--line-strong)}
+  .hint{font:400 12px var(--font-mono);opacity:.8}
 
-  .sliders{display:grid;grid-template-columns:1fr 1fr;gap:22px}
-  input[type=range]{width:100%;accent-color:var(--amber)}
-  .range-ends{display:flex;justify-content:space-between;font-size:11px;color:var(--cream-dim);opacity:.55;margin-top:2px}
-
-  button{font-family:"Space Grotesk",sans-serif;cursor:pointer;border:none;border-radius:999px;font-weight:600;transition:transform .12s ease, background .2s ease, opacity .2s}
-  button:active{transform:scale(.97)}
-  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-  button:disabled{opacity:.45;cursor:default;transform:none}
-  .btn-main{background:var(--amber);color:var(--wine);font-size:16px;padding:13px 26px}
-  .btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--line);padding:11px 18px;font-size:14px}
-  .btn-ghost:hover{background:var(--card)}
-  .btn-spotify{background:var(--green);color:#000;font-size:15px;padding:12px 22px}
-  .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-  .hint{font-size:12px;color:var(--cream-dim);opacity:.7}
+  @media (max-width:599px){
+    .filters{grid-template-columns:1fr;gap:8px}
+    .filters .label{padding-top:12px}
+    .filters__chips{margin-bottom:6px}
+    .filters__note{grid-column:1;margin-top:0}
+    .seed{flex-wrap:wrap}
+    .seed-state{flex-basis:100%;padding-left:22px}
+  }
 
   /* Chargement */
-  .loading{margin-top:24px;display:none;flex-direction:column;align-items:center;gap:16px;padding:40px 20px;text-align:center;border:1px solid var(--line);border-radius:22px;background:var(--card)}
-  .loading.on{display:flex}
-  .spinner{width:38px;height:38px;border-radius:50%;border:3px solid rgba(245,237,196,.12);border-top-color:var(--amber);animation:spin .8s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  @media (prefers-reduced-motion:reduce){.spinner{animation-duration:3s}}
-  .step{font-family:"DM Mono",monospace;font-size:12px;letter-spacing:.06em;color:var(--cream-dim)}
-  .bar-wrap{width:min(260px,80%);height:3px;background:rgba(245,237,196,.1);border-radius:2px;overflow:hidden}
-  .bar{height:100%;width:0;background:var(--amber);transition:width .6s ease}
-  .error{color:var(--pink);font-size:14px;margin-top:14px;display:none}
+  .loading{display:none;margin-top:40px;padding:40px 0;border-top:1px solid var(--line-strong);text-align:center}
+  .loading.on{display:block}
+  .loading__step{font:500 13px var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+  .loading__bar{width:min(320px,80%);height:2px;margin:18px auto;background:var(--line)}
+  .loading__bar span{display:block;height:100%;width:0;background:var(--ink);transition:width .6s ease}
+  .error{display:none;margin-top:20px;padding:12px 16px;border:1px solid var(--soft);border-radius:4px;color:var(--soft);font:400 14px var(--font-mono)}
   .error.on{display:block}
 
-  /* Résultat */
-  .result{margin-top:28px;display:none}
+  /* Résultat : liste en grands titres */
+  .result{display:none;margin-top:clamp(48px,8vw,88px)}
   .result.on{display:block}
-  .result-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:12px}
-  .result-head h2{font-family:"Fraunces",serif;font-size:28px;font-weight:600;flex:1;min-width:200px}
-  .profile{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
-  .tag{font-family:"DM Mono",monospace;font-size:11px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--cream-dim);white-space:nowrap}
-  .tag.seed{border-color:rgba(232,133,59,.5);color:var(--amber)}
-  .tag.new{border-color:rgba(224,88,142,.5);color:var(--pink)}
-  .list{display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
-  .row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card);cursor:pointer}
-  .row:hover{background:rgba(245,237,196,.08)}
-  .row input{accent-color:var(--amber);width:16px;height:16px;flex-shrink:0;cursor:pointer}
-  .row .idx{font-family:"DM Mono",monospace;font-size:11px;color:var(--cream-dim);width:20px;text-align:right;flex-shrink:0}
-  .row .thumb{width:40px;height:40px;border-radius:6px;flex-shrink:0;background:var(--card) center/cover;border:1px solid var(--line)}
-  .row .info{min-width:0;flex:1}
-  .row .t,.row .a{display:block}
-  .row .t{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .a{font-size:12px;color:var(--cream-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .tags{display:flex;gap:5px;flex-shrink:0}
-  .row.off{opacity:.4}
-  .create{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-  .create input{flex:1;min-width:200px;font-family:"Space Grotesk",sans-serif;font-size:14px;padding:12px 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--cream)}
-  .create input:focus{outline:none;border-color:var(--green)}
-  .done{margin-top:14px;font-size:14px;display:none}
-  .done.on{display:block}
-  .done a{color:var(--green);font-weight:600}
+  .section-header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 16px;padding-bottom:16px;border-bottom:1px solid var(--line-strong)}
+  .section-title{margin:0;font-family:var(--font-display);font-weight:400;font-size:clamp(36px,9vw,56px);line-height:.95;letter-spacing:-.02em}
+  .section-title small{font:400 13px var(--font-mono);letter-spacing:.04em;vertical-align:.9em}
+  .profile{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px}
+  .tag{font:400 12px var(--font-mono);padding:3px 9px;border:1px solid var(--line-strong);border-radius:99px;white-space:nowrap}
+  .tag--fill{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 
-  @media (max-width:600px){
-    .sliders{grid-template-columns:1fr}
-    .seed{flex-wrap:wrap}
-    .seed-state{width:100%;padding-left:16px}
-    .row .tags .tag.genre{display:none}
+  .tracks{margin:8px 0 0;padding:0;list-style:none}
+  .track{display:grid;grid-template-columns:28px 44px 1fr auto;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;-webkit-user-select:none;transition:background-color .15s,color .15s,padding .15s,opacity .15s}
+  @media (hover:hover){.track:hover{padding-inline:8px;background:var(--ink);color:var(--bg)}}
+  .track input{position:absolute;opacity:0;pointer-events:none}
+  .track.off{opacity:.35}
+  .track__index{font:400 12px var(--font-mono)}
+  .track__cover{width:44px;height:44px;border-radius:4px;background:var(--field) center/cover}
+  .track__name,.track__artist{display:block}
+  .track__name{margin:0;font-family:var(--font-display);font-weight:400;font-size:clamp(20px,4.6vw,30px);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .track__artist{margin-top:4px;font:400 13px var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .track__info{min-width:0}
+  .track__tags{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;max-width:280px}
+  .track:hover .tag{border-color:currentColor}
+  @media (max-width:599px){
+    .track{grid-template-columns:22px 40px 1fr}
+    .track__tags{grid-column:3;justify-content:flex-start;max-width:none}
+    .track__cover{width:40px;height:40px}
   }
+
+  .create{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:24px}
+  .create .field{flex:1;min-width:220px}
+  .done{display:none;margin-top:16px;padding:16px;border:1px solid var(--ink);border-radius:4px}
+  .done.on{display:block}
+  .done a{font-weight:700}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="./">← Mes Pépites</a>
-  <div class="eyebrow">La Patate Douce · générateur</div>
-  <h1>Le <em>Mix</em> 🍠</h1>
-  <p class="sub">Donne jusqu'à trois playlists Spotify que tu aimes et un thème : le générateur garde tes meilleurs titres, ajoute des découvertes proches et les enchaîne dans le bon tempo.</p>
+  <header class="masthead">
+    <a class="back pill-button" href="./">← Radio</a>
+    <p class="label">La Patate Douce<br>générateur</p>
+    <span></span>
+  </header>
 
-  <div class="card">
-    <div>
-      <div class="field-label">Tes playlists de départ</div>
-      <div id="seeds"></div>
-      <div class="saved" id="saved"></div>
-    </div>
+  <section class="hero">
+    <h1>Le <em>Mix</em></h1>
+    <p class="intro">Jusqu'à trois playlists Spotify que tu aimes : le générateur garde tes meilleurs titres, ajoute des découvertes du même univers et les enchaîne.</p>
+  </section>
 
-    <div>
-      <div class="field-label">Thème</div>
-      <div class="chips" id="themes"></div>
-      <div class="theme-desc" id="themeDesc"></div>
-    </div>
+  <div class="filters">
+    <p class="label">Playlists</p>
+    <div class="seeds" id="seeds"></div>
+    <p class="filters__note saved" id="saved"></p>
 
-    <div class="sliders">
-      <div>
-        <div class="field-label">Longueur <b id="lenVal">30 titres</b></div>
-        <input type="range" id="len" min="15" max="60" step="5" value="30">
-      </div>
-      <div>
-        <div class="field-label">Découvertes <b id="discVal">50 %</b></div>
-        <input type="range" id="disc" min="0" max="100" step="10" value="50">
-        <div class="range-ends"><span>Que mes playlists</span><span>Que du neuf</span></div>
-      </div>
-    </div>
+    <p class="label">Thème</p>
+    <div class="filters__chips" id="themes"></div>
+    <p class="filters__note" id="themeDesc"></p>
 
-    <div class="actions">
-      <button class="btn-main" id="go">Générer le mix</button>
-      <span class="hint" id="goHint"></span>
-    </div>
+    <p class="label">Styles</p>
+    <div class="filters__chips" id="styles"></div>
+    <p class="filters__note">Aucun choisi : tous les styles de tes playlists.</p>
+
+    <p class="label">Niveau</p>
+    <div class="filters__chips" id="niche"></div>
+    <p class="filters__note" id="nicheDesc"></p>
+
+    <p class="label">Enchaînement</p>
+    <div class="filters__chips" id="curve"></div>
+
+    <p class="label">Longueur</p>
+    <div class="range"><input type="range" id="len" min="15" max="60" step="5" value="30"><output id="lenVal"></output></div>
+
+    <p class="label">Découvertes</p>
+    <div class="range"><input type="range" id="disc" min="0" max="100" step="10" value="50"><output id="discVal"></output></div>
+  </div>
+
+  <div class="actions">
+    <button class="pill-button pill-button--filled pill-button--big" id="go">Générer le mix</button>
+    <span class="hint" id="goHint"></span>
   </div>
 
   <div class="loading" id="loading">
-    <div class="spinner"></div>
-    <div class="step" id="step"></div>
-    <div class="bar-wrap"><div class="bar" id="bar"></div></div>
-    <div class="hint">Compte environ une minute.</div>
+    <p class="loading__step" id="step"></p>
+    <div class="loading__bar"><span id="bar"></span></div>
+    <p class="hint">Compte environ une minute.</p>
   </div>
   <div class="error" id="error"></div>
 
-  <div class="result" id="result">
-    <div class="result-head">
-      <h2 id="resTitle"></h2>
-      <button class="btn-ghost" id="regen">↻ Régénérer</button>
+  <section class="result" id="result">
+    <div class="section-header">
+      <h2 class="section-title" id="resTitle"></h2>
+      <button class="pill-button" id="regen">↻ Régénérer</button>
     </div>
     <div class="profile" id="profile"></div>
-    <div class="list" id="list"></div>
+    <ol class="tracks" id="list"></ol>
     <div class="create">
-      <input id="plName" placeholder="Nom de la playlist">
-      <button class="btn-spotify" id="create">Créer sur Spotify</button>
+      <input class="field" id="plName" placeholder="Nom de la playlist">
+      <button class="pill-button pill-button--filled pill-button--big" id="create">Créer sur Spotify</button>
     </div>
-    <div class="hint" id="createStep" style="margin-top:10px"></div>
+    <p class="hint" id="createStep" style="margin-top:10px"></p>
     <div class="done" id="done"></div>
-  </div>
+  </section>
 </div>
 
 <script>
@@ -200,14 +198,28 @@ const norm = s  => (s||"").toLowerCase().replace(/\s+/g, ' ').trim()
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 const THEMES = {
-  apero:    { label: '🍷 Apéro',          desc: 'Soul, funk, brésilien, jazz · 92–118 BPM · tempo qui monte doucement' },
-  soiree:   { label: '🪩 Soirée',         desc: 'Dance, électro, funk, hip-hop · 110–128 BPM · ça monte' },
-  nuit:     { label: '🌙 Fin de nuit',    desc: 'Électro, jazz, R&B · 85–115 BPM · on redescend' },
-  dimanche: { label: '☕ Dimanche matin', desc: 'Jazz, folk, soul, chanson · 70–105 BPM · tranquille' },
-  route:    { label: '🚗 Road trip',      desc: 'Rock, pop, soul, hip-hop · 100–135 BPM · en vagues' },
-  focus:    { label: '🎧 Concentration',  desc: 'Électro, jazz, classique · 80–120 BPM · régulier' },
-  sport:    { label: '🏃 Sport',          desc: 'Dance, électro, hip-hop, rock · 120–150 BPM · ça monte' }
+  libre:    { label: 'Comme mes playlists', desc: 'Pas de thème : le style, le tempo et la rareté de tes playlists' },
+  diner:    { label: 'Dîner',          desc: 'Soul, jazz, brésil, funk, afro · 80–112 BPM' },
+  apero:    { label: 'Apéro',          desc: 'Funk, soul, brésil, jazz, latin · 92–118 BPM' },
+  soiree:   { label: 'Soirée',         desc: 'Disco, house, funk, hip-hop · 110–128 BPM' },
+  nuit:     { label: 'Fin de nuit',    desc: 'House, chill, jazz, R&B · 85–115 BPM' },
+  dimanche: { label: 'Dimanche matin', desc: 'Jazz, folk, soul, chanson · 70–105 BPM' },
+  route:    { label: 'Road trip',      desc: 'Rock, pop, funk, soul · 100–135 BPM' },
+  focus:    { label: 'Concentration',  desc: 'Chill, jazz, électro · 80–120 BPM' },
+  sport:    { label: 'Sport',          desc: 'House, hip-hop, disco, rock · 120–150 BPM' }
 }
+const STYLES = {
+  funk: 'Funk', soul: 'Soul', disco: 'Disco & boogie', jazz: 'Jazz', afro: 'Afro', bresil: 'Brésil',
+  latin: 'Latin', rnb: 'R&B', house: 'House & électro', hiphop: 'Hip-hop', reggae: 'Reggae & dub',
+  rock: 'Rock', pop: 'Pop', folk: 'Folk', chanson: 'Chanson', chill: 'Chill'
+}
+const NICHE = {
+  auto:      { label: 'Comme mes playlists', desc: 'Même niveau de rareté que tes playlists' },
+  connu:     { label: 'Connu',               desc: 'Artistes reconnus (plus de 20 000 fans)' },
+  equilibre: { label: 'Équilibré',           desc: 'Un mélange de classiques et de pépites' },
+  pepites:   { label: 'Pépites',             desc: 'Artistes confidentiels (moins de 30 000 fans) : deep cuts, rare groove' }
+}
+const CURVES = { theme: 'Selon le thème', rise: '↗ Montée', fall: '↘ Descente', wave: '∿ Vagues', none: 'Mélangé' }
 
 /* ── Spotify (PKCE, même app que la page principale) ────────── */
 /* Spotify n'accepte que l'adresse de retour déjà enregistrée : celle de la page principale,
@@ -289,11 +301,11 @@ async function readPlaylist(id) {
 }
 
 /* ── Formulaire ─────────────────────────────────────────────── */
-let theme = 'apero'
+const state = { theme: 'libre', niche: 'auto', curve: 'theme', styles: new Set() }
 const seedInputs = []
 el("seeds").innerHTML = [0, 1, 2].map(i => `
   <div class="seed">
-    <input id="seed${i}" placeholder="Lien de playlist Spotify ${i + 1}${i ? ' (facultatif)' : ''}" autocomplete="off">
+    <input class="field" id="seed${i}" placeholder="Lien de playlist Spotify${i ? ' (facultatif)' : ''}" autocomplete="off">
     <span class="seed-state" id="seedState${i}"></span>
   </div>`).join('')
 for (let i = 0; i < 3; i++) {
@@ -304,25 +316,25 @@ for (let i = 0; i < 3; i++) {
 
 /* Vérifie le lien et affiche le nom de la playlist */
 async function checkSeed(i) {
-  const state = el(`seedState${i}`)
+  const st = el(`seedState${i}`)
   const v = seedInputs[i].value.trim()
-  state.className = 'seed-state'
-  if (!v) { state.textContent = ''; return }
+  st.className = 'seed-state'
+  if (!v) { st.textContent = ''; return }
   const id = playlistId(v)
-  if (!id) { state.className = 'seed-state err'; state.textContent = 'Lien non reconnu'; return }
-  if (!spToken()) { state.textContent = ''; return }
-  state.textContent = '…'
+  if (!id) { st.className = 'seed-state err'; st.textContent = 'Lien non reconnu'; return }
+  if (!spToken()) { st.textContent = ''; return }
+  st.textContent = '…'
   try {
     const p = await spFetch(`/playlists/${id}?fields=name`)
-    state.className = 'seed-state ok'; state.textContent = '✓ ' + p.name
+    st.textContent = '✓ ' + p.name
   } catch (e) {
-    state.className = 'seed-state err'; state.textContent = 'Inaccessible (' + e.message + ')'
+    st.className = 'seed-state err'; st.textContent = 'Inaccessible (' + e.message + ')'
   }
 }
 
-/* Playlists déjà ajoutées sur la page principale : un clic pour les reprendre */
+/* Playlists déjà ajoutées sur la page radio : un clic pour les reprendre */
 const saved = (() => { try { return JSON.parse(localStorage.getItem('sp_sources_v1')) || [] } catch { return [] } })()
-el("saved").innerHTML = saved.map(s => `<button class="chip src" data-id="${esc(s.id)}">+ ${esc(s.name)}</button>`).join('')
+el("saved").innerHTML = saved.map(s => `<button class="chip" data-id="${esc(s.id)}">+ ${esc(s.name)}</button>`).join('')
 el("saved").addEventListener('click', e => {
   const b = e.target.closest('[data-id]')
   if (!b) return
@@ -332,27 +344,49 @@ el("saved").addEventListener('click', e => {
   checkSeed(i)
 })
 
-el("themes").innerHTML = Object.entries(THEMES).map(([k, t]) =>
-  `<button class="chip${k === theme ? ' active' : ''}" data-theme="${k}">${t.label}</button>`).join('')
-el("themes").addEventListener('click', e => {
-  const b = e.target.closest('[data-theme]')
+/* Groupes de pastilles : un seul choix (thème, niveau, enchaînement) ou plusieurs (styles) */
+function renderChoice(id, options, key, onPick) {
+  el(id).innerHTML = Object.entries(options).map(([k, o]) =>
+    `<button class="chip" data-k="${k}" aria-pressed="${state[key] === k}">${esc(o.label || o)}</button>`).join('')
+  el(id).onclick = e => {
+    const b = e.target.closest('[data-k]')
+    if (!b) return
+    state[key] = b.dataset.k
+    el(id).querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === b))
+    onPick?.()
+  }
+}
+const syncDescs = () => {
+  el("themeDesc").textContent = THEMES[state.theme].desc
+  el("nicheDesc").textContent = NICHE[state.niche].desc
+}
+renderChoice('themes', THEMES, 'theme', syncDescs)
+renderChoice('niche', NICHE, 'niche', syncDescs)
+renderChoice('curve', CURVES, 'curve')
+syncDescs()
+
+el("styles").innerHTML = Object.entries(STYLES).map(([k, label]) =>
+  `<button class="chip chip--multi" data-k="${k}" aria-pressed="false">${esc(label)}<span class="chip__close" aria-hidden="true">×</span></button>`).join('')
+el("styles").onclick = e => {
+  const b = e.target.closest('[data-k]')
   if (!b) return
-  theme = b.dataset.theme
-  document.querySelectorAll('#themes .chip').forEach(c => c.classList.toggle('active', c === b))
-  el("themeDesc").textContent = THEMES[theme].desc
-})
-el("themeDesc").textContent = THEMES[theme].desc
+  const on = !state.styles.has(b.dataset.k)
+  on ? state.styles.add(b.dataset.k) : state.styles.delete(b.dataset.k)
+  b.setAttribute('aria-pressed', on)
+}
 
 const syncSliders = () => {
   el("lenVal").textContent  = `${el("len").value} titres`
   el("discVal").textContent = `${el("disc").value} %`
 }
 el("len").oninput = el("disc").oninput = syncSliders
+syncSliders()
 
 /* Le formulaire survit à l'aller-retour de connexion Spotify */
 function saveForm() {
   sessionStorage.setItem('mix_form', JSON.stringify({
-    seeds: seedInputs.map(x => x.value), theme, len: el("len").value, disc: el("disc").value
+    seeds: seedInputs.map(x => x.value), theme: state.theme, niche: state.niche, curve: state.curve,
+    styles: [...state.styles], len: el("len").value, disc: el("disc").value
   }))
 }
 function restoreForm() {
@@ -361,7 +395,9 @@ function restoreForm() {
     if (!f) return
     f.seeds.forEach((v, i) => seedInputs[i].value = v)
     el("len").value = f.len; el("disc").value = f.disc
-    el(`themes`).querySelector(`[data-theme="${f.theme}"]`)?.click()
+    for (const [key, id] of [['theme', 'themes'], ['niche', 'niche'], ['curve', 'curve']])
+      el(id).querySelector(`[data-k="${f[key]}"]`)?.click()
+    for (const s of f.styles || []) el("styles").querySelector(`[data-k="${s}"]`)?.click()
     syncSliders()
   } catch {}
 }
@@ -371,7 +407,7 @@ function updateHint() {
 }
 
 /* ── Génération ─────────────────────────────────────────────── */
-let lastSeeds = null, result = null
+let lastSeeds = null, result = null, resultTheme = null
 
 function showError(msg) {
   el("error").textContent = msg
@@ -380,13 +416,13 @@ function showError(msg) {
 
 /* Étapes affichées pendant le calcul serveur (pas de suivi en direct) */
 function startSteps() {
-  const steps = [[0, 'Analyse des genres et des tempos…'], [20, 'Recherche d\'artistes proches…'],
-                 [40, 'Écoute des titres candidats…'], [55, 'Sélection et mise en ordre…']]
+  const steps = [[0, 'Analyse des styles et des tempos'], [15, 'Recherche d\'artistes proches'],
+                 [35, 'Écoute des titres candidats'], [55, 'Sélection et mise en ordre']]
   const t0 = Date.now()
   const tick = () => {
     const s = (Date.now() - t0) / 1000
-    el("step").textContent = steps.filter(([at]) => s >= at).pop()[1]
-    el("bar").style.width = Math.min(95, 10 + s / 65 * 85) + '%'
+    el("step").textContent = steps.filter(([at]) => s >= at).pop()[1] + '…'
+    el("bar").style.width = Math.min(95, 10 + s / 70 * 85) + '%'
   }
   tick()
   return setInterval(tick, 1000)
@@ -402,11 +438,15 @@ async function generate(seeds) {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/build-playlist`, {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seeds, theme, length: +el("len").value, discovery: el("disc").value / 100 })
+      body: JSON.stringify({
+        seeds, theme: state.theme, niche: state.niche, curve: state.curve, styles: [...state.styles],
+        length: +el("len").value, discovery: el("disc").value / 100
+      })
     })
     const d = await res.json().catch(() => ({ error: 'réponse illisible (' + res.status + ')' }))
     if (!res.ok || d.error) throw new Error(d.error || 'Erreur ' + res.status)
     result = d
+    resultTheme = state.theme
     renderResult()
   } catch (e) {
     showError('La génération a échoué : ' + e.message)
@@ -442,35 +482,40 @@ el("go").onclick = async () => {
 }
 el("regen").onclick = () => lastSeeds && generate(lastSeeds)
 
+const fansLabel = n => n == null ? '' : n < 1000 ? `${n} fans` : n < 1e6 ? `${Math.round(n / 1000)} k fans` : `${(n / 1e6).toFixed(1)} M fans`
+
 function renderResult() {
   const fresh = result.tracks.filter(t => !t.seed).length
-  el("resTitle").textContent = `${THEMES[theme].label.replace(/^\S+\s/, '')} · ${result.tracks.length} titres`
+  el("resTitle").innerHTML = `${esc(THEMES[resultTheme].label)} <small>(${result.tracks.length})</small>`
   el("profile").innerHTML =
-    `<span class="tag seed">★ ${result.tracks.length - fresh} de tes playlists</span><span class="tag new">✦ ${fresh} découvertes</span>` +
-    result.profile.map(p => `<span class="tag">${esc(p.genre)} ${p.share} %</span>`).join('')
+    `<span class="tag tag--fill">★ ${result.tracks.length - fresh} de tes playlists</span><span class="tag tag--fill">✦ ${fresh} découvertes</span>` +
+    `<span class="tag">${esc(CURVES[result.curve] || CURVES.none)}</span>` +
+    result.profile.map(p => `<span class="tag">${esc(STYLES[p.style] || p.style)} ${p.share} %</span>`).join('') +
+    (result.short ? `<span class="tag">${result.short} titre${result.short > 1 ? 's' : ''} manquant${result.short > 1 ? 's' : ''} : filtres trop stricts</span>` : '')
   el("list").innerHTML = result.tracks.map((t, i) => `
-    <label class="row">
+    <li><label class="track">
       <input type="checkbox" data-i="${i}" checked>
-      <span class="idx">${i + 1}</span>
-      <span class="thumb" style="${t.cover ? `background-image:url(${esc(t.cover)})` : ''}"></span>
-      <span class="info">
-        <span class="t">${esc(t.title)}</span>
-        <span class="a">${esc(t.artist)}</span>
+      <span class="track__index">${String(i + 1).padStart(2, '0')}</span>
+      <span class="track__cover" style="${t.cover ? `background-image:url(${esc(t.cover)})` : ''}"></span>
+      <span class="track__info">
+        <span class="track__name">${esc(t.title)}</span>
+        <span class="track__artist">${esc(t.artist)}</span>
       </span>
-      <span class="tags">
-        ${t.genres[0] ? `<span class="tag genre">${esc(t.genres[0])}</span>` : ''}
-        ${t.bpm ? `<span class="tag">${t.bpm}</span>` : ''}
-        <span class="tag ${t.seed ? 'seed' : 'new'}">${t.seed ? '★' : '✦'}</span>
+      <span class="track__tags">
+        ${t.styles.slice(0, 2).map(s => `<span class="tag">${esc(STYLES[s] || s)}</span>`).join('')}
+        ${t.bpm ? `<span class="tag">${t.bpm} bpm</span>` : ''}
+        ${t.fans != null ? `<span class="tag">${fansLabel(t.fans)}</span>` : ''}
+        <span class="tag">${t.seed ? '★' : '✦'}</span>
       </span>
-    </label>`).join('')
+    </label></li>`).join('')
   const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
-  el("plName").value = `${THEMES[theme].label} · ${date}`
+  el("plName").value = `${THEMES[resultTheme].label} · ${date}`
   el("done").classList.remove('on')
   el("createStep").textContent = ''
   el("result").classList.add('on')
   el("result").scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
-el("list").addEventListener('change', e => e.target.closest('.row')?.classList.toggle('off', !e.target.checked))
+el("list").addEventListener('change', e => e.target.closest('.track')?.classList.toggle('off', !e.target.checked))
 
 /* ── Création sur Spotify ───────────────────────────────────── */
 const loose = s => norm(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
@@ -509,14 +554,14 @@ el("create").onclick = async () => {
     step.textContent = 'Création de la playlist…'
     const pl = await spFetch('/me/playlists', {
       method: 'POST',
-      body: JSON.stringify({ name: el("plName").value || 'Le Mix', description: `Généré par Le Mix 🍠 · ${THEMES[theme].desc}`, public: false })
+      body: JSON.stringify({ name: el("plName").value || 'Le Mix', description: `Généré par Le Mix 🍠 · ${THEMES[resultTheme].desc}`, public: false })
     })
     for (let i = 0; i < found.length; i += 100) {
       await spFetch(`/playlists/${pl.id}/items`, { method: 'POST', body: JSON.stringify({ uris: found.slice(i, i + 100) }) })
     }
     const missed = picked.length - found.length
     step.textContent = ''
-    el("done").innerHTML = `✓ ${found.length} titres ajoutés${missed ? ` · ${missed} introuvable${missed > 1 ? 's' : ''} sur Spotify` : ''} — <a href="${esc(pl.external_urls.spotify)}" target="_blank" rel="noopener">Ouvrir sur Spotify</a>`
+    el("done").innerHTML = `✓ ${found.length} titres ajoutés${missed ? ` · ${missed} introuvable${missed > 1 ? 's' : ''} sur Spotify` : ''} — <a href="${esc(pl.external_urls.spotify)}" target="_blank" rel="noopener">Ouvrir sur Spotify ↗</a>`
     el("done").classList.add('on')
   } catch (e) {
     step.textContent = 'Erreur Spotify : ' + e.message
