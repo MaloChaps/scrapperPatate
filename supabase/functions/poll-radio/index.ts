@@ -3,7 +3,7 @@ import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-
 const API = 'https://api.radioking.io/widget/radio/radio-jockey/track/current'
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
 
-/* ── Genres + miniature Deezer (même logique que le client) ──── */
+/* ── Genres + miniature Deezer (pochettes de la page radio, styles pour Le Mix) ── */
 const INFO_PER_RUN = 15  // ≤ 4 requêtes par titre, espacées : sous la limite Deezer (50 / 5 s)
 const VAGUE_GENRES = new Set(['music', 'musique', 'tous'])
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))

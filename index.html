@@ -8,28 +8,19 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-  /* Palette de la DA (da.css) sous les noms historiques de la page :
-     wine = fond kaki, cream = texte brun-olive, amber / pink = petits accents (brun-olive, lisible sur le kaki),
-     red / on-red = grands éléments (boutons pleins, choix actifs) */
+  /* Couleurs : jetons de da.css (--bg, --ink, --accent, --on-accent, --line), plus ces nuances propres à la page */
   :root{
-    --wine:var(--bg);
-    --wine-2:color-mix(in srgb, var(--ink) 5%, var(--bg));
-    --cream:var(--ink);
-    --cream-dim:color-mix(in srgb, var(--ink) 72%, var(--bg));
-    --amber:var(--ink);
-    --pink:var(--ink);
-    --red:var(--accent);
-    --on-red:var(--on-accent);
-    --line:color-mix(in srgb, var(--ink) 20%, transparent);
-    --card:color-mix(in srgb, var(--ink) 5%, transparent);
+    --ink-dim:color-mix(in srgb, var(--ink) 72%, var(--bg));   /* textes secondaires */
+    --panel:color-mix(in srgb, var(--ink) 5%, var(--bg));      /* fond du player */
+    --card:color-mix(in srgb, var(--ink) 5%, transparent);     /* lignes de la liste */
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{background:var(--wine);color:var(--cream)}
+  html,body{background:var(--bg);color:var(--ink)}
   body{
     font-family:var(--font-body);
     min-height:100vh;
     line-height:1.45;
-    background:var(--wine);
+    background:var(--bg);
     padding:clamp(18px,4vw,48px);
   }
   .wrap{max-width:780px;margin:0 auto}
@@ -37,7 +28,7 @@
 
   .custom-player{
     display:flex;gap:24px;align-items:center;
-    background:var(--wine-2);border:1px solid var(--line);border-radius:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;
     padding:24px;
   }
   .vinyl{flex:0 0 auto;width:110px;height:110px;position:relative}
@@ -49,10 +40,10 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion:reduce){.vinyl.spinning svg,.vinyl.spinning img{animation:none}}
   .cp-body{min-width:0;flex:1}
-  .cp-station{font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin-bottom:8px}
-  .now-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--cream-dim)}
+  .cp-station{font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);margin-bottom:8px}
+  .now-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)}
   .now-title{font-family:var(--font-display);font-size:26px;font-weight:400;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .now-artist{font-size:14px;color:var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .now-artist{font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cp-controls{display:flex;gap:12px;align-items:center;margin-top:14px}
   .vol-wrap{display:flex;align-items:center;gap:8px}
   .vol-icon{display:flex;cursor:pointer;user-select:none;transition:transform .1s}
@@ -62,30 +53,30 @@
   input[type=range].vol{
     -webkit-appearance:none;appearance:none;
     width:96px;height:4px;border-radius:2px;outline:none;cursor:pointer;
-    background:linear-gradient(to right,var(--amber) 100%,var(--line) 100%);
+    background:linear-gradient(to right,var(--ink) var(--vol,100%),var(--line) var(--vol,100%));
     transition:height .15s;
   }
   input[type=range].vol:hover{height:5px}
   input[type=range].vol::-webkit-slider-thumb{
     -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
-    background:var(--cream);cursor:pointer;
-    box-shadow:0 0 0 2px color-mix(in srgb, var(--cream) 20%, transparent);
+    background:var(--ink);cursor:pointer;
+    box-shadow:0 0 0 2px color-mix(in srgb, var(--ink) 20%, transparent);
     transition:background .15s,transform .12s,box-shadow .15s;
   }
   input[type=range].vol::-webkit-slider-thumb:hover{
-    background:var(--amber);transform:scale(1.2);box-shadow:0 0 0 4px color-mix(in srgb, var(--amber) 25%, transparent);
+    background:var(--ink);transform:scale(1.2);box-shadow:0 0 0 4px color-mix(in srgb, var(--ink) 25%, transparent);
   }
   input[type=range].vol::-moz-range-thumb{
-    width:14px;height:14px;border-radius:50%;background:var(--cream);border:none;cursor:pointer;
+    width:14px;height:14px;border-radius:50%;background:var(--ink);border:none;cursor:pointer;
   }
 
   .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;align-items:center}
   button{font-family:var(--font-mono);cursor:pointer;border:none;border-radius:999px;font-weight:500;letter-spacing:.02em;transition:transform .12s ease, background .2s ease, opacity .2s}
   button:active{transform:scale(.97)}
-  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-  .btn-main{background:var(--red);color:var(--on-red);font-size:16px;padding:13px 24px;display:inline-flex;align-items:center;gap:9px}
-  .btn-main.live{background:var(--cream);color:var(--wine)}
-  .btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--cream);padding:10px 16px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .btn-main{background:var(--accent);color:var(--on-accent);font-size:16px;padding:13px 24px;display:inline-flex;align-items:center;gap:9px}
+  .btn-main.live{background:var(--ink);color:var(--bg)}
+  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--ink);padding:10px 16px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
   a.btn-ghost{display:inline-flex;align-items:center;border-radius:999px;font-family:var(--font-mono);font-weight:500;text-decoration:none}
   /* Accès au générateur : en haut à droite de la page */
   /* Grand titre à gauche, CTA Le Mix à droite, centrés sur la même ligne */
@@ -93,55 +84,57 @@
   /* Grand titre : crème dans un pavé rouge, comme Le Mix */
   h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(40px,12vw,140px);line-height:.88;letter-spacing:-.02em}
   h1 em{font-style:italic}
-  .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--red);color:var(--on-red);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;flex:0 0 auto;white-space:nowrap}
+  .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--accent);color:var(--on-accent);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;flex:0 0 auto;white-space:nowrap}
   @media (hover:hover){.btn-mix:hover{opacity:.85}}
   .btn-ghost:hover{background:var(--card)}
-  .count{font-family:var(--font-mono);font-size:13px;color:var(--cream-dim);margin-left:auto}
-  .count b{color:var(--cream)}
+  .count{font-family:var(--font-mono);font-size:13px;color:var(--ink-dim);margin-left:auto}
+  .count b{color:var(--ink)}
 
   .list{margin-top:26px;display:flex;flex-direction:column;gap:1px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
   .row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card)}
-  .row .thumb{width:38px;height:38px;border-radius:6px;flex:0 0 auto;background:var(--card);border:1px solid var(--line);background-size:cover;background-position:center;transition:opacity .3s}
-  .row .idx{font-family:var(--font-mono);font-size:12px;color:var(--cream-dim);width:26px;flex:0 0 auto;text-align:right}
+  .row .thumb{display:block;width:38px;height:38px;border-radius:6px;flex:0 0 auto;background:var(--card);border:1px solid var(--line);object-fit:cover}
+  .row .idx{font-family:var(--font-mono);font-size:12px;color:var(--ink-dim);width:26px;flex:0 0 auto;text-align:right}
   .row .info{min-width:0;flex:1}
   .row .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .a{font-size:13px;color:var(--cream-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .time{font-family:var(--font-mono);font-size:11px;color:var(--cream-dim)}
+  .row .a{font-size:13px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .time{font-family:var(--font-mono);font-size:11px;color:var(--ink-dim)}
   .row .links{display:flex;gap:5px;flex:0 0 auto;align-items:center}
-  .svc{font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--cream-dim);text-decoration:none;transition:background .15s,color .15s,border-color .15s,transform .12s;white-space:nowrap;line-height:1}
-  .svc:hover{transform:translateY(-1px)}
-  .svc.sp:hover{background:var(--pink);color:var(--wine);border-color:var(--pink)}
-  .svc.yt:hover{background:#FF0000;color:#fff;border-color:#FF0000}
-  .svc.dz:hover{background:#A238FF;color:#fff;border-color:#A238FF}
-  .now-links{display:none;flex-wrap:wrap;gap:6px;margin-top:10px}
-  .now-links .svc{font-size:11px;padding:5px 11px}
+  /* Écouter ailleurs : logo + nom (logo seul dans la liste sur mobile) */
+  .svc{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:5px 11px 5px 9px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:500 11px/1 var(--font-mono);letter-spacing:.02em;text-decoration:none;white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+  .svc svg{width:14px;height:14px;flex:0 0 auto;fill:currentColor}
+  @media (hover:hover){
+    .svc.sp:hover{background:#1DB954;border-color:#1DB954;color:#000}
+    .svc.yt:hover{background:#FF0000;border-color:#FF0000;color:#fff}
+    .svc.dz:hover{background:#A238FF;border-color:#A238FF;color:#fff}
+  }
+  .now-links{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .now-links[hidden]{display:none}
+  .now-links .svc{min-height:32px;padding:7px 13px 7px 11px;font-size:12px}
   /* Cœur : ajoute aux Titres likés Spotify */
-  .heart{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex:0 0 auto;padding:0;border:0;border-radius:99px;background:transparent;color:var(--cream-dim);cursor:pointer;transition:color .15s,transform .12s}
+  .heart{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex:0 0 auto;padding:0;border:0;border-radius:99px;background:transparent;color:var(--ink-dim);cursor:pointer;transition:color .15s,transform .12s}
   .heart svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
-  .heart[aria-pressed="true"]{color:var(--red)}
+  .heart[aria-pressed="true"]{color:var(--accent)}
   .heart[aria-pressed="true"] svg{fill:currentColor}
   .heart.wait{opacity:.45;pointer-events:none}
   .heart.none{opacity:.3}
-  @media (hover:hover){.heart:hover{color:var(--red);transform:scale(1.1)}}
+  @media (hover:hover){.heart:hover{color:var(--accent);transform:scale(1.1)}}
   .now-links .heart{width:28px;height:28px}
 
-  .btn-spotify{color:var(--pink);border-color:var(--pink)}
-  .btn-spotify:hover{background:var(--pink);color:var(--wine);border-color:var(--pink)}
-  .btn-spotify:disabled{opacity:.5;cursor:default;transform:none}
 
 
-  .empty{padding:40px 20px;text-align:center;color:var(--cream-dim);background:var(--card)}
-  .empty b{color:var(--cream);font-family:var(--font-display);font-weight:500}
+  .more{display:block;width:100%;border:0;border-radius:0;padding:16px;background:var(--card)}
+  .empty{padding:40px 20px;text-align:center;color:var(--ink-dim);background:var(--card)}
+  .empty b{color:var(--ink);font-family:var(--font-display);font-weight:500}
 
   .hour-sep{padding:10px 16px 6px;display:flex;align-items:center;gap:10px;background:transparent}
-  .hour-sep .hour-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);white-space:nowrap}
+  .hour-sep .hour-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
   .hour-sep .hour-line{flex:1;height:1px;background:var(--line)}
 
   .export{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
-  .footnote{margin-top:26px;font-size:12.5px;color:var(--cream-dim);border-top:1px solid var(--line);padding-top:16px}
-  .footnote a{color:var(--amber)}
-  .status{font-family:var(--font-mono);font-size:12px;color:var(--cream-dim);margin-top:12px;min-height:16px}
-  .status.err{color:var(--pink)}
+  .footnote{margin-top:26px;font-size:12.5px;color:var(--ink-dim);border-top:1px solid var(--line);padding-top:16px}
+  .footnote a{color:var(--ink)}
+  .status{font-family:var(--font-mono);font-size:12px;color:var(--ink-dim);margin-top:12px;min-height:16px}
+  .status.err{color:var(--ink)}
 
   @media(max-width:600px){
     /* Player */
@@ -150,14 +143,16 @@
     .cp-body{width:100%}
     .cp-station,.now-label{text-align:center}
     .now-title{font-size:20px}
-    .now-links{justify-content:center}
+    .now-links{justify-content:center;flex-wrap:nowrap;gap:5px}
+    .now-links .svc{padding:6px 9px 6px 8px;font-size:11px;gap:5px}
     .cp-controls{justify-content:center}
     .vol-wrap{flex:1;justify-content:flex-end}
 
     /* Liste */
     .row .time,.row .idx{display:none}
     .row .thumb{width:34px;height:34px}
-    .svc{font-size:9px;padding:3px 6px}
+    .row .svc{width:32px;height:32px;padding:0;justify-content:center}
+    .row .svc span{display:none}
 
     /* Export */
     .export{flex-direction:column}
@@ -181,9 +176,9 @@
       <img id="nowCover" src="" alt="">
       <svg viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="49" fill="#1F1D14"/>
-        <circle cx="50" cy="50" r="49" fill="none" stroke="color-mix(in srgb, var(--cream) 8%, transparent)" stroke-width="1"/>
-        <circle cx="50" cy="50" r="40" fill="none" stroke="color-mix(in srgb, var(--cream) 6%, transparent)" stroke-width="1"/>
-        <circle cx="50" cy="50" r="31" fill="none" stroke="color-mix(in srgb, var(--cream) 6%, transparent)" stroke-width="1"/>
+        <circle cx="50" cy="50" r="49" fill="none" stroke="color-mix(in srgb, var(--ink) 8%, transparent)" stroke-width="1"/>
+        <circle cx="50" cy="50" r="40" fill="none" stroke="color-mix(in srgb, var(--ink) 6%, transparent)" stroke-width="1"/>
+        <circle cx="50" cy="50" r="31" fill="none" stroke="color-mix(in srgb, var(--ink) 6%, transparent)" stroke-width="1"/>
         <circle cx="50" cy="50" r="18" fill="#E3301A"/>
         <circle cx="50" cy="50" r="4.5" fill="#1F1D14"/>
         <circle cx="62" cy="38" r="2" fill="rgba(255,255,255,.25)"/>
@@ -191,10 +186,10 @@
     </div>
     <div class="cp-body">
       <div class="cp-station">La Patate Douce · en direct</div>
-      <div class="now-label" id="nowLabel">En ce moment</div>
+      <div class="now-label" >En ce moment</div>
       <div class="now-title" id="nowTitle">—</div>
       <div class="now-artist" id="nowArtist"></div>
-      <div class="now-links" id="nowLinks"></div>
+      <div class="now-links" id="nowLinks" hidden></div>
       <div class="cp-controls">
         <button class="btn-main" id="radioPlayBtn"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg> Écouter</button>
         <div class="vol-wrap">
@@ -207,7 +202,7 @@
 
   <div class="controls">
     <button class="btn-ghost" id="refreshBtn">Rafraîchir</button>
-    <a class="btn-ghost btn-spotify" href="generateur.html?source=radio">Créer playlist Spotify</a>
+    <a class="btn-ghost" href="generateur.html?source=radio">Créer playlist Spotify</a>
     <span class="count"><b id="countNum">0</b> titres</span>
   </div>
   <div class="status" id="status"></div>
@@ -215,606 +210,19 @@
   <div class="list" id="list"></div>
 
   <div class="export">
-    <a class="btn-ghost btn-spotify" href="generateur.html?source=radio">Créer playlist Spotify</a>
+    <a class="btn-ghost" href="generateur.html?source=radio">Créer playlist Spotify</a>
     <button class="btn-ghost" id="copyBtn">Copier la liste</button>
     <button class="btn-ghost" id="csvBtn">Télécharger .csv</button>
-    <button class="btn-ghost" id="dedupeBtn">Nettoyer les doublons</button>
   </div>
 
   <p class="footnote">
-    Un robot tourne en continu côté serveur et note chaque nouveau titre toutes les minutes, même quand cette page est fermée. Quand la page est ouverte, la capture se fait toutes les 20 s. L'historique complet est stocké dans Supabase.
+    Un robot tourne en continu côté serveur et note chaque nouveau titre toutes les minutes, même quand cette page est fermée : la liste se met à jour toute seule. Le cœur ajoute un titre à tes Titres likés Spotify.
     « Créer playlist Spotify » ouvre <a href="generateur.html?source=radio">Le Mix</a> avec les titres de la radio : thème, styles, niveau, enchaînement par tempo et écoute des extraits.
   </p>
 
 </div>
 
-<script>
-/* ── Supabase (Project Settings > API) ── */
-const SUPABASE_URL      = 'https://wnbcoczjfqyxggkfyooh.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduYmNvY3pqZnF5eGdna2Z5b29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTQ1MDYsImV4cCI6MjA5NjkzMDUwNn0.0mO3O7xqMDwTLGx-5zrVLzW8ed0WoNDKP03eHji2v9o'
-
-/* ────────────────────────────────────────────────────────── */
-
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-const RADIO_API = 'https://api.radioking.io/widget/radio/radio-jockey/track/current'
-const POLL_MS   = 20000
-
-let tracks = []          // du plus récent au plus ancien
-let isPolling = false
-
-const el   = id => document.getElementById(id)
-const esc  = s  => (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
-const norm = s  => (s||"").toLowerCase().replace(/\s+/g, ' ').trim()
-const q    = (a, t) => encodeURIComponent(`${a||""} ${t||""}`.trim())
-
-function setStatus(msg, isErr) {
-  const s = el("status")
-  s.textContent = msg || ""
-  s.classList.toggle("err", !!isErr)
-}
-
-/* Affiche le titre en cours. L'enregistrement en base est fait côté serveur
-   (Edge Function poll-radio + pg_cron) ; la liste se met à jour via Realtime. */
-async function poll() {
-  if (isPolling) return
-  isPolling = true
-  try {
-    const res = await fetch(RADIO_API, { cache: 'no-store' })
-    if (!res.ok) throw new Error("HTTP " + res.status)
-    const d = await res.json()
-
-    const title  = String(d.title  || d.song    || '').trim()
-    const artist = String(d.artist || d.artists || '').trim()
-    if (!title) { setStatus("Pas de titre lisible pour l'instant…"); return }
-
-    el("nowLabel").textContent  = "En ce moment"
-    el("nowTitle").textContent  = title
-    el("nowArtist").textContent = artist
-    setStatus("")
-
-    const nowQ  = q(artist, title)
-    const links = el("nowLinks")
-    nowTrack = { title, artist }
-    links.style.display = "flex"
-    links.innerHTML = heartHtml(nowTrack, 'now') + `
-      <a class="svc sp" href="https://open.spotify.com/search/${nowQ}" target="_blank" rel="noopener">Spotify</a>
-      <a class="svc yt" href="https://www.youtube.com/results?search_query=${nowQ}" target="_blank" rel="noopener">YouTube</a>
-      <a class="svc dz" href="https://www.deezer.com/search/${nowQ}" target="_blank" rel="noopener">Deezer</a>`
-
-    const cover = String(d.cover || d.cover_url || '').trim()
-    const vinyl  = el("vinyl")
-    if (cover) {
-      el("nowCover").src = cover
-      vinyl.classList.add("has-cover")
-    } else {
-      vinyl.classList.remove("has-cover")
-    }
-  } catch(e) {
-    setStatus("Flux injoignable (" + e.message + "). Nouvel essai au prochain cycle.", true)
-  } finally {
-    isPolling = false
-  }
-}
-
-function hourKey(at) {
-  const d = new Date(at)
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`
-}
-
-function hourLabel(at) {
-  const d = new Date(at)
-  const day = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })
-  const h   = String(d.getHours()).padStart(2, "0") + "h"
-  return `${day} · ${h}`
-}
-
-function render() {
-  el("countNum").textContent = tracks.length
-  const list = el("list")
-  if (!tracks.length) {
-    list.innerHTML = `<div class="empty"><b>Rien encore.</b><br>Lance la capture et laisse tourner — les pépites vont tomber.</div>`
-    return
-  }
-
-  let lastHour = null
-  let html = ""
-  tracks.forEach((t, i) => {
-    const hk = hourKey(t.at)
-    if (hk !== lastHour) {
-      lastHour = hk
-      html += `<div class="hour-sep"><span class="hour-label">${hourLabel(t.at)}</span><span class="hour-line"></span></div>`
-    }
-    const time = new Date(t.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
-    const sp = `https://open.spotify.com/search/${q(t.artist, t.title)}`
-    const yt = `https://www.youtube.com/results?search_query=${q(t.artist, t.title)}`
-    const dz = `https://www.deezer.com/search/${q(t.artist, t.title)}`
-    html += `<div class="row">
-      <div class="thumb" data-thumb="${i}"></div>
-      <div class="idx">${tracks.length - i}</div>
-      <div class="info">
-        <div class="t">${esc(t.title)}</div>
-        <div class="a">${esc(t.artist)||"&nbsp;"}</div>
-      </div>
-      <div class="time">${time}</div>
-      <div class="links">
-        ${heartHtml(t, i)}
-        <a class="svc sp" href="${sp}" target="_blank" rel="noopener">Spotify</a>
-        <a class="svc yt" href="${yt}" target="_blank" rel="noopener">YouTube</a>
-        <a class="svc dz" href="${dz}" target="_blank" rel="noopener">Deezer</a>
-      </div>
-    </div>`
-  })
-  list.innerHTML = html
-
-  /* Miniatures : depuis le cache, sinon au défilement */
-  thumbObserver.disconnect()
-  list.querySelectorAll('[data-thumb]').forEach(node => {
-    const art = infoCache.get(trackKey(tracks[+node.dataset.thumb]))?.art
-    if (art) node.style.backgroundImage = `url(${art})`
-    else thumbObserver.observe(node)
-  })
-}
-
-el("refreshBtn").onclick = () => poll()
-
-
-el("copyBtn").onclick = async () => {
-  if (!tracks.length) return
-  const txt = tracks.slice().reverse().map(t => `${t.artist} - ${t.title}`).join("\n")
-  try { await navigator.clipboard.writeText(txt); setStatus("Liste copiée ✓") }
-  catch(e) { setStatus("Copie impossible ici — utilise le .csv.", true) }
-}
-
-el("csvBtn").onclick = () => {
-  if (!tracks.length) return
-  const rows = [["#","Artiste","Titre","Heure"]].concat(
-    tracks.slice().reverse().map((t, i) => [i+1, t.artist, t.title, new Date(t.at).toLocaleString("fr-FR")])
-  )
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n")
-  const url = URL.createObjectURL(new Blob(["﻿"+csv], { type: "text/csv;charset=utf-8" }))
-  const a = document.createElement("a")
-  a.href = url; a.download = "mes-pepites-patate-douce.csv"; a.click()
-  URL.revokeObjectURL(url)
-}
-
-/* ── Données ─────────────────────────────────────────────────── */
-const rowToTrack = r => ({ id: r.id, title: r.title, artist: r.artist, at: new Date(r.played_at).getTime() })
-
-/* Supabase renvoie max 1000 lignes par requête → on pagine */
-async function fetchAllPlays(ascending = false) {
-  const PAGE = 1000
-  let all = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await sb
-      .from('plays')
-      .select('id, title, artist, played_at')
-      .order('played_at', { ascending })
-      .order('id', { ascending })
-      .range(from, from + PAGE - 1)
-    if (error) return all.length ? all : null
-    all = all.concat(data)
-    if (data.length < PAGE) return all
-  }
-}
-/* Genres + miniatures calculés côté serveur (table track_info, remplie par la Edge Function) */
-async function loadTrackInfo() {
-  const PAGE = 1000
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await sb.from('track_info')
-      .select('artist, title, genre, art').order('key').range(from, from + PAGE - 1)
-    if (error || !data) return
-    for (const r of data) infoCache.set(trackKey(r), { art: r.art, genre: r.genre })
-    if (data.length < PAGE) return
-  }
-}
-
-async function loadTracks() {
-  const data = await fetchAllPlays()
-  if (!data) return setStatus("Impossible de charger l'historique.", true)
-  tracks = data.map(rowToTrack)
-  render()
-}
-
-/* ── Dédoublonnage ───────────────────────────────────────────── */
-const DEDUP_WINDOW_MS = 5 * 60 * 1000  // même titre dans les 5 minutes = doublon (race condition)
-
-async function cleanDuplicates(silent = false) {
-  const data = await fetchAllPlays(true)
-  if (!data) return 0
-
-  const toDelete = []
-  // Pour chaque entrée, on garde en mémoire les titres déjà vus avec leur horodatage
-  const seen = []  // [{ title, artist, at }]
-
-  for (const row of data) {
-    const at = new Date(row.played_at).getTime()
-    const nt = norm(row.title)
-    const na = norm(row.artist)
-    const dup = seen.find(s => norm(s.title) === nt && norm(s.artist) === na && at - s.at < DEDUP_WINDOW_MS)
-    if (dup) {
-      toDelete.push(row.id)
-    } else {
-      seen.push({ title: row.title, artist: row.artist, at })
-    }
-  }
-
-  for (let i = 0; i < toDelete.length; i += 200) {
-    await sb.from('plays').delete().in('id', toDelete.slice(i, i + 200))
-  }
-  if (!silent) {
-    setStatus(toDelete.length
-      ? `${toDelete.length} doublon${toDelete.length > 1 ? 's' : ''} supprimé${toDelete.length > 1 ? 's' : ''} ✓`
-      : "Aucun doublon trouvé ✓")
-  }
-  return toDelete.length
-}
-
-el("dedupeBtn").onclick = async () => {
-  setStatus("Recherche des doublons…")
-  await cleanDuplicates()
-  await loadTracks()
-}
-
-/* Icônes SVG (couleur du texte) à la place des emojis */
-const ICON = {
-  play:  '<path d="M7 4.5v15l13-7.5z"/>',
-  pause: '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>',
-  stop:  '<path d="M6 6h12v12H6z"/>',
-  volHigh: '<path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-  volLow:  '<path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-  volMute: '<path d="M3 9v6h4l5 4V5L7 9z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-}
-const icon = name => `<svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${ICON[name]}</svg>`
-
-/* ── Player radio ────────────────────────────────────────────── */
-const STREAM_URL = 'https://www.radioking.com/play/radio-jockey'
-
-const audio = el("radioAudio")
-audio.addEventListener('play',  () => el("vinyl").classList.add("spinning"))
-audio.addEventListener('pause', () => el("vinyl").classList.remove("spinning"))
-audio.addEventListener('error', () => {
-  if (!intentionalStop) scheduleReconnect()
-  else setStatus("Flux audio introuvable — essaie de rafraîchir.", true)
-})
-
-let prevVol = 1
-let intentionalStop = true
-let reconnectTimer  = null
-
-function scheduleReconnect() {
-  clearTimeout(reconnectTimer)
-  reconnectTimer = setTimeout(() => {
-    if (intentionalStop) return
-    setStatus("Reconnexion…")
-    audio.src = STREAM_URL
-    audio.load()
-    audio.play().catch(() => scheduleReconnect())
-  }, 3000)
-}
-
-audio.addEventListener('stalled', () => { if (!intentionalStop) scheduleReconnect() })
-audio.addEventListener('ended',   () => { if (!intentionalStop) scheduleReconnect() })
-
-function setVol(v) {
-  audio.volume = v
-  el("volSlider").value = v
-  el("volSlider").style.background =
-    `linear-gradient(to right,var(--amber) ${v*100}%,var(--line) ${v*100}%)`
-  el("volIcon").innerHTML = icon(v === 0 ? 'volMute' : v < 0.4 ? 'volLow' : 'volHigh')
-}
-
-el("volSlider").oninput = e => { prevVol = +e.target.value || prevVol; setVol(+e.target.value) }
-
-el("volIcon").onclick = () => {
-  if (audio.volume > 0) { prevVol = audio.volume; setVol(0) }
-  else setVol(prevVol)
-}
-
-el("radioPlayBtn").onclick = () => {
-  if (audio.paused) {
-    intentionalStop = false
-    clearTimeout(reconnectTimer)
-    audio.src = STREAM_URL
-    audio.play()
-    el("radioPlayBtn").innerHTML = `${icon('pause')} Pause`
-    el("radioPlayBtn").classList.add("live")
-  } else {
-    intentionalStop = true
-    clearTimeout(reconnectTimer)
-    audio.pause()
-    audio.src = ''
-    setStatus("")
-    el("radioPlayBtn").innerHTML = `${icon('play')} Écouter`
-    el("radioPlayBtn").classList.remove("live")
-  }
-}
-/* ────────────────────────────────────────────────────────────── */
-
-/* ── Deezer (miniature + genres) ────────────────────────────── */
-/* Normalement déjà fournis par la table track_info (remplie côté serveur) ;
-   sinon une requête par titre, file d'attente limitée + cache persistant dans le navigateur */
-const INFO_STORE = 'track_info_cache_v3'  // v3 : Deezer
-try { ['itunes_cache_v1', 'itunes_cache_v2'].forEach(k => localStorage.removeItem(k)) } catch {}
-const INFO_CONCURRENCY = 4
-const sleep = ms => new Promise(r => setTimeout(r, ms))
-const trackKey = t => `${norm(t.artist)}|${norm(t.title)}`
-
-const infoCache = new Map((() => {
-  try { return Object.entries(JSON.parse(localStorage.getItem(INFO_STORE)) || {}) } catch { return [] }
-})())
-let infoSaveTimer
-function saveInfoCache() {
-  clearTimeout(infoSaveTimer)
-  infoSaveTimer = setTimeout(() => {
-    try { localStorage.setItem(INFO_STORE, JSON.stringify(Object.fromEntries(infoCache))) } catch {}
-  }, 1000)
-}
-
-const infoQueue   = []
-const infoPending = new Map()
-let   infoWorkers = 0
-let   infoPauseUntil = 0
-let   infoFailStreak = 0  // trop d'échecs de suite → Deezer nous bloque, on abandonne la file
-
-/* Deezer n'envoie pas d'en-têtes CORS : appel en JSONP */
-let dzSeq = 0
-function deezer(path) {
-  return new Promise((resolve, reject) => {
-    const cb = `__dz${++dzSeq}`
-    const s  = document.createElement('script')
-    const done = () => { window[cb] = () => {}; s.remove(); clearTimeout(timer) }
-    const timer = setTimeout(() => { done(); reject(new Error('Deezer timeout')) }, 10000)
-    window[cb] = d => { done(); d?.error ? reject(new Error('Deezer ' + (d.error.code ?? ''))) : resolve(d) }
-    s.onerror  = () => { done(); reject(new Error('Deezer réseau')) }
-    s.src = `https://api.deezer.com${path}${path.includes('?') ? '&' : '?'}output=jsonp&callback=${cb}`
-    document.head.appendChild(s)
-  })
-}
-
-/* Genres de l'album du titre, seulement si l'artiste correspond (titre ET album :
-   on écarte les compilations / BO dont les genres ne disent rien du morceau) */
-const VAGUE_GENRES = new Set(['music', 'musique', 'tous'])
-async function deezerLookup(t) {
-  const artist = firstArtist(t.artist)
-  const title  = cleanTitle(t.title) || t.title
-  const la = loose(artist), lt = loose(title)
-  const r = await deezer(`/search?q=${encodeURIComponent(`${artist} ${title}`.trim())}&limit=10`)
-  const hits = (r.data || []).filter(x =>
-    (!la || near(la, loose(x.artist?.name))) && near(lt, loose(cleanTitle(x.title) || x.title)))
-  for (const h of hits.slice(0, 3)) {
-    const al = await deezer(`/album/${h.album.id}`)
-    if (la && !near(la, loose(al.artist?.name))) continue
-    const genres = (al.genres?.data || []).map(g => g.name).filter(g => !VAGUE_GENRES.has(g.toLowerCase()))
-    return { art: h.album.cover_small || '', genre: genres.join(', ') }
-  }
-  return { art: (hits[0] || r.data?.[0])?.album?.cover_small || '', genre: '' }
-}
-
-/* → { art, genre } ; priority = passe devant (miniatures visibles) */
-function trackInfo(t, priority = false) {
-  const key = trackKey(t)
-  if (infoCache.has(key)) return Promise.resolve(infoCache.get(key))
-  if (!infoPending.has(key)) {
-    infoPending.set(key, new Promise(resolve => {
-      const job = { t, key, resolve, tries: 0 }
-      priority ? infoQueue.unshift(job) : infoQueue.push(job)
-    }))
-    if (infoWorkers < INFO_CONCURRENCY) infoWorker()
-  }
-  return infoPending.get(key)
-}
-
-async function infoWorker() {
-  infoWorkers++
-  while (infoQueue.length) {
-    const wait = infoPauseUntil - Date.now()
-    if (wait > 0) await sleep(wait)
-    const job = infoQueue.shift()
-    if (!job) break
-    try {
-      const info = await deezerLookup(job.t)
-      infoCache.set(job.key, info); saveInfoCache()
-      infoFailStreak = 0
-      infoPending.delete(job.key)
-      job.resolve(info)
-    } catch {
-      /* Limité ou réseau : pause générale puis on retente (sans mettre l'échec en cache) */
-      infoPauseUntil = Date.now() + 5000
-      if (++job.tries < 3 && ++infoFailStreak < 12) { infoQueue.push(job); continue }
-      infoPending.delete(job.key)
-      job.resolve({ art: '', genre: '' })
-      if (infoFailStreak >= 12) {
-        for (const j of infoQueue.splice(0)) { infoPending.delete(j.key); j.resolve({ art: '', genre: '' }) }
-        infoFailStreak = 0
-      }
-    }
-  }
-  infoWorkers--
-}
-
-/* Miniatures de la liste principale : chargées seulement quand elles deviennent visibles */
-const thumbObserver = new IntersectionObserver(entries => {
-  for (const e of entries) {
-    if (!e.isIntersecting) continue
-    thumbObserver.unobserve(e.target)
-    const t = tracks[+e.target.dataset.thumb]
-    if (t) trackInfo(t, true).then(i => { if (i.art) e.target.style.backgroundImage = `url(${i.art})` })
-  }
-}, { rootMargin: '400px' })
-/* ────────────────────────────────────────────────────────────── */
-
-/* ── Spotify : la page sert d'adresse de retour à la connexion lancée depuis Le Mix ── */
-const SP_REDIRECT = window.location.origin + window.location.pathname
-/* Adresse de retour enregistrée chez Spotify : le générateur la réutilise */
-try { localStorage.setItem('sp_redirect', SP_REDIRECT) } catch {}
-
-/* Connexion lancée depuis le générateur : on lui renvoie le code sans l'utiliser ici */
-if (new URLSearchParams(location.search).get('state') === 'mix') location.replace('generateur.html' + location.search)
-
-/* Titres radio souvent « sales » : (feat. X), [Radio Edit], - Remastered 2011… (recherches Deezer et Spotify) */
-const cleanTitle  = s => (s || '')
-  .replace(/\s*[([][^)\]]*(feat|ft\.|with|edit|remaster|version|mix|live)[^)\]]*[)\]]/gi, '')
-  .replace(/\s+-\s+.*(remaster|edit|version|mix|live).*$/i, '')
-  .replace(/\s+(feat\.?|ft\.?)\s.*$/i, '')
-  .trim()
-const firstArtist = s => (s || '').split(/\s+(?:feat\.?|ft\.?|featuring)\s+/i)[0].trim()
-const loose = s => norm(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
-const near  = (a, b) => !!a && !!b && (a.includes(b) || b.includes(a))
-
-/* Cœur → Titres likés Spotify (connexion propre à cette page, jeton partagé avec Le Mix) */
-const SPOTIFY_CLIENT_ID = '92f0ed53408d48e29b72e5bc027a3a10'
-const SP_SCOPES = 'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative user-library-modify'
-const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } }
-const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
-const likes = new Map(Object.entries(lsGet('sp_likes_v1', {})))  // trackKey → URI likée depuis ici
-const spUris = lsGet('sp_uri_v1', {})                             // trackKey → URI, '' = introuvable
-let nowTrack = null
-
-const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5l-1.3-1.2C5.6 14.7 2.5 11.9 2.5 8.4 2.5 5.6 4.7 3.5 7.4 3.5c1.8 0 3.5.9 4.6 2.3 1.1-1.4 2.8-2.3 4.6-2.3 2.7 0 4.9 2.1 4.9 4.9 0 3.5-3.1 6.3-8.2 10.9L12 20.5z"/></svg>'
-const heartHtml = (t, ref) => {
-  const key = trackKey(t)
-  return `<button class="heart${spUris[key] === '' ? ' none' : ''}" type="button" data-like="${ref}" data-key="${esc(key)}" aria-pressed="${likes.has(key)}" title="Titres likés Spotify" aria-label="Ajouter aux Titres likés Spotify">${HEART}</button>`
-}
-function setHearts(key, cls) {
-  document.querySelectorAll('.heart').forEach(b => {
-    if (b.dataset.key !== key) return
-    b.classList.toggle('wait', cls === 'wait')
-    b.classList.toggle('none', cls === 'none')
-    b.setAttribute('aria-pressed', likes.has(key))
-  })
-}
-
-const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
-function spToken() {
-  const t = localStorage.getItem('sp_token')
-  return t && Date.now() < +localStorage.getItem('sp_exp') ? t : null
-}
-const canLike = () => spToken() && (localStorage.getItem('sp_scope') || '').includes('user-library-modify')
-
-/* Le titre cliqué est gardé pour être liké au retour de la connexion */
-async function spLogin(pending) {
-  const a = new Uint8Array(32); crypto.getRandomValues(a)
-  const v = b64url(a)
-  localStorage.setItem('sp_v', v)
-  if (pending) lsSet('sp_like_pending', { title: pending.title, artist: pending.artist })
-  localStorage.setItem('sp_redirect_used', SP_REDIRECT)
-  window.location = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
-    client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: SP_REDIRECT, state: 'like', scope: SP_SCOPES,
-    code_challenge_method: 'S256',
-    code_challenge: b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)))
-  })
-}
-async function spExchange(code) {
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code', code, redirect_uri: localStorage.getItem('sp_redirect_used') || SP_REDIRECT,
-      client_id: SPOTIFY_CLIENT_ID, code_verifier: localStorage.getItem('sp_v')
-    })
-  })
-  const d = await res.json()
-  if (!d.access_token) throw new Error(d.error_description || d.error || 'connexion refusée')
-  localStorage.setItem('sp_token', d.access_token)
-  localStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
-  localStorage.setItem('sp_scope', d.scope || '')
-  localStorage.removeItem('sp_v')
-}
-async function spFetch(path, opts = {}, tries = 4) {
-  const res = await fetch('https://api.spotify.com/v1' + path, {
-    ...opts, headers: { Authorization: 'Bearer ' + spToken(), 'Content-Type': 'application/json' }
-  })
-  if (res.status === 429 && tries > 0) {
-    await new Promise(r => setTimeout(r, (+res.headers.get('Retry-After') || 2) * 1000))
-    return spFetch(path, opts, tries - 1)
-  }
-  if (res.status === 401) localStorage.removeItem('sp_token')
-  if (!res.ok) throw new Error('Spotify ' + res.status)
-  const text = await res.text()
-  return text ? JSON.parse(text) : null
-}
-
-/* Recherche vérifiée : l'artiste doit correspondre, sinon « introuvable » plutôt qu'un mauvais titre */
-async function findUri(t) {
-  const artist = firstArtist(t.artist), title = cleanTitle(t.title)
-  const la = loose(artist), lt = loose(title)
-  for (const query of [`track:${title} artist:${artist}`, `${artist} ${title}`]) {
-    const r = await spFetch(`/search?q=${encodeURIComponent(query)}&type=track&limit=10`)
-    const items = (r?.tracks?.items || []).filter(it => it.artists.some(a => near(la, loose(a.name))))
-    const name = it => loose(cleanTitle(it.name) || it.name)
-    const hit = items.find(it => name(it) === lt) || items.find(it => near(lt, name(it)))
-    if (hit) return hit.uri
-  }
-  return null
-}
-
-async function toggleLike(t) {
-  if (!t?.title) return
-  if (!canLike()) return spLogin(t)
-  const key = trackKey(t)
-  setHearts(key, 'wait')
-  try {
-    let uri = spUris[key]
-    if (!uri) {
-      uri = spUris[key] = (await findUri(t)) || ''
-      lsSet('sp_uri_v1', spUris)
-    }
-    if (!uri) {
-      setHearts(key, 'none')
-      return setStatus(`Pas trouvé sur Spotify : ${t.artist} – ${t.title}`, true)
-    }
-    const liked = likes.has(key)
-    await spFetch(`/me/library?uris=${encodeURIComponent(uri)}`, { method: liked ? 'DELETE' : 'PUT' })
-    liked ? likes.delete(key) : likes.set(key, uri)
-    lsSet('sp_likes_v1', Object.fromEntries(likes))
-    setHearts(key)
-    setStatus(liked ? 'Retiré de tes Titres likés' : 'Ajouté à tes Titres likés ♥')
-  } catch (e) {
-    setHearts(key)
-    if (!spToken()) return spLogin(t)  // jeton expiré ou révoqué
-    setStatus(`Spotify refuse (${e.message}).`, true)
-  }
-}
-document.addEventListener('click', e => {
-  const b = e.target.closest('.heart')
-  if (!b) return
-  toggleLike(b.dataset.like === 'now' ? nowTrack : tracks[+b.dataset.like])
-})
-
-/* ──────────────────────────────────────────────────────────────── */
-
-/* Realtime : la liste se met à jour quand la Edge Function insère */
-sb.channel('plays-live')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'plays' }, ({ new: r }) => {
-    if (tracks.some(t => t.id === r.id)) return
-    tracks.unshift(rowToTrack(r))
-    render()
-  })
-  .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'plays' }, ({ old: r }) => {
-    const n = tracks.length
-    tracks = tracks.filter(t => t.id !== r.id)
-    if (tracks.length !== n) render()
-  })
-  .subscribe()
-
-/* Boot : charge l'historique depuis Supabase + gère le retour OAuth Spotify */
-;(async () => {
-  /* Retour de la connexion lancée par un cœur : on like le titre en attente */
-  const sp = new URLSearchParams(location.search)
-  if (sp.get('code') && sp.get('state') === 'like') {
-    history.replaceState({}, '', location.pathname)
-    const pending = lsGet('sp_like_pending', null)
-    localStorage.removeItem('sp_like_pending')
-    try { await spExchange(sp.get('code')); if (pending) toggleLike(pending) }
-    catch (e) { setStatus(`Connexion Spotify impossible (${e.message}).`, true) }
-  } else if (sp.get('error')) history.replaceState({}, '', location.pathname)
-
-  await loadTrackInfo()  // avant l'affichage, sinon les miniatures repartent sur Deezer
-  await loadTracks()
-  poll()
-  setInterval(poll, POLL_MS)
-})()
-</script>
+<script src="js/shared.js"></script>
+<script src="js/radio.js"></script>
 </body>
 </html>

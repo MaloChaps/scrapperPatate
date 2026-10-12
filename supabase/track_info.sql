@@ -1,6 +1,6 @@
 -- ============================================================
--- Genre + miniature iTunes par titre, remplis par la Edge Function
--- (quelques titres à chaque passage du cron, pour rester sous la limite iTunes)
+-- Genre + miniature Deezer par titre, remplis par la Edge Function poll-radio
+-- (quelques titres à chaque passage du cron, pour rester sous la limite Deezer)
 -- ============================================================
 
 -- Même normalisation que trackKey() côté client : minuscules, espaces compactés

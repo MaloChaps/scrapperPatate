@@ -18,6 +18,5 @@ alter publication supabase_realtime add table public.plays;
 -- RLS
 alter table public.plays enable row level security;
 
-create policy "anon read"   on public.plays for select to anon using (true);
-create policy "anon insert" on public.plays for insert to anon with check (true);
-create policy "anon delete" on public.plays for delete to anon using (true);
+-- Lecture publique ; écriture réservée au serveur (Edge Function poll-radio, clé service_role qui ignore RLS)
+create policy "anon read" on public.plays for select to anon using (true);
