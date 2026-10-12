@@ -29,6 +29,7 @@ const ICON = {
   volHigh: '<path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   volLow:  '<path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   volMute: '<path d="M3 9v6h4l5 4V5L7 9z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  plus:    '<path d="M11 4h2v16h-2zM4 11h16v2H4z"/>',
   heart:   '<path d="M12 20.5l-1.3-1.2C5.6 14.7 2.5 11.9 2.5 8.4 2.5 5.6 4.7 3.5 7.4 3.5c1.8 0 3.5.9 4.6 2.3 1.1-1.4 2.8-2.3 4.6-2.3 2.7 0 4.9 2.1 4.9 4.9 0 3.5-3.1 6.3-8.2 10.9L12 20.5z"/>'
 }
 const icon = name => `<svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${ICON[name]}</svg>`
@@ -45,8 +46,8 @@ const query = t => encodeURIComponent(`${t.artist || ''} ${t.title || ''}`.trim(
 const serviceLinks = t => SERVICES.map(([cls, name, base, path]) =>
   `<a class="svc ${cls}" href="${base}${query(t)}" target="_blank" rel="noopener" title="Chercher sur ${name}" aria-label="Chercher sur ${name}"><svg viewBox="0 0 24 24" aria-hidden="true">${path}</svg><span>${name}</span></a>`).join('')
 
-/* Actions d'un titre : cœur + liens. ref = index dans `tracks`, ou 'now' pour le titre en cours */
-const trackActions = (t, ref) => heartButton(t, ref) + serviceLinks(t)
+/* Actions d'un titre : cœur, ajout à une playlist, liens. ref = index dans `tracks`, ou 'now' pour le titre en cours */
+const trackActions = (t, ref) => heartButton(t, ref) + addButton(ref) + serviceLinks(t)
 
 /* ── Titre en cours (API RadioKing) ─────────────────────────── */
 let isPolling = false
@@ -221,15 +222,48 @@ el('volIcon').onclick = () => {
   else setVol(prevVol)
 }
 
-/* ── Spotify : cœur → Titres likés ──────────────────────────── */
+/* ── Spotify : connexion ────────────────────────────────────── */
 /* Connexion dans une fenêtre à part : la page reste ouverte et la radio continue de jouer.
    Le jeton est partagé avec Le Mix (localStorage). */
+let afterLogin = null  // action lancée avant d'être connecté, reprise dès la connexion
+
+/* La fenêtre doit s'ouvrir pendant le clic (sinon bloquée) ; son adresse arrive après le calcul PKCE.
+   Fenêtre bloquée : connexion dans la page (la radio s'arrête) ; un titre à liker est gardé pour le retour. */
+async function spLogin(then, likeOnReturn) {
+  afterLogin = then || null
+  const popup = window.open('', 'spotify-login', 'width=480,height=720')
+  const url = await spAuthUrl('like')
+  if (popup) return void (popup.location = url)
+  if (likeOnReturn) lsSet('sp_like_pending', { title: likeOnReturn.title, artist: likeOnReturn.artist })
+  location = url
+}
+/* La fenêtre de connexion écrit le jeton dans localStorage : cette page le voit passer */
+window.addEventListener('storage', e => {
+  if (e.key !== 'sp_scope' || !spReady()) return
+  setStatus('Connecté à Spotify ✓')
+  afterLogin?.()
+  afterLogin = null
+  loadLiked()
+})
+
+/* URI Spotify d'un titre de la radio, mémorisée ('' = introuvable) */
+async function uriOf(t) {
+  const key = likeKey(t)
+  if (liked.has(key)) return liked.get(key)
+  if (!(key in foundUris)) {
+    foundUris[key] = (await spFindUri(t)) || ''
+    lsSet('sp_uri_v2', foundUris)
+  }
+  return foundUris[key]
+}
+const notFound = t => setStatus(`Pas trouvé sur Spotify : ${t.artist} – ${t.title}`, true)
+
+/* ── Spotify : cœur → Titres likés ──────────────────────────── */
 
 /* Clé tolérante (premier artiste, titre sans « feat. » ni « Remastered ») pour rapprocher radio et Spotify */
 const likeKey = t => `${loose(firstArtist(t.artist))}|${loose(cleanTitle(t.title) || t.title)}`
 let liked = new Map(Object.entries(lsGet('sp_liked_v2', {})))  // likeKey → URI : tes Titres likés
 const foundUris = lsGet('sp_uri_v2', {})                       // likeKey → URI trouvée, '' = introuvable
-let pendingLike = null  // titre cliqué avant d'être connecté : liké dès la connexion
 
 const heartButton = (t, ref) => {
   const key = likeKey(t)
@@ -246,25 +280,6 @@ function syncHearts(key, state) {
     b.setAttribute('aria-pressed', liked.has(b.dataset.key))
   }
 }
-
-/* La fenêtre doit s'ouvrir pendant le clic (sinon bloquée) ; son adresse arrive après le calcul PKCE.
-   Fenêtre bloquée : connexion dans la page (la radio s'arrête), le titre est liké au retour. */
-async function spLogin(pending) {
-  pendingLike = pending || null
-  const popup = window.open('', 'spotify-login', 'width=480,height=720')
-  const url = await spAuthUrl('like')
-  if (popup) return void (popup.location = url)
-  if (pending) lsSet('sp_like_pending', { title: pending.title, artist: pending.artist })
-  location = url
-}
-/* La fenêtre de connexion écrit le jeton dans localStorage : cette page le voit passer */
-window.addEventListener('storage', e => {
-  if (e.key !== 'sp_scope' || !spReady()) return
-  setStatus('Connecté à Spotify ✓')
-  if (pendingLike) toggleLike(pendingLike)
-  pendingLike = null
-  loadLiked()
-})
 
 /* Tes Titres likés : tous au chargement, puis seulement les plus récents (toutes les 2 min et au retour sur l'onglet) */
 async function loadLiked(full = true) {
@@ -295,19 +310,12 @@ document.addEventListener('visibilitychange', refreshLiked)
 
 async function toggleLike(t) {
   if (!t?.title) return
-  if (!spReady()) return spLogin(t)
+  if (!spReady()) return spLogin(() => toggleLike(t), t)
   const key = likeKey(t)
   syncHearts(key, 'wait')
   try {
-    let uri = liked.get(key) || foundUris[key]
-    if (!uri) {
-      uri = foundUris[key] = (await spFindUri(t)) || ''
-      lsSet('sp_uri_v2', foundUris)
-    }
-    if (!uri) {
-      syncHearts(key, 'none')
-      return setStatus(`Pas trouvé sur Spotify : ${t.artist} – ${t.title}`, true)
-    }
+    const uri = await uriOf(t)
+    if (!uri) { syncHearts(key, 'none'); return notFound(t) }
     const wasLiked = liked.has(key)
     await spFetch(`/me/library?uris=${encodeURIComponent(uri)}`, { method: wasLiked ? 'DELETE' : 'PUT' })
     if (wasLiked) { for (const [k, u] of liked) if (u === uri) liked.delete(k) }
@@ -317,17 +325,105 @@ async function toggleLike(t) {
     setStatus(wasLiked ? 'Retiré de tes Titres likés' : 'Ajouté à tes Titres likés ♥')
   } catch (e) {
     syncHearts(key)
-    if (!spToken()) return spLogin(t)  // jeton expiré ou révoqué
+    if (!spToken()) return spLogin(() => toggleLike(t), t)  // jeton expiré ou révoqué
     setStatus(`Spotify refuse (${e.message}).`, true)
   }
 }
 
+/* ── Spotify : + → ajouter à une de tes playlists ───────────── */
+const addButton = ref => `<button class="add" type="button" data-add="${ref}" title="Ajouter à une playlist" aria-label="Ajouter à une playlist" aria-haspopup="dialog">${icon('plus')}</button>`
+
+let myPlaylists = null, myPlaylistsAt = 0  // playlists modifiables (les tiennes et les collaboratives)
+let menuTrack = null                         // titre à ajouter, pendant que le menu est ouvert
+
+async function loadMyPlaylists() {
+  if (myPlaylists && Date.now() - myPlaylistsAt < 5 * 60 * 1000) return myPlaylists
+  const me = await spFetch('/me')
+  const list = []
+  for (let path = '/me/playlists?limit=50'; path; ) {
+    const r = await spFetch(path)
+    for (const p of r.items || [])
+      if (p && (p.owner?.id === me.id || p.collaborative)) list.push({ id: p.id, name: p.name, cover: p.images?.at(-1)?.url })
+    path = r.next
+  }
+  myPlaylists = list
+  myPlaylistsAt = Date.now()
+  return list
+}
+
+/* Sous le bouton sur grand écran, en bas de l'écran sur mobile (CSS) */
+function openPlaylistMenu(t, btn) {
+  if (!t?.title) return
+  if (!spReady()) return spLogin(() => openPlaylistMenu(t, btn?.isConnected ? btn : null))
+  menuTrack = t
+  const menu = el('plMenu')
+  menu.innerHTML = `<p class="pl-menu__title">Ajouter « ${esc(t.title)} » à…</p><p class="pl-menu__note">Chargement de tes playlists…</p>`
+  menu.hidden = false
+  const r = btn?.getBoundingClientRect()
+  menu.style.left = r ? `${Math.max(12, Math.min(r.right - 300, innerWidth - 312)) + scrollX}px` : ''
+  menu.style.top  = r ? `${r.bottom + 6 + scrollY}px` : ''
+  loadMyPlaylists().then(renderPlaylistMenu).catch(e => {
+    menu.querySelector('.pl-menu__note').textContent = `Impossible de charger tes playlists (${e.message}).`
+  })
+}
+function renderPlaylistMenu(list) {
+  const menu = el('plMenu')
+  if (menu.hidden) return
+  const last = lsGet('sp_last_playlist', null)  // la dernière utilisée en premier
+  const sorted = [...list].sort((a, b) => (b.id === last) - (a.id === last))
+  menu.innerHTML = `<p class="pl-menu__title">Ajouter « ${esc(menuTrack.title)} » à…</p>
+    ${list.length > 8 ? '<input class="pl-menu__filter" id="plFilter" placeholder="Filtrer" autocomplete="off" enterkeyhint="search">' : ''}
+    <div class="pl-menu__list">${sorted.map(p => `
+      <button class="pl-item" type="button" data-pl="${esc(p.id)}" data-q="${esc(p.name.toLowerCase())}">
+        ${p.cover ? `<img src="${esc(p.cover)}" alt="" loading="lazy">` : '<span class="pl-item__cover"></span>'}<span>${esc(p.name)}</span>
+      </button>`).join('') || '<p class="pl-menu__note">Aucune playlist modifiable sur ton compte.</p>'}
+    </div>`
+  el('plFilter')?.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase()
+    for (const b of menu.querySelectorAll('.pl-item')) b.hidden = !!q && !b.dataset.q.includes(q)
+  })
+  if (matchMedia('(hover:hover)').matches) el('plFilter')?.focus()
+}
+const closePlaylistMenu = () => { el('plMenu').hidden = true; menuTrack = null }
+
+async function addToPlaylist(t, pl) {
+  closePlaylistMenu()
+  setStatus(`Ajout à « ${pl.name} »…`)
+  try {
+    const uri = await uriOf(t)
+    if (!uri) return notFound(t)
+    await spFetch(`/playlists/${pl.id}/items`, { method: 'POST', body: JSON.stringify({ uris: [uri] }) })
+    lsSet('sp_last_playlist', pl.id)
+    setStatus(`Ajouté à « ${pl.name} » ✓`)
+  } catch (e) {
+    if (!spToken()) return spLogin(() => addToPlaylist(t, pl))
+    setStatus(`Spotify refuse (${e.message}).`, true)
+  }
+}
+
+/* ── Clics sur les titres ───────────────────────────────────── */
 const trackFromRef = ref => ref === 'now' ? nowTrack : tracks[+ref]
 document.addEventListener('click', e => {
-  const heart = e.target.closest('.heart')
+  const target = e.target
+  if (target.closest('#plMenu')) {
+    const item = target.closest('[data-pl]')
+    if (item) addToPlaylist(menuTrack, myPlaylists.find(p => p.id === item.dataset.pl))
+    return
+  }
+  const menuWasOpen = !el('plMenu').hidden
+  if (menuWasOpen) closePlaylistMenu()
+  const add = target.closest('.add')
+  if (add && !(menuWasOpen && add.getAttribute('aria-expanded') === 'true')) {
+    document.querySelectorAll('.add[aria-expanded]').forEach(b => b.removeAttribute('aria-expanded'))
+    add.setAttribute('aria-expanded', 'true')
+    return openPlaylistMenu(trackFromRef(add.dataset.add), add)
+  }
+  document.querySelectorAll('.add[aria-expanded]').forEach(b => b.removeAttribute('aria-expanded'))
+  const heart = target.closest('.heart')
   if (heart) toggleLike(trackFromRef(heart.dataset.like))
-  if (e.target.closest('#moreBtn')) loadTracks(true)
+  if (target.closest('#moreBtn')) loadTracks(true)
 })
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !el('plMenu').hidden) closePlaylistMenu() })
 
 /* ── Export ─────────────────────────────────────────────────── */
 el('refreshBtn').onclick = () => poll()

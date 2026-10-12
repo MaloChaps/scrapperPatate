@@ -111,14 +111,32 @@
   .now-links[hidden]{display:none}
   .now-links .svc{min-height:32px;padding:7px 13px 7px 11px;font-size:12px}
   /* Cœur : ajoute aux Titres likés Spotify */
-  .heart{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex:0 0 auto;padding:0;border:0;border-radius:99px;background:transparent;color:var(--ink-dim);cursor:pointer;transition:color .15s,transform .12s}
+  /* Cœur (Titres likés) et + (ajouter à une playlist) */
+  .heart,.add{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex:0 0 auto;padding:0;border:0;border-radius:99px;background:transparent;color:var(--ink-dim);cursor:pointer;transition:color .15s,transform .12s}
   .heart svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
+  .add svg{width:16px;height:16px}
+  .add[aria-expanded="true"]{color:var(--ink)}
+  @media (hover:hover){.add:hover{color:var(--ink);transform:scale(1.1)}}
   .heart[aria-pressed="true"]{color:var(--accent)}
   .heart[aria-pressed="true"] svg{fill:currentColor}
   .heart.wait{opacity:.45;pointer-events:none}
   .heart.none{opacity:.3}
   @media (hover:hover){.heart:hover{color:var(--accent);transform:scale(1.1)}}
-  .now-links .heart{width:28px;height:28px}
+  .now-links .heart,.now-links .add{width:28px;height:28px}
+
+  /* Menu « Ajouter à une playlist » : sous le bouton ; en bas de l'écran sur mobile */
+  .pl-menu{position:absolute;z-index:30;width:300px;max-height:min(420px,60vh);display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line-strong);border-radius:12px;background:var(--bg);box-shadow:0 18px 40px rgba(31,29,20,.3)}
+  .pl-menu[hidden]{display:none}
+  .pl-menu__title{font:500 12px var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pl-menu__note{font:400 12px var(--font-mono);color:var(--ink-dim)}
+  .pl-menu__filter{width:100%;padding:8px 16px;border:0;border-radius:99px;outline:none;background:var(--card);color:var(--ink);font:400 14px var(--font-mono)}
+  .pl-menu__filter:focus-visible{box-shadow:0 0 0 1px var(--ink)}
+  .pl-menu__list{display:flex;flex-direction:column;gap:2px;overflow-y:auto;overscroll-behavior:contain;margin:0 -6px}
+  .pl-item{display:flex;align-items:center;gap:10px;padding:6px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:400 13px var(--font-mono);text-align:left;cursor:pointer}
+  .pl-item[hidden]{display:none}
+  .pl-item span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pl-item img,.pl-item__cover{width:36px;height:36px;flex:0 0 auto;border-radius:4px;background:var(--card);object-fit:cover}
+  @media (hover:hover){.pl-item:hover{background:var(--card)}}
 
 
 
@@ -144,13 +162,17 @@
     .cp-station,.now-label{text-align:center}
     .now-title{font-size:20px}
     .now-links{justify-content:center;flex-wrap:nowrap;gap:5px}
+    .pl-menu{position:fixed;left:0 !important;right:0;top:auto !important;bottom:0;width:auto;max-height:70vh;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
     .now-links .svc{padding:6px 9px 6px 8px;font-size:11px;gap:5px}
     .cp-controls{justify-content:center}
     .vol-wrap{flex:1;justify-content:flex-end}
 
     /* Liste */
     .row .time,.row .idx{display:none}
+    .row{flex-wrap:wrap;row-gap:6px}
     .row .thumb{width:34px;height:34px}
+    /* Boutons sur une 2e ligne, sous le titre : le titre garde toute la largeur */
+    .row .links{flex-basis:100%;padding-left:48px;margin-left:-6px}
     .row .svc{width:32px;height:32px;padding:0;justify-content:center}
     .row .svc span{display:none}
 
@@ -216,12 +238,13 @@
   </div>
 
   <p class="footnote">
-    Un robot tourne en continu côté serveur et note chaque nouveau titre toutes les minutes, même quand cette page est fermée : la liste se met à jour toute seule. Le cœur ajoute un titre à tes Titres likés Spotify.
+    Un robot tourne en continu côté serveur et note chaque nouveau titre toutes les minutes, même quand cette page est fermée : la liste se met à jour toute seule. Le cœur ajoute un titre à tes Titres likés Spotify, le + à une de tes playlists.
     « Créer playlist Spotify » ouvre <a href="generateur.html?source=radio">Le Mix</a> avec les titres de la radio : thème, styles, niveau, enchaînement par tempo et écoute des extraits.
   </p>
 
 </div>
 
+<div class="pl-menu" id="plMenu" role="dialog" aria-label="Ajouter à une playlist" hidden></div>
 <script src="js/shared.js"></script>
 <script src="js/radio.js"></script>
 </body>
