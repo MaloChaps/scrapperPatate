@@ -15,7 +15,7 @@ const THEMES = {
 }
 const STYLES = {
   funk: 'Funk', soul: 'Soul', disco: 'Disco & boogie', jazz: 'Jazz', afro: 'Afro', bresil: 'Brésil',
-  latin: 'Latin', rnb: 'R&B', house: 'House & électro', hiphop: 'Hip-hop', reggae: 'Reggae & dub',
+  latin: 'Latin', rnb: 'R&B', house: 'House & électro', hiphop: 'Rap & hip-hop', reggae: 'Reggae & dub',
   rock: 'Rock', pop: 'Pop', folk: 'Folk', chanson: 'Chanson', chill: 'Chill'
 }
 const NICHE = {
@@ -46,6 +46,16 @@ const MODES = SOURCE === 'radio' ? {
 }
 const LEN_ALL = 105  // dernier cran du curseur en mode « Juste mes playlists » : tous les titres
 const CURVES = { theme: 'Selon le thème', rise: '↗ Montée', fall: '↘ Descente', wave: '∿ Vagues', none: 'Mélangé' }
+/* Ajustements d'une playlist générée (build-playlist : adjust) ; chacun crée une nouvelle version.
+   match : ce que compte la note « 12 titres français sur 30 » */
+const ADJUSTS = {
+  fr:     { label: '+ Français',  step: 'Recherche de titres français', match: 'français' },
+  hiphop: { label: '+ Rap',       step: 'Recherche de rap',             match: 'rap' },
+  house:  { label: '+ Électro',   step: 'Recherche d\'électro',         match: 'électro' },
+  calm:   { label: 'Plus calme',  step: 'Recherche de titres plus lents' },
+  fast:   { label: 'Plus rapide', step: 'Recherche de titres plus rapides' },
+  rare:   { label: 'Plus rare',   step: 'Recherche de pépites' }
+}
 
 /* ── Spotify ─────────────────────────────────────────────────── */
 /* Connexion par redirection (et non dans une fenêtre à part comme la radio) : installée sur iPhone,
@@ -296,16 +306,6 @@ renderChoice('mode', MODES, 'mode', syncMode)
 const PERIODS = { '4h': { label: '4 h', h: 4 }, '12h': { label: '12 h', h: 12 }, '24h': { label: '24 h', h: 24 }, tout: { label: 'Tout', h: Infinity } }
 const RADIO_MAX = 160  // au-delà, tirage au hasard (sans ISRC, chaque titre coûte deux recherches Deezer)
 
-/* Genres Deezer (table track_info, déjà calculés pour toute la radio) → styles du générateur */
-const GENRE_STYLES = [
-  ['funk', /funk/i], ['soul', /soul/i], ['rnb', /r&b|rnb|rhythm/i], ['disco', /disco|boogie/i],
-  ['jazz', /jazz|blues/i], ['afro', /afro|africa/i], ['bresil', /brésil|bresil|mpb|samba|bossa/i],
-  ['latin', /latin|salsa|bolero|cumbia|reggaeton/i], ['house', /electro|house|techno|dance/i],
-  ['hiphop', /hip.?hop|\brap\b/i], ['reggae', /reggae|\bdub\b|\bska\b/i],
-  ['rock', /rock|alternative|indé|indie|metal|punk/i], ['pop', /pop/i],
-  ['folk', /folk|country|singer/i], ['chanson', /chanson|variété|french/i]
-]
-const stylesOfGenre = genre => genre ? GENRE_STYLES.filter(([, re]) => re.test(genre)).map(([id]) => id) : []
 const radioKey = t => `${norm(t.artist)}|${norm(t.title)}`
 
 async function fetchAll(table, select) {
@@ -444,8 +444,10 @@ function showError(msg) {
 el("cancel").onclick = () => aborter?.abort()
 
 /* Étapes affichées pendant le calcul serveur (pas de suivi en direct) */
-function startSteps(mode) {
-  const steps = mode === 'mix'
+function startSteps(mode, adjust) {
+  const steps = adjust
+    ? [[0, 'Analyse de ta playlist'], [mode === 'mix' ? 15 : 12, ADJUSTS[adjust].step], [mode === 'mix' ? 35 : 50, 'Remplacement et mise en ordre']]
+    : mode === 'mix'
     ? [[0, 'Lecture des tempos de tes titres'], [25, 'Filtrage par thème et styles'], [38, 'Enchaînement des tempos']]
     : [[0, 'Analyse des styles et des tempos'], [15, 'Recherche d\'artistes proches'],
        [35, 'Écoute des titres candidats'], [55, 'Sélection et mise en ordre']]
@@ -460,19 +462,24 @@ function startSteps(mode) {
   return setInterval(tick, 1000)
 }
 
-/* extra.keep + extra.relax : on garde la sélection affichée et on complète avec des filtres élargis */
-let lastBody = null
-async function generate(seeds, extra = {}) {
-  const body = extra.keep ? { ...lastBody, ...extra } : {
+/* extra.keep + extra.relax : on garde la sélection affichée et on complète avec des filtres élargis ;
+   extra.adjust + extra.current : on ajuste la version affichée. label : nom de la version créée */
+let lastBody = null  // réglages de la version affichée
+const setBusy = on => {
+  el("go").disabled = el("regen").disabled = on
+  el("adjust").querySelectorAll('button').forEach(b => b.disabled = on)
+}
+async function generate(seeds, extra = {}, label = 'Originale') {
+  const fromShown = !!(extra.keep || extra.adjust)
+  const body = fromShown ? { ...lastBody, ...extra } : {
     seeds, mode: state.mode, theme: state.theme, niche: state.niche, curve: state.curve, styles: [...state.styles],
     length: state.mode === 'mix' && +el("len").value >= LEN_ALL ? 0 : +el("len").value, discovery: el("disc").value / 100,
     ...extra
   }
-  if (!extra.keep) lastBody = body
   el("error").classList.remove('on')
   setLoading(true)
-  el("go").disabled = el("regen").disabled = true
-  const timer = startSteps(body.mode)
+  setBusy(true)
+  const timer = startSteps(body.mode, extra.adjust)
   aborter = new AbortController()
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/build-playlist`, {
@@ -483,9 +490,9 @@ async function generate(seeds, extra = {}) {
     })
     const d = await res.json().catch(() => ({ error: 'réponse illisible (' + res.status + ')' }))
     if (!res.ok || d.error) throw new Error(d.error || 'Erreur ' + res.status)
-    result = d
-    resultTheme = body.theme
-    renderResult()
+    if (extra.adjust && !d.adjust) throw new Error('le serveur ne sait pas encore ajuster (fonction build-playlist à redéployer)')
+    if (d.adjust && !d.adjust.added) return showError(`${ADJUSTS[d.adjust.kind].label} : rien trouvé qui aille dans ce sens, la playlist n'a pas changé.`)
+    addVersion(d, body.theme, fromShown ? lastBody : body, label, fromShown)
     showScreen('result')
   } catch (e) {
     if (e.name !== 'AbortError') showError('La génération a échoué : ' + e.message)
@@ -493,9 +500,39 @@ async function generate(seeds, extra = {}) {
     clearInterval(timer)
     setLoading(false)
     aborter = null
-    el("go").disabled = el("regen").disabled = false
+    setBusy(false)
   }
 }
+
+/* ── Versions : la génération, puis une par régénération, complétion ou ajustement ── */
+let versions = [], shown = -1  // { result, theme, body, label, off: indices décochés, fresh: titres nouveaux dans cette version }
+const songId = t => `${norm(t.artist)}|${norm(t.title)}`
+function addVersion(res, theme, body, label, fromShown) {
+  const before = fromShown && versions[shown] ? new Set(versions[shown].result.tracks.map(songId)) : null
+  if (!fromShown && label === 'Originale') versions = []
+  versions.push({ result: res, theme, body, label, off: new Set(), fresh: new Set(before ? res.tracks.map(songId).filter(k => !before.has(k)) : []) })
+  showVersion(versions.length - 1)
+}
+function showVersion(i) {
+  shown = i
+  ;({ result, theme: resultTheme, body: lastBody } = versions[i])
+  renderResult()
+}
+el("versions").addEventListener('click', e => {
+  const b = e.target.closest('[data-v]')
+  if (b && +b.dataset.v !== shown) showVersion(+b.dataset.v)
+})
+
+/* Ajuster : à partir des titres cochés de la version affichée (les décochés sont remplacés en priorité) */
+el("adjust").insertAdjacentHTML('beforeend', Object.entries(ADJUSTS).map(([k, a]) =>
+  `<button class="chip" type="button" data-adjust="${k}">${esc(a.label)}</button>`).join(''))
+el("adjust").addEventListener('click', e => {
+  const k = e.target.closest('[data-adjust]')?.dataset.adjust
+  if (!k || !lastBody || !result) return
+  const current = pickedTracks()
+  if (!current.length) return showError('Coche au moins un titre à garder.')
+  generate(lastBody.seeds, { adjust: k, current, size: result.tracks.length }, ADJUSTS[k].label)
+})
 
 el("go").onclick = async () => {
   if (!spToken()) return spLogin()
@@ -531,10 +568,10 @@ el("go").onclick = async () => {
   await generate(seeds)
   if (failed.length) showError(`${failed.length} playlist(s) illisible(s), le mix a été fait avec les autres.`)
 }
-el("regen").onclick = () => lastSeeds && generate(lastSeeds, SOURCE !== 'radio' ? {} : state.mode === 'mix' ? { styles: [] } : { seedsFiltered: true })
+el("regen").onclick = () => lastSeeds && generate(lastSeeds, SOURCE !== 'radio' ? {} : state.mode === 'mix' ? { styles: [] } : { seedsFiltered: true }, 'Régénérée')
 el("complete").onclick = () => {
   if (!lastBody || !result) return
-  generate(lastBody.seeds, { keep: pickedTracks(), relax: true })
+  generate(lastBody.seeds, { keep: pickedTracks(), relax: true }, 'Complétée')
 }
 
 /* Titre du résultat = nom de la playlist qui sera créée (champ « Titre », sinon thème · date) */
@@ -543,6 +580,7 @@ function renderTitle() {
 }
 el("plName").addEventListener('input', renderTitle)
 
+const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`
 const fansLabel = n => n == null ? '' : n < 1000 ? `${n} fans` : n < 1e6 ? `${Math.round(n / 1000)} k fans` : `${(n / 1e6).toFixed(1)} M fans`
 
 function renderResult() {
@@ -553,6 +591,15 @@ function renderResult() {
   const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
   autoName = `${THEMES[resultTheme].label} · ${date}`
   renderTitle()
+  const v = versions[shown]
+  el("versions").hidden = versions.length < 2
+  el("versions").innerHTML = versions.map((x, i) =>
+    `<button class="chip" type="button" data-v="${i}" aria-pressed="${i === shown}">V${i + 1} · ${esc(x.label)}</button>`).join('')
+  const a = result.adjust, adj = a && ADJUSTS[a.kind]
+  el("adjustNote").textContent = a
+    ? `${adj.label} : ${plural(a.added, 'titre')} ${a.added > 1 ? 'ajoutés' : 'ajouté'}${a.removed ? `, ${plural(a.removed, 'titre')} ${a.removed > 1 ? 'retirés' : 'retiré'}` : ''}` +
+      (adj.match ? ` · ${a.matching} ${adj.match} sur ${result.tracks.length}` : '')
+    : ''
   el("profile").innerHTML =
     `<span class="tag">${esc(theme)}</span>` +
     (mix ? `<span class="tag tag--fill">★ ${result.tracks.length} titres sur ${result.available} qui passent les filtres</span>`
@@ -585,10 +632,17 @@ function renderResult() {
         ${t.styles.slice(0, 2).map(s => `<span class="tag">${esc(STYLES[s] || s)}</span>`).join('')}
         <span class="tag">${t.bpm ? `${t.bpm} bpm` : 'tempo ?'}</span>
         ${t.fans != null ? `<span class="tag">${fansLabel(t.fans)}</span>` : ''}
+        ${t.fr ? '<span class="tag">FR</span>' : ''}
         ${mix ? '' : `<span class="tag">${t.seed ? '★' : '✦'}</span>`}
+        ${v.fresh.has(songId(t)) ? '<span class="tag tag--new">Nouveau</span>' : ''}
       </span>
       <span class="track__check" aria-hidden="true"></span>
     </label></li>`).join('')
+  for (const i of v.off) {
+    const c = el("list").querySelector(`input[data-i="${i}"]`)
+    c.checked = false
+    c.closest('.track').classList.add('off')
+  }
   el("done").classList.remove('on')
   el("createStep").textContent = ''
   updateCreateCount()
@@ -677,6 +731,8 @@ function updateCreateCount() {
 }
 el("list").addEventListener('change', e => {
   e.target.closest('.track')?.classList.toggle('off', !e.target.checked)
+  const off = versions[shown]?.off
+  if (off) e.target.checked ? off.delete(+e.target.dataset.i) : off.add(+e.target.dataset.i)
   updateCreateCount()
 })
 

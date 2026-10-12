@@ -1,6 +1,7 @@
 /* Génère une sélection à partir des titres de quelques playlists (seeds) :
    profil (styles, tempo, niveau de rareté) → titres d'artistes proches → filtres → score → ordre.
-   Sources : Deezer (titres, BPM, artistes similaires, fans), Last.fm si LASTFM_API_KEY (styles fins) */
+   Sources : Deezer (titres, BPM, artistes similaires, fans), Last.fm si LASTFM_API_KEY (styles fins).
+   adjust + current : ajuste une playlist déjà générée (« + Français », « Plus calme »…) au lieu d'en faire une nouvelle */
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -51,6 +52,23 @@ const DEEZER_RULES: [string, RegExp][] = [
   ['chanson', /chanson|variété|french/i], ['classique', /classi|film|soundtrack/i], ['metal', /metal/i]
 ]
 const fromDeezer = (genres: string[]) => DEEZER_RULES.filter(([, re]) => genres.some(g => re.test(g))).map(([id]) => id)
+
+/* ── Ajustements d'une playlist déjà générée ─────────────────── */
+type Adjust = 'fr' | 'hiphop' | 'house' | 'calm' | 'fast' | 'rare'
+const ADJUSTS: Adjust[] = ['fr', 'hiphop', 'house', 'calm', 'fast', 'rare']
+/* Artiste francophone : étiquettes Last.fm (« french rap », « chanson francaise »…), sinon genre d'album Deezer « Chanson française » */
+/* Titre qui a l'air en français (accents, mots courants) : passe avant ceux d'artistes français qui chantent en anglais */
+const FR_TITLE = /[éèêàçùœ]|(^|[\s'’(])(le|la|les|un|une|des|du|je|j|tu|il|elle|on|nous|vous|ne|pas|et|est|c|l|d|qu|que|qui|mon|ma|mes|ton|ta|tes|au|aux|pour|dans|sur|avec|sans|moi|toi|plus|tout|rien|jamais|amour|nuit)(?=[\s'’)]|$)/i
+const FR_TAG = /fran[cç]ais|\bfrench\b|\bfrance\b|chanson|vari[eé]t[eé]|y[eé]-y[eé]|qu[eé]b[eé]c/i
+/* Où chercher de nouveaux artistes (étiquettes Last.fm) : pour « + Français », selon les styles de la playlist */
+const FR_TAGS: Record<string, string> = {
+  hiphop: 'french rap', house: 'french house', disco: 'french touch', funk: 'french funk', soul: 'french soul', jazz: 'french jazz',
+  pop: 'french pop', rock: 'french rock', chanson: 'chanson francaise', folk: 'chanson francaise', rnb: 'french rnb', chill: 'french electronic'
+}
+const STYLE_TAGS: Record<string, string[]> = {
+  hiphop: ['rap', 'jazz rap', 'boom bap', 'hip-hop', 'underground hip-hop'],
+  house:  ['deep house', 'house', 'french house', 'nu disco']
+}
 
 /* ── Thèmes prédéfinis ───────────────────────────────────────── */
 type Curve = 'rise' | 'fall' | 'wave' | 'none'
@@ -120,7 +138,7 @@ const songKey = (artist: string, title: string) => loose(firstArtist(artist)) + 
 type Track = {
   title: string, artist: string, artistId?: number, isrc?: string, uri?: string,
   deezerId?: number, bpm: number, styles: string[], precise?: boolean, fans: number | null,
-  cover: string, preview?: string, src?: number, seed: boolean, score?: number
+  cover: string, preview?: string, src?: number, seed: boolean, score?: number, fr?: boolean
 }
 
 /* Caches de la requête : genres d'album, fans et étiquettes par artiste */
@@ -137,9 +155,9 @@ function artistFans(id?: number) {
   if (!fansCache.has(id)) fansCache.set(id, deezer(`/artist/${id}`).then(a => a?.nb_fan ?? null))
   return fansCache.get(id)!
 }
-const tagCache = new Map<string, Promise<string[]>>()
-function artistStyles(name: string): Promise<string[]> {
-  if (!LASTFM_KEY || !name) return Promise.resolve([])
+const tagCache = new Map<string, Promise<{ styles: string[], fr: boolean }>>()
+function artistTags(name: string): Promise<{ styles: string[], fr: boolean }> {
+  if (!LASTFM_KEY || !name) return Promise.resolve({ styles: [], fr: false })
   const k = loose(name)
   if (!tagCache.has(k)) tagCache.set(k, (async () => {
     await lastfmSlot()
@@ -147,22 +165,24 @@ function artistStyles(name: string): Promise<string[]> {
     const d = await fetch(url).then(r => r.ok ? r.json() : null).catch(() => null)
     // deno-lint-ignore no-explicit-any
     const tags: { name: string, count: number }[] = (d?.toptags?.tag || []).filter((t: any) => t.count >= 15).slice(0, 10)
-    return [...new Set(tags.flatMap(t => TAG_TO_STYLES.get(t.name.toLowerCase()) || []))]
+    return { styles: [...new Set(tags.flatMap(t => TAG_TO_STYLES.get(t.name.toLowerCase()) || []))], fr: tags.some(t => FR_TAG.test(t.name)) }
   })())
   return tagCache.get(k)!
 }
+const artistStyles = (name: string) => artistTags(name).then(t => t.styles)
 
 // deno-lint-ignore no-explicit-any
 async function trackFromDeezer(d: any, seed: boolean, extra: Partial<Track> = {}): Promise<Track> {
   const artist = extra.artist || d.artist?.name || ''
-  const [genres, tagStyles, fans] = await Promise.all([
+  const [genres, tags, fans] = await Promise.all([
     d.album?.id ? albumGenres(d.album.id) : Promise.resolve([] as string[]),
-    artistStyles(firstArtist(artist)),
+    artistTags(firstArtist(artist)),
     extra.fans !== undefined ? Promise.resolve(extra.fans) : artistFans(d.artist?.id)
   ])
   return {
     title: d.title, artist, artistId: d.artist?.id, isrc: d.isrc, deezerId: d.id,
-    bpm: d.bpm || 0, styles: tagStyles.length ? tagStyles : fromDeezer(genres), precise: tagStyles.length > 0, fans,
+    bpm: d.bpm || 0, styles: tags.styles.length ? tags.styles : fromDeezer(genres), precise: tags.styles.length > 0, fans,
+    fr: tags.fr || genres.includes('Chanson française'),
     cover: d.album?.cover_small || '', preview: d.preview || '', seed, ...extra
   }
 }
@@ -182,7 +202,7 @@ async function resolveSeed(s: Seed, skipFans = false): Promise<Track> {
     const hit = (r?.data || []).find((x: any) => near(loose(artist), loose(x.artist?.name)) && near(loose(title), loose(cleanTitle(x.title) || x.title)))
     if (hit) d = await deezer(`/track/${hit.id}`)
   }
-  if (!d) return unresolved(s, await artistStyles(firstArtist(s.artist)))
+  if (!d) { const tags = await artistTags(firstArtist(s.artist)); return { ...unresolved(s, tags.styles), fr: tags.fr } }
   const t = await trackFromDeezer(d, true, { title: s.title, artist: s.artist, uri: s.uri, isrc: d.isrc || s.isrc, src: s.src, ...(skipFans ? { fans: null } : {}) })
   if (!t.bpm && s.bpm) t.bpm = +s.bpm
   return t
@@ -254,12 +274,54 @@ function alternateSources(list: Track[], range: [number, number]) {
 const toClient = (range: [number, number]) => (t: Track) => ({
   title: t.title, artist: t.artist, artistId: t.artistId || null, isrc: t.isrc || null, uri: t.uri || null,
   deezerId: t.deezerId || null, bpm: Math.round(effBpm(t.bpm, range)) || null,
-  styles: t.styles, fans: t.fans, cover: t.cover, preview: t.preview || null, src: t.src ?? null, seed: t.seed
+  styles: t.styles, fans: t.fans, cover: t.cover, preview: t.preview || null, src: t.src ?? null, seed: t.seed, fr: !!t.fr
 })
 
 const median = (xs: number[]) => {
   const s = xs.filter(x => x > 0).sort((a, b) => a - b)
   return s.length ? s[Math.floor(s.length / 2)] : 0
+}
+
+/* Ajustement : ce qui va dans le sens demandé (match) et, parmi le reste, ce qu'on retire en premier (away : plus grand = d'abord) */
+function adjustRule(kind: Adjust, current: Track[], range: [number, number]) {
+  const bpm = (t: Track) => effBpm(t.bpm, range)
+  const refBpm = median(current.map(bpm)), refFans = median(current.map(t => t.fans || 0))
+  const discoveryFirst = (t: Track) => (t.seed ? 0 : 1) + Math.random() * 0.5
+  switch (kind) {
+    case 'fr':     return { match: (t: Track) => !!t.fr, away: discoveryFirst }
+    case 'calm':   return { match: (t: Track) => !!refBpm && !!t.bpm && bpm(t) <= refBpm - 6, away: (t: Track) => bpm(t) || refBpm }
+    case 'fast':   return { match: (t: Track) => !!refBpm && !!t.bpm && bpm(t) >= refBpm + 6, away: (t: Track) => -(bpm(t) || refBpm) }
+    case 'rare':   return { match: (t: Track) => !!refFans && t.fans !== null && t.fans <= refFans / 3, away: (t: Track) => t.fans ?? refFans }
+    default:       return { match: (t: Track) => t.styles.includes(kind), away: discoveryFirst }
+  }
+}
+
+/* Remplace jusqu'à un tiers de la playlist (plus les titres décochés, déjà absents de current) par les meilleurs titres
+   qui vont dans le sens demandé. On ne retire que ce qu'on peut remplacer ; la courbe de tempo est refaite,
+   sans courbe les nouveaux titres prennent la place des anciens. */
+function applyAdjust(kind: Adjust, current: Track[], candidates: Track[], N: number, curve: Curve, range: [number, number], canAdd: (t: Track) => boolean) {
+  const { match, away } = adjustRule(kind, current, range)
+  const inCurrent = new Set(current.map(t => songKey(t.artist, t.title)))
+  const deficit = Math.max(0, N - current.length)
+  const slots = Math.max(deficit, Math.round(N / 3))
+  const perArtist = new Map<string, number>()
+  for (const t of current) { const a = loose(firstArtist(t.artist)); perArtist.set(a, (perArtist.get(a) || 0) + 1) }
+  const unique = [...new Map(candidates.map(t => [songKey(t.artist, t.title), t])).values()]
+  const adds: Track[] = []
+  const rank = (t: Track) => (t.score || 0) + (kind === 'fr' && FR_TITLE.test(cleanTitle(t.title) || t.title) ? 0.5 : 0)
+  for (const t of unique.filter(t => match(t) && canAdd(t) && !inCurrent.has(songKey(t.artist, t.title))).sort((a, b) => rank(b) - rank(a))) {
+    if (adds.length >= slots) break
+    const a = loose(firstArtist(t.artist))
+    if ((perArtist.get(a) || 0) >= 2) continue
+    perArtist.set(a, (perArtist.get(a) || 0) + 1)
+    adds.push(t)
+  }
+  const removed = new Set(current.filter(t => !match(t)).sort((a, b) => away(b) - away(a)).slice(0, Math.max(0, adds.length - deficit)))
+  const queue = [...adds]
+  const tracks = curve === 'none'
+    ? [...current.map(t => removed.has(t) ? queue.shift()! : t), ...queue]
+    : order([...current.filter(t => !removed.has(t)), ...adds], curve, range)
+  return { tracks, adjust: { kind, added: adds.length, removed: removed.size, matching: tracks.filter(match).length } }
 }
 
 Deno.serve(async req => {
@@ -272,11 +334,17 @@ Deno.serve(async req => {
   try {
     const { seeds = [], theme = 'libre', length = 30, discovery = 0.5, mode = 'discover',
             niche = 'auto', styles: wanted = [], curve: curveIn = 'theme', relax = false, keep: keepIn = [],
-            seedsFiltered = false } = await req.json()
+            seedsFiltered = false, adjust: adjustIn = '', current: currentIn = [], size = 0 } = await req.json()
     const th = THEMES[theme]
     if (!th) return json({ error: 'thème inconnu' }, 400)
     if (!Array.isArray(seeds) || !seeds.length) return json({ error: 'aucun titre de départ' }, 400)
-    const N = mode === 'mix' ? (+length > 0 ? Math.min(+length, MIX_MAX) : MIX_MAX) : Math.min(Math.max(+length || 30, 10), 80)
+    const adjust = adjustIn as Adjust | ''
+    if (adjust && !ADJUSTS.includes(adjust)) return json({ error: 'ajustement inconnu' }, 400)
+    /* Playlist à ajuster : les titres cochés, ramenés à `size` titres au total */
+    const current: Track[] = (Array.isArray(currentIn) ? currentIn : []).slice(0, MIX_MAX).map((t: Track) => ({
+      ...t, bpm: t.bpm || 0, styles: t.styles || [], fans: t.fans ?? null, cover: t.cover || '', seed: !!t.seed, fr: !!t.fr
+    }))
+    const N = adjust ? Math.min(Math.max(+size || current.length, 1), MIX_MAX) : mode === 'mix' ? (+length > 0 ? Math.min(+length, MIX_MAX) : MIX_MAX) : Math.min(Math.max(+length || 30, 10), 80)
     const r = Math.min(Math.max(+discovery, 0), 1)
     const wantedStyles = (Array.isArray(wanted) ? wanted : []).filter((s: string) => STYLES[s])
     const curve: Curve = ['rise', 'fall', 'wave', 'none'].includes(curveIn) ? curveIn : th.curve
@@ -329,7 +397,7 @@ Deno.serve(async req => {
     }
 
     /* Titres phares d'une liste d'artistes → candidats notés (sans doublon) */
-    const seen = new Set([...seedTracks, ...keep].map(t => songKey(t.artist, t.title)))
+    const seen = new Set([...seedTracks, ...keep, ...current].map(t => songKey(t.artist, t.title)))
     const harvested = new Set<number>()
     const candidates: { t: Track, affinity: number }[] = []
     let nicheRejected = 0
@@ -382,9 +450,11 @@ Deno.serve(async req => {
     }
     for (const t of seedTracks) t.score = 0.6 * themeFit(t) + 0.4
 
+    /* Ajustement par style ou langue : d'abord des artistes des étiquettes Last.fm visées */
+    if (adjust && (adjust === 'fr' || STYLE_TAGS[adjust])) await harvest(await tagSources(adjustTags()))
     await harvest([
-      ...relatedSources(32),
-      ...topArtists.map(id => ({ id, affinity: 0.9, fans: null as number | null, top: 4 }))
+      ...relatedSources(adjust ? 20 : 32),
+      ...topArtists.map(id => ({ id, affinity: 0.9, fans: null as number | null, top: adjust ? 2 : 4 }))
     ])
 
     /* 4. Styles choisis : seuls les titres qui en font partie (jamais ceux au style inconnu) */
@@ -396,6 +466,8 @@ Deno.serve(async req => {
     /* Style certain d'abord : un titre retenu seulement par voisinage passe après */
     const rank = (t: Track) => (t.score || 0) + (wantedStyles.length && (exactStyle(t) || (t.seed && seedsFiltered)) ? 0.15 : 0)
       + (curve !== 'none' && t.bpm ? 0.1 : 0)  // courbe de tempo : les titres au tempo connu d'abord
+
+    if (adjust) return json(await adjusted())
 
     /* 5. Sélection : part de découvertes demandée, 2 titres max par artiste */
     const perArtist = new Map<string, number>()
@@ -440,6 +512,56 @@ Deno.serve(async req => {
       short: Math.max(0, N - tracks.length), rejected: { style: styleRejected, niche: nicheRejected }, ms: Date.now() - t0
     })
 
+    /* ── Ajustement (mode découverte) ── */
+    function adjustTags() {
+      if (adjust === 'fr') {
+        const styles = [...styleShare.entries()].sort((a, b) => b[1] - a[1]).map(([st]) => st).filter(st => !th.avoid.includes(st))
+        const tags = [...new Set(styles.filter(st => FR_TAGS[st]).map(st => FR_TAGS[st]))].slice(0, 3)
+        return tags.length ? tags : ['chanson francaise', 'french pop']
+      }
+      return [...(STYLE_TAGS[adjust] || [])].sort(() => Math.random() - 0.5).slice(0, 2)
+    }
+    /* Artistes les plus écoutés d'une étiquette Last.fm (page au hasard pour varier), retrouvés sur Deezer, dans la bonne rareté */
+    async function tagSources(tags: string[]) {
+      if (!LASTFM_KEY) return []
+      const names = (await pool(tags, 2, async tag => {
+        await lastfmSlot()
+        const url = `https://ws.audioscrobbler.com/2.0/?method=tag.gettopartists&format=json&limit=30&page=${1 + Math.floor(Math.random() * 3)}&api_key=${LASTFM_KEY}&tag=${encodeURIComponent(tag)}`
+        const d = await fetch(url).then(r => r.ok ? r.json() : null).catch(() => null)
+        // deno-lint-ignore no-explicit-any
+        return (d?.topartists?.artist || []).map((a: any) => String(a.name))
+      })).flat()
+      const found = await pool([...new Set(names)].sort(() => Math.random() - 0.5).slice(0, 36), 4, async name => {
+        const r = await deezer(`/search/artist?q=${encodeURIComponent(name)}&limit=3`)
+        // deno-lint-ignore no-explicit-any
+        const a = (r?.data || []).find((x: any) => loose(x.name) === loose(name))
+        return a && !artistCount.has(a.id) && fitsNiche(a.nb_fan ?? null) ? { id: a.id as number, affinity: 0.5, fans: (a.nb_fan ?? null) as number | null, top: 3 } : null
+      })
+      return found.filter(Boolean).slice(0, 18) as { id: number, affinity: number, fans: number | null, top: number }[]
+    }
+    async function adjusted() {
+      const { match } = adjustRule(adjust as Adjust, current, range)
+      /* Un style ajouté passe outre les styles choisis et ceux que le thème écarte ; le tempo du thème compte, sauf pour « plus calme / rapide » */
+      const canAdd = (t: Track) =>
+        (adjust === 'rare' || t.seed || fitsNiche(t.fans)) &&
+        !t.styles.some(st => th.avoid.includes(st) && st !== adjust) &&
+        (adjust === 'calm' || adjust === 'fast' || !th.bpm || !t.bpm || bpmFit(t.bpm, range) >= 0.5) &&
+        (!wantedStyles.length || !!STYLE_TAGS[adjust] || (t.seed && seedsFiltered) || exactStyle(t) || nearStyle(t))
+      const pool0 = () => [...candidates.map(c => c.t), ...seedTracks]
+      /* Pas assez de titres dans le bon sens : un tour de recherche autour de ceux qui y sont */
+      if (pool0().filter(t => match(t) && canAdd(t)).length < N / 3 && !late()) {
+        const anchors = [...new Set(pool0().filter(match).map(t => t.artistId).filter(Boolean) as number[])].filter(id => !expanded.has(id)).slice(0, 12)
+        await pool(anchors, 4, id => addRelated(id, 0.7))
+        await harvest(relatedSources(24))
+      }
+      const res = applyAdjust(adjust as Adjust, current, pool0(), N, curve, range, canAdd)
+      const profile = [...styleShare.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([style, x]) => ({ style, share: Math.round(x * 100) }))
+      return {
+        ...res, tracks: res.tracks.map(toClient(range)), profile, curve, bpm: seedBpm ? Math.round(seedBpm) : null,
+        analysed: seedTracks.length, candidates: candidates.length, lastfm: !!LASTFM_KEY, short: 0, rejected: { style: 0, niche: 0 }, ms: Date.now() - t0
+      }
+    }
+
     /* ── Mode « Juste mes playlists » : aucun titre ajouté, tes titres filtrés et enchaînés ── */
     async function mixPlaylists() {
       const pool0 = uniqSeeds.length > MIX_MAX ? uniqSeeds.sort(() => Math.random() - 0.5).slice(0, MIX_MAX) : uniqSeeds
@@ -465,9 +587,22 @@ Deno.serve(async req => {
       const kept = tracks0.filter(keepIt)
       /* Thème : un tempo dans la plage d'abord, inconnu ensuite (Deezer n'a pas le BPM de beaucoup de titres), hors plage en dernier */
       const tempoFit = (t: Track) => t.bpm ? bpmFit(t.bpm, range) : 0.35
-      for (const t of kept) t.score = (th.bpm ? 0.65 * tempoFit(t) + 0.35 * styleFit(t.styles) : 0.5) + Math.random() * 0.1
+      for (const t of tracks0) t.score = (th.bpm ? 0.65 * tempoFit(t) + 0.35 * styleFit(t.styles) : 0.5) + Math.random() * 0.1
         + (curve !== 'none' && t.bpm ? 0.3 : 0)  // courbe de tempo : les titres au tempo connu d'abord
         + (wantedStyles.length && exact(t) ? 1 : 0)  // style exact d'abord, les voisins ne font que compléter
+
+      /* Ajustement : seulement parmi tes titres */
+      if (adjust) {
+        const res = applyAdjust(adjust, current, tracks0, N, curve, range, t =>
+          (!rule || adjust === 'rare' || t.fans === null || (t.fans >= rule.min && t.fans <= rule.max)) &&
+          !t.styles.some(st => th.avoid.includes(st) && st !== adjust) &&
+          (!wantedStyles.length || !!STYLE_TAGS[adjust] || exact(t) || nearby(t)))
+        return {
+          mode: 'mix', ...res, tracks: res.tracks.map(toClient(range)), curve, bpm: seedBpm ? Math.round(seedBpm) : null,
+          profile: [...styleShare.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([style, x]) => ({ style, share: Math.round(x * 100) })),
+          analysed: tracks0.length, available: kept.length, lastfm: !!LASTFM_KEY, short: 0, rejected: { style: 0, niche: 0 }, ms: Date.now() - t0
+        }
+      }
 
       /* Sélection équilibrée entre les playlists (tour à tour), 3 titres max par artiste */
       const bySrc = new Map<number, Track[]>()

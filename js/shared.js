@@ -66,6 +66,17 @@ const cleanTitle = s => (s || '')
   .trim()
 const firstArtist = s => (s || '').split(/\s+(?:feat\.?|ft\.?|featuring)\s+/i)[0].trim()
 
+/* Genres d'album Deezer (table track_info, ex. « Electro, Techno/House ») → styles ; mêmes règles que build-playlist */
+const GENRE_STYLES = [
+  ['hiphop', /hip.?hop|\brap\b/i], ['house', /electro|house|techno|dance/i],
+  ['funk', /funk/i], ['soul', /soul/i], ['rnb', /r&b|rnb|rhythm/i], ['disco', /disco|boogie/i],
+  ['jazz', /jazz|blues/i], ['afro', /afro|africa/i], ['bresil', /brésil|bresil|mpb|samba|bossa/i],
+  ['latin', /latin|salsa|bolero|cumbia|reggaeton/i], ['reggae', /reggae|\bdub\b|\bska\b/i],
+  ['rock', /rock|alternative|indé|indie|metal|punk/i], ['pop', /pop/i],
+  ['folk', /folk|country|singer/i], ['chanson', /chanson|variété|french/i], ['classique', /classi|film|soundtrack/i]
+]
+const stylesOfGenre = genre => genre ? GENRE_STYLES.filter(([, re]) => re.test(genre)).map(([id]) => id) : []
+
 /* ── Spotify (PKCE, jeton partagé par les deux pages via localStorage) ── */
 const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 

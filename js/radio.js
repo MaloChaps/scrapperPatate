@@ -16,12 +16,14 @@ const info   = new Map()  // trackKey → { art, genre } (table track_info)
 
 const trackKey = t => `${norm(t.artist)}|${norm(t.title)}`
 
-/* Pastille de style d'après les genres d'album Deezer (mêmes règles que Le Mix pour hip-hop et house) */
-const GENRE_TAGS = [['hiphop', 'Hip-hop', /hip.?hop|\brap\b/i], ['electro', 'Électro', /electro|house|techno|dance/i]]
-const genreTags = t => {
-  const genre = info.get(trackKey(t))?.genre || ''
-  return GENRE_TAGS.filter(([, , re]) => re.test(genre)).map(([cls, label]) => `<span class="genre ${cls}">${label}</span>`).join('')
+/* Pastilles de style d'après les genres d'album Deezer (stylesOfGenre, js/shared.js) : 2 au plus,
+   hip-hop et électro en couleur. Pas de pastille quand Deezer n'a pas de genre fiable pour le titre */
+const STYLE_LABELS = {
+  hiphop: 'Rap', house: 'Électro', funk: 'Funk', soul: 'Soul', rnb: 'R&B', disco: 'Disco', jazz: 'Jazz', afro: 'Afro',
+  bresil: 'Brésil', latin: 'Latin', reggae: 'Reggae', rock: 'Rock', pop: 'Pop', folk: 'Folk', chanson: 'Chanson', classique: 'Classique'
 }
+const genreTags = t => stylesOfGenre(info.get(trackKey(t))?.genre).slice(0, 2)
+  .map(id => `<span class="genre genre--${id}">${STYLE_LABELS[id]}</span>`).join('')
 
 function setStatus(msg, isErr) {
   el('status').textContent = msg || ''

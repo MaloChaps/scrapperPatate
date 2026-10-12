@@ -188,6 +188,15 @@
   .short p{margin:0;flex:1;min-width:220px}
   .tag{font:400 12px var(--font-mono);padding:3px 9px;border:1px solid var(--line-strong);border-radius:99px;white-space:nowrap}
   .tag--fill{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+  /* Versions (une par ajustement) et ajustements de la playlist */
+  .versions{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0}
+  .versions[hidden]{display:none}
+  .versions .chip{font-size:12px;padding:5px 11px}
+  .adjust{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:18px 0 6px;padding:14px 0 0;border-top:1px solid var(--line)}
+  .adjust__label{font:500 11px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;margin-right:4px}
+  .adjust-note{margin:10px 0 0;font:400 13px var(--font-mono)}
+  .adjust-note:empty{display:none}
+  .tag--new{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 
   .tracks{margin:8px 0 0;padding:0;list-style:none}
   .track{display:grid;grid-template-columns:28px 72px 1fr auto 24px;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;-webkit-user-select:none;transition:background-color .15s,color .15s,padding .15s,opacity .15s}
@@ -299,7 +308,10 @@
       <h2 class="section-title" id="resTitle"></h2>
       <button class="pill-button" id="listenAll"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>Écouter le mix</button>
     </div>
+    <div class="versions" id="versions" hidden></div>
     <div class="profile" id="profile"></div>
+    <p class="adjust-note" id="adjustNote"></p>
+    <div class="adjust" id="adjust"><span class="adjust__label">Ajuster</span></div>
     <div class="short" id="short">
       <p id="shortText"></p>
       <button class="pill-button" id="complete">Compléter en assouplissant</button>
