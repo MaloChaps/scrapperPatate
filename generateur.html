@@ -106,6 +106,29 @@
   .field.err{box-shadow:0 0 0 2px var(--accent)}
   .saved{display:flex;flex-wrap:wrap;gap:8px}
   .saved:empty{display:none}
+  /* Mes playlists Spotify : un clic remplit (ou vide) une case */
+  .pick{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .add-seed{align-self:flex-start}
+  .add-seed[hidden]{display:none}
+  .seed[hidden]{display:none}
+  /* Séparateur « ou colle un lien » */
+  .or{display:flex;align-items:center;gap:12px;font:400 12px var(--font-mono);opacity:.75}
+  .or::before,.or::after{content:'';flex:1;height:1px;background:var(--line-strong)}
+  .mine{display:flex;flex-direction:column;gap:8px}
+  .mine__login{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;padding:16px 18px;border-radius:12px;background:var(--field)}
+  .mine__login p{margin:0;font:400 13px var(--font-mono)}
+  .mine:empty{display:none}
+  .mine__head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;font:400 12px var(--font-mono)}
+  .mine__head .field{flex:1;min-width:160px;padding:7px 18px;font-size:14px}
+  .mine__list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;max-height:330px;overflow-y:auto;overscroll-behavior:contain;padding:2px}
+  .mine__item{display:flex;align-items:center;gap:10px;min-width:0;padding:6px 12px 6px 6px;border:0;border-radius:8px;background:var(--field);color:var(--ink);font:400 13px var(--font-mono);text-align:left;transition:background-color .2s,color .2s}
+  .mine__item[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+  .mine__item:disabled{opacity:.35;cursor:default}
+  .mine__item .seed-state__cover{width:36px;height:36px}
+  .mine__text{min-width:0;display:flex;flex-direction:column}
+  .mine__text b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mine__text small{font-size:11px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  @media (hover:hover){.mine__item:not(:disabled):not([aria-pressed="true"]):hover{background:var(--ink);color:var(--bg)}}
   .range{display:flex;align-items:center;gap:14px;max-width:520px}
   .range input{flex:1;accent-color:var(--ink)}
   .range output{min-width:84px;font:500 13px var(--font-mono);text-align:right}
@@ -129,6 +152,7 @@
     .filters{grid-template-columns:1fr;gap:8px}
     .filters .label{padding-top:14px}
     .filters__note{grid-column:1;margin-top:0}
+    .mine__list{grid-template-columns:1fr;max-height:300px}
     .seed{flex-wrap:wrap}
     .seed-state{flex-basis:100%;padding-left:22px}
     .seed-state:empty{display:none}
@@ -234,7 +258,12 @@
     <p class="filters__note" id="modeDesc"></p>
 
     <p class="label" data-for="spotify">Playlists</p>
-    <div class="seeds" id="seeds" data-for="spotify"></div>
+    <div class="pick" data-for="spotify">
+      <div class="mine" id="mine"></div>
+      <div class="or">ou colle un lien</div>
+      <div class="seeds" id="seeds"></div>
+      <button class="pill-button add-seed" type="button" id="addSeed">+ Ajouter un lien</button>
+    </div>
     <p class="filters__note saved" id="saved" data-for="spotify"></p>
 
     <p class="label" data-for="radio">Période</p>
@@ -370,7 +399,7 @@ async function spLogin() {
   localStorage.setItem('sp_redirect_used', redirect)
   const p = new URLSearchParams({
     client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: redirect, state: 'mix',
-    scope: 'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative',
+    scope: 'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative user-library-modify',
     code_challenge_method: 'S256',
     code_challenge: b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)))
   })
@@ -390,6 +419,7 @@ async function spExchange(code) {
   if (d.access_token) {
     localStorage.setItem('sp_token', d.access_token)
     localStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
+    localStorage.setItem('sp_scope', d.scope || '')
     localStorage.removeItem('sp_v')
   }
   return d.access_token
@@ -436,9 +466,9 @@ const state = { mode: SOURCE === 'radio' ? 'mix' : 'discover', period: 'tout', t
 const seedInputs = []
 const canPaste = !!navigator.clipboard?.readText
 el("seeds").innerHTML = [0, 1, 2].map(i => `
-  <div class="seed">
+  <div class="seed" id="seedRow${i}"${i ? ' hidden' : ''}>
     <div class="seed__input">
-      <input class="field" id="seed${i}" placeholder="Lien de playlist Spotify${i ? ' (facultatif)' : ''}" autocomplete="off" inputmode="url" enterkeyhint="next">
+      <input class="field" id="seed${i}" placeholder="Lien de playlist Spotify" autocomplete="off" inputmode="url" enterkeyhint="next">
       ${canPaste ? `<button class="pill-button seed__paste" type="button" data-paste="${i}">Coller</button>` : ''}
     </div>
     <span class="seed-state" id="seedState${i}"></span>
@@ -474,6 +504,8 @@ function seedState(i, kind, html) {
 
 /* Lien reconnu → nom, image, nombre de titres, et surtout : Spotify laisse-t-il lire son contenu ? */
 async function checkSeed(i) {
+  syncMine()
+  syncRows()
   const run = ++seedRuns[i]
   const v = seedInputs[i].value.trim()
   if (!v) return seedState(i, '', '')
@@ -516,6 +548,102 @@ el("saved").addEventListener('click', e => {
   seedInputs[i].value = `https://open.spotify.com/playlist/${b.dataset.id}`
   checkSeed(i)
 })
+
+/* Mes playlists Spotify (une fois connecté) : clic = remplit la première case libre, re-clic = la vide */
+let myPlaylists = null
+function renderMine() {
+  if (SOURCE !== 'spotify') return
+  if (!spToken()) {
+    el("mine").innerHTML = `<div class="mine__login"><p>Connecte-toi à Spotify pour choisir parmi tes playlists</p>
+      <button class="pill-button pill-button--filled" type="button" id="mineLogin">Se connecter</button></div>`
+    el("mineLogin").onclick = spLogin
+    return
+  }
+  if (!myPlaylists) {
+    el("mine").innerHTML = `<div class="mine__head">Chargement de tes playlists…</div>`
+    return
+  }
+  if (!myPlaylists.length) {
+    el("mine").innerHTML = `<div class="mine__head">Aucune playlist sur ton compte Spotify.</div>`
+    return
+  }
+  el("mine").innerHTML = `
+    <div class="mine__head">
+      <span>Mes playlists · clique pour en choisir 3</span>
+      ${myPlaylists.length > 8 ? '<input class="field" id="mineFilter" placeholder="Filtrer" autocomplete="off" enterkeyhint="search">' : ''}
+    </div>
+    <div class="mine__list" id="mineList">${myPlaylists.map(p => `
+      <button class="mine__item" type="button" data-id="${esc(p.id)}" data-q="${esc((p.name + ' ' + p.owner).toLowerCase())}">
+        <span class="seed-state__cover" style="${p.cover ? `background-image:url(${esc(p.cover)})` : ''}"></span>
+        <span class="mine__text"><b>${esc(p.name)}</b><small>${p.total} titre${p.total > 1 ? 's' : ''}${p.mine ? '' : ' · ' + esc(p.owner)}</small></span>
+      </button>`).join('')}
+    </div>`
+  el("mineFilter")?.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase()
+    el("mineList").querySelectorAll('.mine__item').forEach(b => b.hidden = !!q && !b.dataset.q.includes(q))
+  })
+  syncMine()
+}
+function syncMine() {
+  const ids = seedInputs.map(x => playlistId(x.value))
+  const full = ids.every(Boolean)
+  el("mine").querySelectorAll('.mine__item').forEach(b => {
+    const on = ids.includes(b.dataset.id)
+    b.setAttribute('aria-pressed', on)
+    b.disabled = full && !on
+  })
+}
+async function loadMine() {
+  if (SOURCE !== 'spotify' || !spToken()) return renderMine()
+  renderMine()
+  try {
+    const me = await spFetch('/me')
+    const out = []
+    let path = '/me/playlists?limit=50'
+    while (path) {
+      const r = await spFetch(path)
+      for (const p of r.items || []) {
+        if (!p) continue
+        out.push({ id: p.id, name: p.name, cover: p.images?.at(-1)?.url, total: p.items?.total ?? p.tracks?.total ?? 0,
+                   owner: p.owner?.display_name || p.owner?.id || '', mine: p.owner?.id === me.id })
+      }
+      path = r.next
+    }
+    myPlaylists = out.filter(p => p.total > 0)
+  } catch (e) {
+    el("mine").innerHTML = `<div class="mine__head">Impossible de charger tes playlists (${esc(e.message)}).</div>`
+    return
+  }
+  renderMine()
+}
+el("mine").addEventListener('click', e => {
+  const b = e.target.closest('.mine__item')
+  if (!b || b.disabled) return
+  const id = b.dataset.id
+  let i = seedInputs.findIndex(x => playlistId(x.value) === id)
+  if (i >= 0) seedInputs[i].value = ''
+  else {
+    i = seedInputs.findIndex(x => !playlistId(x.value))
+    if (i < 0) return
+    seedInputs[i].value = `https://open.spotify.com/playlist/${id}`
+  }
+  checkSeed(i)
+  saveForm()
+})
+
+/* Une case de lien au départ, « + » pour en ajouter (3 max) ; les cases remplies restent visibles */
+let shownRows = 1
+function syncRows() {
+  const last = seedInputs.reduce((m, x, i) => x.value.trim() ? i : m, -1)
+  const n = Math.min(3, Math.max(shownRows, last + 1))
+  seedInputs.forEach((_, i) => el(`seedRow${i}`).hidden = i >= n)
+  el("addSeed").hidden = n >= 3
+}
+el("addSeed").onclick = () => {
+  shownRows = Math.min(3, seedInputs.filter((_, i) => !el(`seedRow${i}`).hidden).length + 1)
+  syncRows()
+  seedInputs[shownRows - 1].focus()
+}
 
 /* Groupes de pastilles : un seul choix (thème, niveau, enchaînement) ou plusieurs (styles) */
 function renderChoice(id, options, key, onPick) {
@@ -575,10 +703,14 @@ let radioPlays = null
 async function loadRadio() {
   const [plays, info] = await Promise.all([
     fetchAll('plays', 'title,artist,played_at&order=played_at.desc'),
-    fetchAll('track_info', 'artist,title,genre')
+    /* bpm : tempo calculé par le robot (colonne absente avant sa mise en place → on s'en passe) */
+    fetchAll('track_info', 'artist,title,genre,bpm').then(r => r.length ? r : fetchAll('track_info', 'artist,title,genre'))
   ])
-  const styles = new Map(info.map(r => [radioKey(r), stylesOfGenre(r.genre)]))
-  radioPlays = plays.map(r => ({ title: r.title, artist: r.artist, at: Date.parse(r.played_at), styles: styles.get(radioKey(r)) || [] }))
+  const byKey = new Map(info.map(r => [radioKey(r), r]))
+  radioPlays = plays.map(r => {
+    const i = byKey.get(radioKey(r))
+    return { title: r.title, artist: r.artist, at: Date.parse(r.played_at), styles: stylesOfGenre(i?.genre), bpm: i?.bpm || 0 }
+  })
   syncRadio()
 }
 /* Titres uniques passés sur la période (le passage le plus récent compte) */
@@ -756,7 +888,7 @@ el("go").onclick = async () => {
     const pool = radioPool()
     if (!pool.length) return showError(state.styles.size ? 'Aucun titre de ces styles sur cette période : choisis une période plus longue ou d\'autres styles.' : 'Aucun titre passé à la radio sur cette période.')
     lastSeeds = (pool.length > RADIO_MAX ? [...pool].sort(() => Math.random() - 0.5).slice(0, RADIO_MAX) : pool)
-      .map(({ title, artist }) => ({ title, artist }))
+      .map(({ title, artist, bpm }) => ({ title, artist, ...(bpm ? { bpm } : {}) }))
     /* Styles déjà appliqués ici sur toute la radio : le serveur ne refiltre pas ces titres,
        mais filtre les découvertes (mode « Radio + découvertes ») */
     return generate(lastSeeds, state.mode === 'mix' ? { styles: [] } : { seedsFiltered: true })
@@ -781,7 +913,7 @@ el("go").onclick = async () => {
   await generate(seeds)
   if (failed.length) showError(`${failed.length} playlist(s) illisible(s), le mix a été fait avec les autres.`)
 }
-el("regen").onclick = () => lastSeeds && generate(lastSeeds, SOURCE === 'radio' ? { styles: [] } : {})
+el("regen").onclick = () => lastSeeds && generate(lastSeeds, SOURCE !== 'radio' ? {} : state.mode === 'mix' ? { styles: [] } : { seedsFiltered: true })
 el("complete").onclick = () => {
   if (!lastBody || !result) return
   generate(lastBody.seeds, { keep: pickedTracks(), relax: true })
@@ -824,7 +956,7 @@ function renderResult() {
       </span>
       <span class="track__tags">
         ${t.styles.slice(0, 2).map(s => `<span class="tag">${esc(STYLES[s] || s)}</span>`).join('')}
-        ${t.bpm ? `<span class="tag">${t.bpm} bpm</span>` : ''}
+        <span class="tag">${t.bpm ? `${t.bpm} bpm` : 'tempo ?'}</span>
         ${t.fans != null ? `<span class="tag">${fansLabel(t.fans)}</span>` : ''}
         ${mix ? '' : `<span class="tag">${t.seed ? '★' : '✦'}</span>`}
       </span>
@@ -985,6 +1117,8 @@ showScreen('form')
   }
   updateHint()
   if (SOURCE === 'spotify') seedInputs.forEach((x, i) => x.value && checkSeed(i))
+  syncRows()
+  loadMine()
 })()
 </script>
 </body>

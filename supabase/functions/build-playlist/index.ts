@@ -60,7 +60,7 @@ const THEMES: Record<string, Theme> = {
   diner:    { bpm: [80, 112],  curve: 'none', like: ['soul', 'jazz', 'bresil', 'funk', 'afro', 'latin', 'rnb', 'chill'], avoid: ['metal', 'hiphop', 'house'] },
   apero:    { bpm: [92, 118],  curve: 'rise', like: ['funk', 'soul', 'bresil', 'jazz', 'latin', 'afro', 'disco', 'reggae', 'rnb'], avoid: ['metal', 'classique'] },
   soiree:   { bpm: [110, 128], curve: 'rise', like: ['disco', 'house', 'funk', 'hiphop', 'latin', 'afro', 'rnb', 'pop'], avoid: ['classique', 'folk', 'chill', 'metal'] },
-  nuit:     { bpm: [85, 115],  curve: 'fall', like: ['house', 'chill', 'jazz', 'rnb', 'soul'], avoid: ['metal', 'rock', 'folk'] },
+  nuit:     { bpm: [85, 115],  curve: 'fall', like: ['house', 'chill', 'jazz', 'rnb', 'soul'], avoid: ['metal', 'rock', 'folk', 'funk', 'disco', 'hiphop'] },
   dimanche: { bpm: [70, 105],  curve: 'none', like: ['jazz', 'folk', 'soul', 'bresil', 'chill', 'chanson'], avoid: ['metal', 'house', 'hiphop'] },
   route:    { bpm: [100, 135], curve: 'wave', like: ['rock', 'pop', 'funk', 'soul', 'hiphop', 'disco'], avoid: ['classique', 'chill'] },
   focus:    { bpm: [80, 120],  curve: 'none', like: ['chill', 'jazz', 'house', 'classique'], avoid: ['hiphop', 'metal', 'chanson'] },
@@ -169,9 +169,10 @@ async function trackFromDeezer(d: any, seed: boolean, extra: Partial<Track> = {}
 
 /* Titre d'une playlist → fiche Deezer (par ISRC si possible, sinon recherche vérifiée).
    skipFans : inutile de chercher le nombre de fans quand aucun niveau de rareté n'est demandé */
-type Seed = { title: string, artist: string, isrc?: string, uri?: string, src?: number }
+/* bpm : tempo déjà connu (radio : track_info, calculé sur l'extrait), pris si Deezer n'en a pas */
+type Seed = { title: string, artist: string, isrc?: string, uri?: string, src?: number, bpm?: number }
 const unresolved = (s: Seed, styles: string[] = []): Track =>
-  ({ title: s.title, artist: s.artist, uri: s.uri, isrc: s.isrc, src: s.src, bpm: 0, styles, precise: true, fans: null, cover: '', seed: true })
+  ({ title: s.title, artist: s.artist, uri: s.uri, isrc: s.isrc, src: s.src, bpm: +(s.bpm || 0), styles, precise: true, fans: null, cover: '', seed: true })
 async function resolveSeed(s: Seed, skipFans = false): Promise<Track> {
   let d = s.isrc ? await deezer(`/track/isrc:${encodeURIComponent(s.isrc)}`) : null
   if (!d) {
@@ -182,7 +183,9 @@ async function resolveSeed(s: Seed, skipFans = false): Promise<Track> {
     if (hit) d = await deezer(`/track/${hit.id}`)
   }
   if (!d) return unresolved(s, await artistStyles(firstArtist(s.artist)))
-  return trackFromDeezer(d, true, { title: s.title, artist: s.artist, uri: s.uri, isrc: d.isrc || s.isrc, src: s.src, ...(skipFans ? { fans: null } : {}) })
+  const t = await trackFromDeezer(d, true, { title: s.title, artist: s.artist, uri: s.uri, isrc: d.isrc || s.isrc, src: s.src, ...(skipFans ? { fans: null } : {}) })
+  if (!t.bpm && s.bpm) t.bpm = +s.bpm
+  return t
 }
 
 /* ── Tempo ────────────────────────────────────────────────────── */
@@ -200,6 +203,18 @@ function bpmFit(bpm: number, range: [number, number]) {
   return Math.max(0, 1 - d / 20)
 }
 
+/* Thème strict : style interdit → exclu ; sinon il faut un style aimé et/ou un tempo dans la plage (±5 BPM).
+   Ce qu'on ignore (style ou tempo inconnu) doit être compensé par l'autre critère. relax = un seul critère suffit */
+function themeOk(t: { bpm: number, styles: string[] }, th: Theme, range: [number, number], relax = false) {
+  if (!th.bpm) return true
+  if (t.styles.some(s => th.avoid.includes(s))) return false
+  const liked = t.styles.some(s => th.like.includes(s))
+  const tempo = t.bpm ? bpmFit(t.bpm, range) >= 0.75 : null
+  if (t.styles.length && !liked && !relax) return false
+  if (tempo === false) return relax && bpmFit(t.bpm, range) > 0 && liked
+  return tempo === true || liked
+}
+
 /* ── Ordre : courbe de tempo choisie, jamais deux fois le même artiste d'affilée ── */
 function order(list: Track[], curve: Curve, range: [number, number]) {
   let out: Track[]
@@ -210,8 +225,8 @@ function order(list: Track[], curve: Curve, range: [number, number]) {
     if (curve === 'rise') out = asc
     else if (curve === 'fall') out = asc.reverse()
     else out = [...asc.filter((_, i) => i % 2 === 0), ...asc.filter((_, i) => i % 2 === 1).reverse()]
-    /* Titres sans BPM répartis régulièrement */
-    unknown.forEach((t, i) => out.splice(Math.round((i + 1) * out.length / (unknown.length + 1)), 0, t))
+    /* Titres sans BPM à la fin : ils ne casseraient pas la courbe */
+    out = [...out, ...unknown.sort(() => Math.random() - 0.5)]
   }
   for (let i = 1; i < out.length; i++) {
     if (loose(out[i].artist) !== loose(out[i - 1].artist)) continue
@@ -354,7 +369,7 @@ Deno.serve(async req => {
       if (!th.like.length && !th.avoid.length) return 0.5
       if (!st.length) return 0.5
       const liked = st.some(s => th.like.includes(s)), avoided = st.some(s => th.avoid.includes(s))
-      return liked ? 1 : avoided ? 0 : 0.35
+      return avoided ? 0 : liked ? 1 : 0.35
     }
     const profileFit = (st: string[]) => st.length ? Math.min(1, st.reduce((s, x) => s + (styleShare.get(x) || 0), 0) * 1.2) : 0.4
     const themeFit = (t: Track) => th.bpm
@@ -376,9 +391,11 @@ Deno.serve(async req => {
     const exactStyle = (t: Track) => t.styles.some(s => wantedStyles.includes(s))
     const nearStyle = (t: Track) => (relax || !t.precise) && t.styles.some(s => wantedStyles.some(w => NEIGHBORS[w]?.includes(s)))
     /* seedsFiltered : la page a déjà trié les titres de départ par style (source radio, genres connus) */
-    const styleOk = (t: Track) => (t.seed || fitsNiche(t.fans)) && (!wantedStyles.length || (t.seed && seedsFiltered) || exactStyle(t) || nearStyle(t))
+    const styleOk = (t: Track) => (t.seed || fitsNiche(t.fans)) && themeOk(t, th, range, relax) &&
+      (!wantedStyles.length || (t.seed && seedsFiltered) || exactStyle(t) || nearStyle(t))
     /* Style certain d'abord : un titre retenu seulement par voisinage passe après */
     const rank = (t: Track) => (t.score || 0) + (wantedStyles.length && (exactStyle(t) || (t.seed && seedsFiltered)) ? 0.15 : 0)
+      + (curve !== 'none' && t.bpm ? 0.1 : 0)  // courbe de tempo : les titres au tempo connu d'abord
 
     /* 5. Sélection : part de découvertes demandée, 2 titres max par artiste */
     const perArtist = new Map<string, number>()
@@ -435,20 +452,21 @@ Deno.serve(async req => {
       const rule = NICHE[niche]
       const styleFit = (st: string[]) => {
         if (!th.like.length || !st.length) return 0.5
-        return st.some(x => th.like.includes(x)) ? 1 : st.some(x => th.avoid.includes(x)) ? 0 : 0.35
+        return st.some(x => th.avoid.includes(x)) ? 0 : st.some(x => th.like.includes(x)) ? 1 : 0.35
       }
       const exact = (t: Track) => t.styles.some(x => wantedStyles.includes(x))
       const nearby = (t: Track) => !t.precise && t.styles.some(x => wantedStyles.some(w => NEIGHBORS[w]?.includes(x)))
       const keepIt = (t: Track) =>
         (!wantedStyles.length || exact(t) || nearby(t)) &&
         (!rule || t.fans === null || (t.fans >= rule.min && t.fans <= rule.max)) &&
-        !(th.bpm && styleFit(t.styles) === 0)
+        themeOk(t, th, range)
 
       /* Score : tempo et styles du thème, un peu de hasard pour que « Régénérer » varie */
       const kept = tracks0.filter(keepIt)
       /* Thème : un tempo dans la plage d'abord, inconnu ensuite (Deezer n'a pas le BPM de beaucoup de titres), hors plage en dernier */
       const tempoFit = (t: Track) => t.bpm ? bpmFit(t.bpm, range) : 0.35
       for (const t of kept) t.score = (th.bpm ? 0.65 * tempoFit(t) + 0.35 * styleFit(t.styles) : 0.5) + Math.random() * 0.1
+        + (curve !== 'none' && t.bpm ? 0.3 : 0)  // courbe de tempo : les titres au tempo connu d'abord
         + (wantedStyles.length && exact(t) ? 1 : 0)  // style exact d'abord, les voisins ne font que compléter
 
       /* Sélection équilibrée entre les playlists (tour à tour), 3 titres max par artiste */

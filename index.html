@@ -115,6 +115,15 @@
   .svc.dz:hover{background:#A238FF;color:#fff;border-color:#A238FF}
   .now-links{display:none;flex-wrap:wrap;gap:6px;margin-top:10px}
   .now-links .svc{font-size:11px;padding:5px 11px}
+  /* Cœur : ajoute aux Titres likés Spotify */
+  .heart{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex:0 0 auto;padding:0;border:0;border-radius:99px;background:transparent;color:var(--cream-dim);cursor:pointer;transition:color .15s,transform .12s}
+  .heart svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
+  .heart[aria-pressed="true"]{color:var(--red)}
+  .heart[aria-pressed="true"] svg{fill:currentColor}
+  .heart.wait{opacity:.45;pointer-events:none}
+  .heart.none{opacity:.3}
+  @media (hover:hover){.heart:hover{color:var(--red);transform:scale(1.1)}}
+  .now-links .heart{width:28px;height:28px}
 
   .btn-spotify{color:var(--pink);border-color:var(--pink)}
   .btn-spotify:hover{background:var(--pink);color:var(--wine);border-color:var(--pink)}
@@ -266,8 +275,9 @@ async function poll() {
 
     const nowQ  = q(artist, title)
     const links = el("nowLinks")
+    nowTrack = { title, artist }
     links.style.display = "flex"
-    links.innerHTML = `
+    links.innerHTML = heartHtml(nowTrack, 'now') + `
       <a class="svc sp" href="https://open.spotify.com/search/${nowQ}" target="_blank" rel="noopener">Spotify</a>
       <a class="svc yt" href="https://www.youtube.com/results?search_query=${nowQ}" target="_blank" rel="noopener">YouTube</a>
       <a class="svc dz" href="https://www.deezer.com/search/${nowQ}" target="_blank" rel="noopener">Deezer</a>`
@@ -328,6 +338,7 @@ function render() {
       </div>
       <div class="time">${time}</div>
       <div class="links">
+        ${heartHtml(t, i)}
         <a class="svc sp" href="${sp}" target="_blank" rel="noopener">Spotify</a>
         <a class="svc yt" href="${yt}" target="_blank" rel="noopener">YouTube</a>
         <a class="svc dz" href="${dz}" target="_blank" rel="noopener">Deezer</a>
@@ -568,7 +579,6 @@ async function deezerLookup(t) {
   const artist = firstArtist(t.artist)
   const title  = cleanTitle(t.title) || t.title
   const la = loose(artist), lt = loose(title)
-  const near = (a, b) => !!a && !!b && (a.includes(b) || b.includes(a))
   const r = await deezer(`/search?q=${encodeURIComponent(`${artist} ${title}`.trim())}&limit=10`)
   const hits = (r.data || []).filter(x =>
     (!la || near(la, loose(x.artist?.name))) && near(lt, loose(cleanTitle(x.title) || x.title)))
@@ -642,7 +652,7 @@ try { localStorage.setItem('sp_redirect', SP_REDIRECT) } catch {}
 /* Connexion lancée depuis le générateur : on lui renvoie le code sans l'utiliser ici */
 if (new URLSearchParams(location.search).get('state') === 'mix') location.replace('generateur.html' + location.search)
 
-/* Titres radio souvent « sales » : (feat. X), [Radio Edit], - Remastered 2011… (recherches Deezer) */
+/* Titres radio souvent « sales » : (feat. X), [Radio Edit], - Remastered 2011… (recherches Deezer et Spotify) */
 const cleanTitle  = s => (s || '')
   .replace(/\s*[([][^)\]]*(feat|ft\.|with|edit|remaster|version|mix|live)[^)\]]*[)\]]/gi, '')
   .replace(/\s+-\s+.*(remaster|edit|version|mix|live).*$/i, '')
@@ -650,6 +660,127 @@ const cleanTitle  = s => (s || '')
   .trim()
 const firstArtist = s => (s || '').split(/\s+(?:feat\.?|ft\.?|featuring)\s+/i)[0].trim()
 const loose = s => norm(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
+const near  = (a, b) => !!a && !!b && (a.includes(b) || b.includes(a))
+
+/* Cœur → Titres likés Spotify (connexion propre à cette page, jeton partagé avec Le Mix) */
+const SPOTIFY_CLIENT_ID = '92f0ed53408d48e29b72e5bc027a3a10'
+const SP_SCOPES = 'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative user-library-modify'
+const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } }
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
+const likes = new Map(Object.entries(lsGet('sp_likes_v1', {})))  // trackKey → URI likée depuis ici
+const spUris = lsGet('sp_uri_v1', {})                             // trackKey → URI, '' = introuvable
+let nowTrack = null
+
+const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5l-1.3-1.2C5.6 14.7 2.5 11.9 2.5 8.4 2.5 5.6 4.7 3.5 7.4 3.5c1.8 0 3.5.9 4.6 2.3 1.1-1.4 2.8-2.3 4.6-2.3 2.7 0 4.9 2.1 4.9 4.9 0 3.5-3.1 6.3-8.2 10.9L12 20.5z"/></svg>'
+const heartHtml = (t, ref) => {
+  const key = trackKey(t)
+  return `<button class="heart${spUris[key] === '' ? ' none' : ''}" type="button" data-like="${ref}" data-key="${esc(key)}" aria-pressed="${likes.has(key)}" title="Titres likés Spotify" aria-label="Ajouter aux Titres likés Spotify">${HEART}</button>`
+}
+function setHearts(key, cls) {
+  document.querySelectorAll('.heart').forEach(b => {
+    if (b.dataset.key !== key) return
+    b.classList.toggle('wait', cls === 'wait')
+    b.classList.toggle('none', cls === 'none')
+    b.setAttribute('aria-pressed', likes.has(key))
+  })
+}
+
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
+function spToken() {
+  const t = localStorage.getItem('sp_token')
+  return t && Date.now() < +localStorage.getItem('sp_exp') ? t : null
+}
+const canLike = () => spToken() && (localStorage.getItem('sp_scope') || '').includes('user-library-modify')
+
+/* Le titre cliqué est gardé pour être liké au retour de la connexion */
+async function spLogin(pending) {
+  const a = new Uint8Array(32); crypto.getRandomValues(a)
+  const v = b64url(a)
+  localStorage.setItem('sp_v', v)
+  if (pending) lsSet('sp_like_pending', { title: pending.title, artist: pending.artist })
+  localStorage.setItem('sp_redirect_used', SP_REDIRECT)
+  window.location = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+    client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: SP_REDIRECT, state: 'like', scope: SP_SCOPES,
+    code_challenge_method: 'S256',
+    code_challenge: b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)))
+  })
+}
+async function spExchange(code) {
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code', code, redirect_uri: localStorage.getItem('sp_redirect_used') || SP_REDIRECT,
+      client_id: SPOTIFY_CLIENT_ID, code_verifier: localStorage.getItem('sp_v')
+    })
+  })
+  const d = await res.json()
+  if (!d.access_token) throw new Error(d.error_description || d.error || 'connexion refusée')
+  localStorage.setItem('sp_token', d.access_token)
+  localStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
+  localStorage.setItem('sp_scope', d.scope || '')
+  localStorage.removeItem('sp_v')
+}
+async function spFetch(path, opts = {}, tries = 4) {
+  const res = await fetch('https://api.spotify.com/v1' + path, {
+    ...opts, headers: { Authorization: 'Bearer ' + spToken(), 'Content-Type': 'application/json' }
+  })
+  if (res.status === 429 && tries > 0) {
+    await new Promise(r => setTimeout(r, (+res.headers.get('Retry-After') || 2) * 1000))
+    return spFetch(path, opts, tries - 1)
+  }
+  if (res.status === 401) localStorage.removeItem('sp_token')
+  if (!res.ok) throw new Error('Spotify ' + res.status)
+  const text = await res.text()
+  return text ? JSON.parse(text) : null
+}
+
+/* Recherche vérifiée : l'artiste doit correspondre, sinon « introuvable » plutôt qu'un mauvais titre */
+async function findUri(t) {
+  const artist = firstArtist(t.artist), title = cleanTitle(t.title)
+  const la = loose(artist), lt = loose(title)
+  for (const query of [`track:${title} artist:${artist}`, `${artist} ${title}`]) {
+    const r = await spFetch(`/search?q=${encodeURIComponent(query)}&type=track&limit=10`)
+    const items = (r?.tracks?.items || []).filter(it => it.artists.some(a => near(la, loose(a.name))))
+    const name = it => loose(cleanTitle(it.name) || it.name)
+    const hit = items.find(it => name(it) === lt) || items.find(it => near(lt, name(it)))
+    if (hit) return hit.uri
+  }
+  return null
+}
+
+async function toggleLike(t) {
+  if (!t?.title) return
+  if (!canLike()) return spLogin(t)
+  const key = trackKey(t)
+  setHearts(key, 'wait')
+  try {
+    let uri = spUris[key]
+    if (!uri) {
+      uri = spUris[key] = (await findUri(t)) || ''
+      lsSet('sp_uri_v1', spUris)
+    }
+    if (!uri) {
+      setHearts(key, 'none')
+      return setStatus(`Pas trouvé sur Spotify : ${t.artist} – ${t.title}`, true)
+    }
+    const liked = likes.has(key)
+    await spFetch(`/me/library?uris=${encodeURIComponent(uri)}`, { method: liked ? 'DELETE' : 'PUT' })
+    liked ? likes.delete(key) : likes.set(key, uri)
+    lsSet('sp_likes_v1', Object.fromEntries(likes))
+    setHearts(key)
+    setStatus(liked ? 'Retiré de tes Titres likés' : 'Ajouté à tes Titres likés ♥')
+  } catch (e) {
+    setHearts(key)
+    if (!spToken()) return spLogin(t)  // jeton expiré ou révoqué
+    setStatus(`Spotify refuse (${e.message}).`, true)
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.heart')
+  if (!b) return
+  toggleLike(b.dataset.like === 'now' ? nowTrack : tracks[+b.dataset.like])
+})
 
 /* ──────────────────────────────────────────────────────────────── */
 
@@ -669,6 +800,15 @@ sb.channel('plays-live')
 
 /* Boot : charge l'historique depuis Supabase + gère le retour OAuth Spotify */
 ;(async () => {
+  /* Retour de la connexion lancée par un cœur : on like le titre en attente */
+  const sp = new URLSearchParams(location.search)
+  if (sp.get('code') && sp.get('state') === 'like') {
+    history.replaceState({}, '', location.pathname)
+    const pending = lsGet('sp_like_pending', null)
+    localStorage.removeItem('sp_like_pending')
+    try { await spExchange(sp.get('code')); if (pending) toggleLike(pending) }
+    catch (e) { setStatus(`Connexion Spotify impossible (${e.message}).`, true) }
+  } else if (sp.get('error')) history.replaceState({}, '', location.pathname)
 
   await loadTrackInfo()  // avant l'affichage, sinon les miniatures repartent sur Deezer
   await loadTracks()
