@@ -49,15 +49,16 @@
 
   /* Barre du haut : retour à gauche, nom au centre, action à droite ; reste visible en défilant */
   .appbar{
-    position:sticky;top:0;z-index:20;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
+    position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:12px;
     margin:0 calc(-1 * var(--gutter-r)) 0 calc(-1 * var(--gutter-l));
     padding:calc(10px + env(safe-area-inset-top)) var(--gutter-r) 10px var(--gutter-l);
     background:var(--bg);box-shadow:0 1px 0 var(--line-strong);
   }
-  .appbar .label{font-size:13px;letter-spacing:.02em;text-align:center;line-height:1.15}
-  .appbar__left{justify-self:start;display:flex}
-  .appbar__right{justify-self:end;display:flex}
+  .appbar__left,.appbar__right{display:flex;gap:8px}
   .back{text-decoration:none}
+  /* Radio en fond : bouton au centre de la barre et sur l'écran de chargement */
+  .radio-btn{white-space:nowrap}
+  .radio-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 
   .hero{padding:clamp(20px,6vw,64px) 0 8px;border-bottom:1px solid var(--line-strong)}
   /* Grand titre : crème dans un pavé rouge */
@@ -94,6 +95,8 @@
   .seed__input{position:relative;flex:1;min-width:0;display:flex}
   .seed__input .field{padding-right:84px}
   .seed__paste{position:absolute;right:5px;top:50%;transform:translateY(-50%);padding:6px 11px;font-size:11px;background:var(--bg)}
+  .seed__clear{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:32px;height:32px;padding:0;font-size:18px;line-height:1;letter-spacing:0;background:var(--bg)}
+  .seed__input [hidden]{display:none}
   .seed-state{flex:0 0 240px;display:flex;align-items:center;gap:8px;min-width:0;font:400 12px var(--font-mono)}
   .seed-state:empty{visibility:hidden}
   .seed-state.err{color:var(--ink)}
@@ -235,10 +238,10 @@
       <a class="back pill-button" href="./" data-only="form">← Radio</a>
       <button class="pill-button" id="toForm" data-only="result">← Réglages</button>
     </div>
-    <p class="label" data-only="result">Le Mix</p>
     <div class="appbar__right">
       <button class="pill-button" id="toResult" data-only="form" hidden>Mon mix →</button>
       <button class="pill-button" id="regen" data-only="result">↻ Régénérer</button>
+      <button class="pill-button radio-btn" id="radioBtn" type="button" aria-pressed="false"></button>
     </div>
   </header>
 
@@ -320,9 +323,11 @@
   <p class="loading__step" id="step"></p>
   <div class="loading__bar"><span id="bar"></span></div>
   <p class="hint">Compte environ une minute.</p>
+  <button class="pill-button radio-btn" id="radioBtnWait" type="button" aria-pressed="false"></button>
   <button class="pill-button" id="cancel">Annuler</button>
 </div>
 
+<audio id="radioAudio" preload="none"></audio>
 <script src="js/shared.js"></script>
 <script src="js/mix.js"></script>
 </body>

@@ -6,7 +6,6 @@
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 const RADIO_API  = 'https://api.radioking.io/widget/radio/radio-jockey/track/current'
-const STREAM_URL = 'https://www.radioking.com/play/radio-jockey'
 const POLL_MS    = 20000
 const PAGE_SIZE  = 300   // titres affichés par page (l'historique grossit d'environ 300 titres par jour)
 
@@ -178,37 +177,27 @@ function render() {
 
 /* ── Player ─────────────────────────────────────────────────── */
 const audio = el('radioAudio')
-let playing = false       // lecture voulue par l'utilisateur (sinon une coupure réseau relance la lecture)
-let reconnectTimer = null
 let prevVol = 1
 
-function scheduleReconnect() {
-  clearTimeout(reconnectTimer)
-  reconnectTimer = setTimeout(() => {
-    if (!playing) return
-    setStatus('Reconnexion…')
-    audio.src = STREAM_URL
-    audio.play().then(() => setStatus('')).catch(scheduleReconnect)
-  }, 3000)
-}
+const stream = radioStream(audio, {
+  onStatus: msg => setStatus(msg),
+  onChange: on => {
+    el('radioPlayBtn').innerHTML = on ? `${icon('pause')} Pause` : `${icon('play')} Écouter`
+    el('radioPlayBtn').classList.toggle('live', on)
+  },
+})
 audio.addEventListener('play',    () => el('vinyl').classList.add('spinning'))
 audio.addEventListener('pause',   () => el('vinyl').classList.remove('spinning'))
-for (const ev of ['error', 'stalled', 'ended']) audio.addEventListener(ev, () => playing && scheduleReconnect())
+el('radioPlayBtn').onclick = () => stream.toggle()
 
-el('radioPlayBtn').onclick = () => {
-  playing = !playing
-  clearTimeout(reconnectTimer)
-  if (playing) {
-    audio.src = STREAM_URL
-    audio.play().catch(scheduleReconnect)
-  } else {
-    audio.pause()
-    audio.removeAttribute('src')  // coupe le flux (sinon il continue de se télécharger)
-    setStatus('')
-  }
-  el('radioPlayBtn').innerHTML = playing ? `${icon('pause')} Pause` : `${icon('play')} Écouter`
-  el('radioPlayBtn').classList.toggle('live', playing)
-}
+/* Vers Le Mix pendant l'écoute : Le Mix reprend la radio (radio=1) */
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="generateur.html"]')
+  if (!a || !stream.on) return
+  const url = new URL(a.href)
+  url.searchParams.set('radio', '1')
+  a.href = url
+})
 
 function setVol(v) {
   audio.volume = v

@@ -83,10 +83,19 @@ el("seeds").innerHTML = [0, 1, 2].map(i => `
     <div class="seed__input">
       <input class="field" id="seed${i}" placeholder="Lien de playlist Spotify" autocomplete="off" inputmode="url" enterkeyhint="next">
       ${canPaste ? `<button class="pill-button seed__paste" type="button" data-paste="${i}">Coller</button>` : ''}
+      <button class="pill-button seed__clear" type="button" data-clear="${i}" aria-label="Retirer ce lien" hidden>×</button>
     </div>
     <span class="seed-state" id="seedState${i}"></span>
   </div>`).join('')
 el("seeds").addEventListener('click', async e => {
+  const clear = e.target.closest('[data-clear]')
+  if (clear) {
+    const i = +clear.dataset.clear
+    seedInputs[i].value = ''
+    checkSeed(i)
+    saveForm()
+    return seedInputs[i].focus()
+  }
   const b = e.target.closest('[data-paste]')
   if (!b) return
   try {
@@ -96,6 +105,13 @@ el("seeds").addEventListener('click', async e => {
     checkSeed(i)
   } catch {}  // accès refusé : on peut toujours coller à la main
 })
+/* Case remplie : « × » pour la vider à la place de « Coller » */
+function syncClear(i) {
+  const filled = !!seedInputs[i].value
+  el(`seedRow${i}`).querySelector('[data-clear]').hidden = !filled
+  const paste = el(`seedRow${i}`).querySelector('[data-paste]')
+  if (paste) paste.hidden = filled
+}
 /* Vérification en direct : au collage tout de suite, à la frappe après une courte pause */
 const seedTimers = [], seedRuns = [0, 0, 0]
 for (let i = 0; i < 3; i++) {
@@ -103,6 +119,7 @@ for (let i = 0; i < 3; i++) {
   seedInputs.push(input)
   input.addEventListener('paste', () => setTimeout(() => checkSeed(i)))
   input.addEventListener('input', () => {
+    syncClear(i)
     clearTimeout(seedTimers[i])
     seedTimers[i] = setTimeout(() => checkSeed(i), 450)
   })
@@ -119,6 +136,7 @@ function seedState(i, kind, html) {
 async function checkSeed(i) {
   syncMine()
   syncRows()
+  syncClear(i)
   const run = ++seedRuns[i]
   const v = seedInputs[i].value.trim()
   if (!v) return seedState(i, '', '')
@@ -519,15 +537,24 @@ el("complete").onclick = () => {
   generate(lastBody.seeds, { keep: pickedTracks(), relax: true })
 }
 
+/* Titre du résultat = nom de la playlist qui sera créée (champ « Titre », sinon thème · date) */
+function renderTitle() {
+  if (result) el("resTitle").innerHTML = `${esc(playlistName())} <small>(${result.tracks.length})</small>`
+}
+el("plName").addEventListener('input', renderTitle)
+
 const fansLabel = n => n == null ? '' : n < 1000 ? `${n} fans` : n < 1e6 ? `${Math.round(n / 1000)} k fans` : `${(n / 1e6).toFixed(1)} M fans`
 
 function renderResult() {
   stopPreview()
   const mix = result.mode === 'mix'
   const fresh = result.tracks.filter(t => !t.seed).length
-  const title = mix && resultTheme === 'libre' ? (SOURCE === 'radio' ? 'La radio' : 'Mes playlists') : THEMES[resultTheme].label
-  el("resTitle").innerHTML = `${esc(title)} <small>(${result.tracks.length})</small>`
+  const theme = mix && resultTheme === 'libre' ? (SOURCE === 'radio' ? 'La radio' : 'Mes playlists') : THEMES[resultTheme].label
+  const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+  autoName = `${THEMES[resultTheme].label} · ${date}`
+  renderTitle()
   el("profile").innerHTML =
+    `<span class="tag">${esc(theme)}</span>` +
     (mix ? `<span class="tag tag--fill">★ ${result.tracks.length} titres sur ${result.available} qui passent les filtres</span>`
          : `<span class="tag tag--fill">★ ${result.tracks.length - fresh} de tes playlists</span><span class="tag tag--fill">✦ ${fresh} découvertes</span>`) +
     `<span class="tag">${esc(CURVES[result.curve] || CURVES.none)}</span>` +
@@ -562,8 +589,6 @@ function renderResult() {
       </span>
       <span class="track__check" aria-hidden="true"></span>
     </label></li>`).join('')
-  const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
-  autoName = `${THEMES[resultTheme].label} · ${date}`
   el("done").classList.remove('on')
   el("createStep").textContent = ''
   updateCreateCount()
@@ -575,6 +600,25 @@ const ICON = {
   stop:  '<path d="M6 6h12v12H6z"/>',
 }
 const icon = name => `<svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${ICON[name]}</svg>`
+
+/* ── Radio en fond : pendant le calcul, les réglages et le résultat ── */
+/* Coupée le temps d'écouter les extraits, reprise ensuite */
+let radioPaused = false
+const saveRadio = on => { try { sessionStorage.setItem('mix_radio', on ? '1' : '') } catch {} }
+const radio = radioStream(el("radioAudio"), {
+  onChange: (on, blocked) => { if (!radioPaused) saveRadio(on); renderRadio(blocked) }
+})
+function renderRadio(blocked = false) {
+  const on = radio.on
+  el("radioBtn").innerHTML = `${icon(on ? 'pause' : 'play')}${blocked ? 'Reprendre la radio' : 'Radio'}`
+  el("radioBtnWait").innerHTML = `${icon(on ? 'pause' : 'play')}${on ? 'Couper la radio' : 'Écouter la radio en attendant'}`
+  for (const b of [el("radioBtn"), el("radioBtnWait")]) b.setAttribute('aria-pressed', on)
+}
+el("radioBtn").onclick = el("radioBtnWait").onclick = () => {
+  if (radio.on) return radio.stop()
+  if (playingIdx >= 0) stopPreview()  // reprend la radio si elle avait été coupée pour l'extrait
+  if (!radio.on) radio.play()
+}
 
 /* ── Écoute : extraits Deezer de 30 s, un titre ou tout le mix à la suite ── */
 const audio = new Audio()
@@ -588,10 +632,12 @@ function stopPreview() {
   audio.pause()
   playingIdx = -1; autoplay = false
   markPlaying()
+  if (radioPaused) { radioPaused = false; radio.play() }
 }
 function playPreview(i) {
   const t = result?.tracks[i]
   if (!t?.preview) return autoplay ? playNext(i) : stopPreview()
+  if (radio.on) { radioPaused = true; radio.stop() }
   playingIdx = i
   audio.src = t.preview
   audio.play().catch(() => autoplay ? playNext(i) : stopPreview())
@@ -683,6 +729,16 @@ el("create").onclick = async () => {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {})
 
 showScreen('form')
+renderRadio()
+/* Radio en cours sur la page radio (radio=1), ou avant un aller-retour de connexion Spotify */
+let radioWanted = false
+try { radioWanted = startParams.has('radio') || sessionStorage.getItem('mix_radio') === '1' } catch {}
+if (startParams.has('radio')) {
+  const u = new URL(location.href)
+  u.searchParams.delete('radio')
+  history.replaceState({}, '', u)
+}
+if (radioWanted) radio.play()
 ;(async () => {
   restoreForm()
   /* Partage vers l'app (Web Share Target) : « Partager > Le Mix » depuis Spotify */

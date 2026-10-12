@@ -20,6 +20,39 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 const lsGet = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback } catch { return fallback } }
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
 
+/* ── Flux de la radio (page radio et Le Mix) ────────────────── */
+const STREAM_URL = 'https://www.radioking.com/play/radio-jockey'
+
+/* Lecture du flux avec reconnexion automatique après une coupure réseau.
+   onStatus(message) : « Reconnexion… » ou '' ; onChange(on, blocked) : lecture voulue ou non,
+   blocked = le navigateur a refusé de lancer le son sans clic (lecture automatique). */
+function radioStream(audio, { onStatus = () => {}, onChange = () => {} } = {}) {
+  let on = false, timer = null
+  const connect = () => {
+    audio.src = STREAM_URL
+    audio.play().then(() => onStatus('')).catch(e => e.name === 'NotAllowedError' ? stop(true) : retry())
+  }
+  const retry = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => { if (on) { onStatus('Reconnexion…'); connect() } }, 3000)
+  }
+  function stop(blocked = false) {
+    on = false
+    clearTimeout(timer)
+    audio.pause()
+    audio.removeAttribute('src')  // coupe le flux (sinon il continue de se télécharger)
+    onStatus('')
+    onChange(false, blocked)
+  }
+  for (const ev of ['error', 'stalled', 'ended']) audio.addEventListener(ev, () => on && retry())
+  return {
+    get on() { return on },
+    play() { on = true; clearTimeout(timer); connect(); onChange(true, false) },
+    stop: () => stop(),
+    toggle() { on ? stop() : this.play() },
+  }
+}
+
 /* ── Titres et artistes ─────────────────────────────────────── */
 const norm  = s => (s || '').toLowerCase().replace(/\s+/g, ' ').trim()
 /* Pour comparer entre services : minuscules, sans accents ni ponctuation */

@@ -3,13 +3,13 @@
 Deux pages statiques (aucune compilation), hébergées telles quelles, avec Supabase pour les données et Spotify pour les playlists.
 
 - **La Radio** (`index.html`) : titre en cours de La Patate Douce, player, historique de tout ce qui est passé à l'antenne ; cœur pour ajouter un titre à ses Titres likés Spotify, + pour l'ajouter à une de ses playlists.
-- **Le Mix** (`generateur.html`, installable comme une app) : génère une playlist à partir de 1 à 3 playlists Spotify, ou des titres de la radio, puis la crée sur Spotify.
+- **Le Mix** (`generateur.html`, installable comme une app) : génère une playlist à partir de 1 à 3 playlists Spotify, ou des titres de la radio, puis la crée sur Spotify. Bouton **Radio** pour écouter la radio en fond (coupée le temps d'un extrait, reprise ensuite) ; arrivé depuis la page radio pendant l'écoute, Le Mix la relance (`?radio=1`).
 
 ## Fichiers
 
 | Fichier | Rôle |
 |---|---|
-| `js/shared.js` | Commun aux deux pages : réglages (Supabase, Spotify), utilitaires, nettoyage des titres, connexion et appels Spotify |
+| `js/shared.js` | Commun aux deux pages : réglages (Supabase, Spotify), flux radio (`radioStream`), utilitaires, nettoyage des titres, connexion et appels Spotify |
 | `js/radio.js` | La Radio |
 | `js/mix.js` | Le Mix |
 | `da.css` | Charte : polices, couleurs (`--bg`, `--ink`, `--accent`…) |
