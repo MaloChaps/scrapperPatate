@@ -1,7 +1,7 @@
 /* La Radio : titre en cours, historique des titres passés, player, cœur → Titres likés Spotify.
    Réglages et fonctions communes : js/shared.js.
    Côté serveur (Supabase) : la Edge Function poll-radio note chaque titre dans `plays` toutes les minutes
-   et remplit `track_info` (pochettes) ; cette page ne fait que lire. */
+   et remplit `track_info` (pochettes, genres) ; cette page ne fait que lire. */
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
@@ -12,9 +12,16 @@ const PAGE_SIZE  = 300   // titres affichés par page (l'historique grossit d'en
 let tracks   = []    // titres chargés, du plus récent au plus ancien : { id, title, artist, at }
 let total    = 0     // nombre de titres dans tout l'historique
 let nowTrack = null  // titre en cours : { title, artist }
-const art    = new Map()  // trackKey → URL de pochette (table track_info)
+const info   = new Map()  // trackKey → { art, genre } (table track_info)
 
 const trackKey = t => `${norm(t.artist)}|${norm(t.title)}`
+
+/* Pastille de style d'après les genres d'album Deezer (mêmes règles que Le Mix pour hip-hop et house) */
+const GENRE_TAGS = [['hiphop', 'Hip-hop', /hip.?hop|\brap\b/i], ['electro', 'Électro', /electro|house|techno|dance/i]]
+const genreTags = t => {
+  const genre = info.get(trackKey(t))?.genre || ''
+  return GENRE_TAGS.filter(([, , re]) => re.test(genre)).map(([cls, label]) => `<span class="genre ${cls}">${label}</span>`).join('')
+}
 
 function setStatus(msg, isErr) {
   el('status').textContent = msg || ''
@@ -62,10 +69,7 @@ async function poll() {
     if (!title) return setStatus("Pas de titre lisible pour l'instant…")
 
     nowTrack = { title, artist }
-    el('nowTitle').textContent  = title
-    el('nowArtist').textContent = artist
-    el('nowLinks').innerHTML    = trackActions(nowTrack, 'now')
-    el('nowLinks').hidden = false
+    renderNow()
 
     const cover = String(d.cover || d.cover_url || '').trim()
     if (cover) el('nowCover').src = cover
@@ -75,6 +79,14 @@ async function poll() {
   } finally {
     isPolling = false
   }
+}
+
+function renderNow() {
+  if (!nowTrack) return
+  el('nowTitle').textContent = nowTrack.title
+  el('nowArtist').innerHTML  = genreTags(nowTrack) + esc(nowTrack.artist)
+  el('nowLinks').innerHTML   = trackActions(nowTrack, 'now')
+  el('nowLinks').hidden = false
 }
 
 /* ── Historique (Supabase) ──────────────────────────────────── */
@@ -93,10 +105,10 @@ async function fetchAll(table, columns, order) {
   }
 }
 
-async function loadArt() {
+async function loadInfo() {
   try {
-    for (const r of await fetchAll('track_info', 'artist, title, art', ['key'])) if (r.art) art.set(trackKey(r), r.art)
-  } catch {}  // sans pochettes, la liste reste utilisable
+    for (const r of await fetchAll('track_info', 'artist, title, art, genre', ['key'])) info.set(trackKey(r), { art: r.art, genre: r.genre })
+  } catch {}  // sans pochettes ni genres, la liste reste utilisable
 }
 
 /* Les PAGE_SIZE titres suivants (more) ou les plus récents */
@@ -115,12 +127,12 @@ async function loadTracks(more = false) {
 /* Tout l'historique, du plus ancien au plus récent (copie, .csv) */
 const allTracks = async () => (await fetchAll('plays', 'id, title, artist, played_at', ['played_at', 'id'])).map(rowToTrack).reverse()
 
-/* Pochette d'un titre qui vient de passer : le serveur la cherche juste après l'avoir noté */
-async function fetchArt(t, retries = 2) {
+/* Pochette et genre d'un titre qui vient de passer : le serveur les cherche juste après l'avoir noté */
+async function fetchInfo(t, retries = 2) {
   await sleep(15000)
-  const { data } = await sb.from('track_info').select('art').eq('artist', t.artist).eq('title', t.title).maybeSingle()
-  if (data?.art) { art.set(trackKey(t), data.art); render() }
-  else if (retries) fetchArt(t, retries - 1)
+  const { data } = await sb.from('track_info').select('art, genre').eq('artist', t.artist).eq('title', t.title).maybeSingle()
+  if (data) { info.set(trackKey(t), data); render(); if (nowTrack && trackKey(nowTrack) === trackKey(t)) renderNow() }
+  else if (retries) fetchInfo(t, retries - 1)
 }
 
 /* Nouveaux titres en direct */
@@ -131,7 +143,7 @@ sb.channel('plays-live')
     tracks.unshift(t)
     total++
     render()
-    if (!art.has(trackKey(t))) fetchArt(t)
+    if (!info.has(trackKey(t))) fetchInfo(t)
   })
   .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'plays' }, ({ old: r }) => {
     total--
@@ -159,13 +171,13 @@ function render() {
       lastHour = hourKey(t.at)
       html += `<div class="hour-sep"><span class="hour-label">${hourLabel(t.at)}</span><span class="hour-line"></span></div>`
     }
-    const cover = art.get(trackKey(t))
+    const cover = info.get(trackKey(t))?.art
     html += `<div class="row">
       ${cover ? `<img class="thumb" src="${esc(cover)}" alt="" loading="lazy">` : '<div class="thumb"></div>'}
       <div class="idx">${total - i}</div>
       <div class="info">
         <div class="t">${esc(t.title)}</div>
-        <div class="a">${esc(t.artist) || '&nbsp;'}</div>
+        <div class="a">${genreTags(t)}${esc(t.artist) || '&nbsp;'}</div>
       </div>
       <div class="time">${new Date(t.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
       <div class="links">${trackActions(t, i)}</div>
@@ -461,6 +473,7 @@ el('csvBtn').onclick = async () => {
   poll()
   setInterval(poll, POLL_MS)
   loadLiked()
-  await loadArt()  // avant la liste, pour l'afficher directement avec ses pochettes
+  await loadInfo()  // avant la liste, pour l'afficher directement avec ses pochettes et genres
+  renderNow()
   await loadTracks()
 })()
