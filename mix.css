@@ -367,3 +367,9 @@ body:is([data-screen="account"],[data-screen="community"]) .actionbar{display:no
 @media (hover:hover){.result__bar .pill-button--filled:not(:disabled):hover{background:var(--ink);border-color:var(--ink);color:var(--bg)}}
 @media (max-width:599px){.result__bar-gap{flex-basis:100%;height:0}}
 .tabs[hidden],.panel[hidden],.result__bar[hidden]{display:none}
+
+/* Barre du haut : même hauteur et même alignement pour tous les boutons (onglets, radio, langue, compte) */
+.appbar .nav button,.appbar .pill-button,.appbar .lang{display:inline-flex;align-items:center;justify-content:center;min-height:36px;line-height:1}
+.appbar__left,.appbar__right{align-items:center}
+/* Écrans tactiles : pas d'état de survol qui reste collé après un appui */
+@media (hover:none){.nav button:not([aria-current="page"]):active,.pill-button:active{background:var(--ink);color:var(--bg)}}
