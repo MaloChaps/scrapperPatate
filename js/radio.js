@@ -18,8 +18,8 @@ const trackKey = t => `${norm(t.artist)}|${norm(t.title)}`
 /* Pastilles de style (stylesOfInfo, js/shared.js : Last.fm, sinon genres d'album Deezer) : 2 au plus,
    hip-hop et électro en couleur. Pas de pastille quand aucun style n'est connu pour le titre */
 const STYLE_LABELS = {
-  hiphop: 'Rap', house: 'Électro', funk: 'Funk', soul: 'Soul', rnb: 'R&B', disco: 'Disco', jazz: 'Jazz', afro: 'Afro',
-  bresil: 'Brésil', latin: 'Latin', reggae: 'Reggae', rock: 'Rock', pop: 'Pop', folk: 'Folk', chanson: 'Chanson', chill: 'Chill', classique: 'Classique', metal: 'Metal'
+  hiphop: 'Rap', house: tr('Electro'), funk: 'Funk', soul: 'Soul', rnb: 'R&B', disco: 'Disco', jazz: 'Jazz', afro: 'Afro',
+  bresil: tr('Brazil'), latin: 'Latin', reggae: 'Reggae', rock: 'Rock', pop: 'Pop', folk: 'Folk', chanson: 'Chanson', chill: 'Chill', classique: tr('Classical'), metal: 'Metal'
 }
 const genreTags = t => stylesOfInfo(info.get(trackKey(t))).filter(id => STYLE_LABELS[id]).slice(0, 2)
   .map(id => `<span class="genre genre--${id}">${STYLE_LABELS[id]}</span>`).join('')
@@ -51,7 +51,7 @@ const SERVICES = [
 ]
 const query = t => encodeURIComponent(`${t.artist || ''} ${t.title || ''}`.trim())
 const serviceLinks = t => SERVICES.map(([cls, name, base, path]) =>
-  `<a class="svc ${cls}" href="${base}${query(t)}" target="_blank" rel="noopener" title="Chercher sur ${name}" aria-label="Chercher sur ${name}"><svg viewBox="0 0 24 24" aria-hidden="true">${path}</svg><span>${name}</span></a>`).join('')
+  `<a class="svc ${cls}" href="${base}${query(t)}" target="_blank" rel="noopener" title="${tr('Search on {name}', { name })}" aria-label="${tr('Search on {name}', { name })}"><svg viewBox="0 0 24 24" aria-hidden="true">${path}</svg><span>${name}</span></a>`).join('')
 
 /* Actions d'un titre : cœur, ajout à une playlist, liens. ref = index dans `tracks`, ou 'now' pour le titre en cours */
 const trackActions = (t, ref) => heartButton(t, ref) + addButton(ref) + serviceLinks(t)
@@ -67,7 +67,7 @@ async function poll() {
     const d = await res.json()
     const title  = String(d.title  || d.song    || '').trim()
     const artist = String(d.artist || d.artists || '').trim()
-    if (!title) return setStatus("Pas de titre lisible pour l'instant…")
+    if (!title) return setStatus(tr('No readable track right now…'))
 
     nowTrack = { title, artist }
     renderNow()
@@ -76,7 +76,7 @@ async function poll() {
     if (cover) el('nowCover').src = cover
     el('vinyl').classList.toggle('has-cover', !!cover)
   } catch (e) {
-    setStatus(`Titre en cours indisponible (${e.message}). Nouvel essai dans 20 s.`, true)
+    setStatus(tr('Now playing unavailable ({e}). Retrying in 20 s.', { e: e.message }), true)
   } finally {
     isPolling = false
   }
@@ -119,7 +119,7 @@ async function loadTracks(more = false) {
     .select('id, title, artist, played_at', { count: 'exact' })
     .order('played_at', { ascending: false }).order('id', { ascending: false })
     .range(from, from + PAGE_SIZE - 1)
-  if (error) return setStatus("Impossible de charger l'historique.", true)
+  if (error) return setStatus(tr('Couldn\'t load the history.'), true)
   tracks = more ? tracks.concat(data.map(rowToTrack)) : data.map(rowToTrack)
   total = count ?? tracks.length
   render()
@@ -156,14 +156,14 @@ sb.channel('plays-live')
 const hourKey = at => { const d = new Date(at); return `${d.toDateString()} ${d.getHours()}` }
 function hourLabel(at) {
   const d = new Date(at)
-  const day = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+  const day = d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' })
   return `${day} · ${String(d.getHours()).padStart(2, '0')}h`
 }
 
 function render() {
   el('countNum').textContent = total
   if (!tracks.length) {
-    el('list').innerHTML = '<div class="empty"><b>Rien encore.</b><br>Les titres apparaissent ici dès qu\'ils passent à l\'antenne.</div>'
+    el('list').innerHTML = `<div class="empty"><b>${tr('Nothing yet.')}</b><br>${tr('Tracks show up here as soon as they hit the air.')}</div>`
     return
   }
   let lastHour = null, html = ''
@@ -180,11 +180,11 @@ function render() {
         <div class="t">${esc(t.title)}</div>
         <div class="a">${genreTags(t)}${esc(t.artist) || '&nbsp;'}</div>
       </div>
-      <div class="time">${new Date(t.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+      <div class="time">${new Date(t.at).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })}</div>
       <div class="links">${trackActions(t, i)}</div>
     </div>`
   })
-  if (tracks.length < total) html += `<button class="btn-ghost more" type="button" id="moreBtn">Voir plus · ${total - tracks.length} titres plus anciens</button>`
+  if (tracks.length < total) html += `<button class="btn-ghost more" type="button" id="moreBtn">${tr('Show more · {n} older tracks', { n: total - tracks.length })}</button>`
   el('list').innerHTML = html
 }
 
@@ -195,7 +195,7 @@ let prevVol = 1
 const stream = radioStream(audio, {
   onStatus: msg => setStatus(msg),
   onChange: on => {
-    el('radioPlayBtn').innerHTML = on ? `${icon('pause')} Pause` : `${icon('play')} Écouter`
+    el('radioPlayBtn').innerHTML = on ? `${icon('pause')} ${tr('Pause')}` : `${icon('play')} ${tr('Listen')}`
     el('radioPlayBtn').classList.toggle('live', on)
   },
 })
@@ -242,7 +242,7 @@ async function spLogin(then, likeOnReturn) {
 /* La fenêtre de connexion écrit le jeton dans localStorage : cette page le voit passer */
 window.addEventListener('storage', e => {
   if (e.key !== 'sp_scope' || !spReady()) return
-  setStatus('Connecté à Spotify ✓')
+  setStatus(tr('Connected to Spotify ✓'))
   afterLogin?.()
   afterLogin = null
   loadLiked()
@@ -258,7 +258,7 @@ async function uriOf(t) {
   }
   return foundUris[key]
 }
-const notFound = t => setStatus(`Pas trouvé sur Spotify : ${t.artist} – ${t.title}`, true)
+const notFound = t => setStatus(tr('Not found on Spotify: {what}', { what: `${t.artist} – ${t.title}` }), true)
 
 /* ── Spotify : cœur → Titres likés ──────────────────────────── */
 
@@ -269,7 +269,7 @@ const foundUris = lsGet('sp_uri_v2', {})                       // likeKey → UR
 
 const heartButton = (t, ref) => {
   const key = likeKey(t)
-  return `<button class="heart${foundUris[key] === '' ? ' none' : ''}" type="button" data-like="${ref}" data-key="${esc(key)}" aria-pressed="${liked.has(key)}" title="Titres likés Spotify" aria-label="Titres likés Spotify">${icon('heart')}</button>`
+  return `<button class="heart${foundUris[key] === '' ? ' none' : ''}" type="button" data-like="${ref}" data-key="${esc(key)}" aria-pressed="${liked.has(key)}" title="${tr('Spotify Liked Songs')}" aria-label="${tr('Spotify Liked Songs')}">${icon('heart')}</button>`
 }
 /* Met tous les cœurs à jour ; key + state pour un seul titre ('wait' pendant l'appel, 'none' si introuvable) */
 function syncHearts(key, state) {
@@ -297,9 +297,9 @@ async function loadLiked(full = true) {
     }
     const map = full ? new Map() : liked
     for (const page of pages) for (const it of page.items || []) {
-      const tr = it.track ?? it.item
-      if (!tr?.uri) continue
-      for (const a of tr.artists || []) map.set(likeKey({ artist: a.name, title: tr.name }), tr.uri)
+      const tk = it.track ?? it.item
+      if (!tk?.uri) continue
+      for (const a of tk.artists || []) map.set(likeKey({ artist: a.name, title: tk.name }), tk.uri)
     }
     liked = map
     lsSet('sp_liked_v2', Object.fromEntries(liked))
@@ -324,16 +324,16 @@ async function toggleLike(t) {
     else liked.set(key, uri)
     lsSet('sp_liked_v2', Object.fromEntries(liked))
     syncHearts(key)
-    setStatus(wasLiked ? 'Retiré de tes Titres likés' : 'Ajouté à tes Titres likés ♥')
+    setStatus(wasLiked ? tr('Removed from your Liked Songs') : tr('Added to your Liked Songs ♥'))
   } catch (e) {
     syncHearts(key)
     if (!spToken()) return spLogin(() => toggleLike(t), t)  // jeton expiré ou révoqué
-    setStatus(`Spotify refuse (${e.message}).`, true)
+    setStatus(tr('Spotify refused ({e}).', { e: e.message }), true)
   }
 }
 
 /* ── Spotify : + → ajouter à une de tes playlists ───────────── */
-const addButton = ref => `<button class="add" type="button" data-add="${ref}" title="Ajouter à une playlist" aria-label="Ajouter à une playlist" aria-haspopup="dialog">${icon('plus')}</button>`
+const addButton = ref => `<button class="add" type="button" data-add="${ref}" title="${tr('Add to a playlist')}" aria-label="${tr('Add to a playlist')}" aria-haspopup="dialog">${icon('plus')}</button>`
 
 let myPlaylists = null, myPlaylistsAt = 0  // playlists modifiables (les tiennes et les collaboratives)
 let menuTrack = null                         // titre à ajouter, pendant que le menu est ouvert
@@ -359,7 +359,7 @@ function openPlaylistMenu(t, btn) {
   if (!spReady()) return spLogin(() => openPlaylistMenu(t, btn?.isConnected ? btn : null))
   menuTrack = t
   const menu = el('plMenu')
-  menu.innerHTML = `<p class="pl-menu__title">Ajouter « ${esc(t.title)} » à…</p><p class="pl-menu__note">Chargement de tes playlists…</p>`
+  menu.innerHTML = `<p class="pl-menu__title">${tr('Add “{title}” to…', { title: esc(t.title) })}</p><p class="pl-menu__note">${tr('Loading your playlists…')}</p>`
   menu.hidden = false
   const r = btn?.getBoundingClientRect()
   menu.style.left = r ? `${Math.max(12, Math.min(r.right - 300, innerWidth - 312)) + scrollX}px` : ''
@@ -374,11 +374,11 @@ function renderPlaylistMenu(list) {
   const last = lsGet('sp_last_playlist', null)  // la dernière utilisée en premier
   const sorted = [...list].sort((a, b) => (b.id === last) - (a.id === last))
   menu.innerHTML = `<p class="pl-menu__title">Ajouter « ${esc(menuTrack.title)} » à…</p>
-    ${list.length > 8 ? '<input class="pl-menu__filter" id="plFilter" placeholder="Filtrer" autocomplete="off" enterkeyhint="search">' : ''}
+    ${list.length > 8 ? `<input class="pl-menu__filter" id="plFilter" placeholder="${tr('Filter')}" autocomplete="off" enterkeyhint="search">` : ''}
     <div class="pl-menu__list">${sorted.map(p => `
       <button class="pl-item" type="button" data-pl="${esc(p.id)}" data-q="${esc(p.name.toLowerCase())}">
         ${p.cover ? `<img src="${esc(p.cover)}" alt="" loading="lazy">` : '<span class="pl-item__cover"></span>'}<span>${esc(p.name)}</span>
-      </button>`).join('') || '<p class="pl-menu__note">Aucune playlist modifiable sur ton compte.</p>'}
+      </button>`).join('') || `<p class="pl-menu__note">${tr('No editable playlists on your account.')}</p>`}
     </div>`
   el('plFilter')?.addEventListener('input', e => {
     const q = e.target.value.trim().toLowerCase()
@@ -390,16 +390,16 @@ const closePlaylistMenu = () => { el('plMenu').hidden = true; menuTrack = null }
 
 async function addToPlaylist(t, pl) {
   closePlaylistMenu()
-  setStatus(`Ajout à « ${pl.name} »…`)
+  setStatus(tr('Adding to “{name}”…', { name: pl.name }))
   try {
     const uri = await uriOf(t)
     if (!uri) return notFound(t)
     await spFetch(`/playlists/${pl.id}/items`, { method: 'POST', body: JSON.stringify({ uris: [uri] }) })
     lsSet('sp_last_playlist', pl.id)
-    setStatus(`Ajouté à « ${pl.name} » ✓`)
+    setStatus(tr('Added to “{name}” ✓', { name: pl.name }))
   } catch (e) {
     if (!spToken()) return spLogin(() => addToPlaylist(t, pl))
-    setStatus(`Spotify refuse (${e.message}).`, true)
+    setStatus(tr('Spotify refused ({e}).', { e: e.message }), true)
   }
 }
 
@@ -431,18 +431,18 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !el('plMen
 el('refreshBtn').onclick = () => poll()
 
 el('copyBtn').onclick = async () => {
-  setStatus('Chargement de tout l\'historique…')
+  setStatus(tr('Loading the whole history…'))
   try {
     const text = (await allTracks()).map(t => `${t.artist} - ${t.title}`).join('\n')
     await navigator.clipboard.writeText(text)
-    setStatus('Liste copiée ✓')
-  } catch { setStatus('Copie impossible ici : utilise le .csv.', true) }
+    setStatus(tr('List copied ✓'))
+  } catch { setStatus(tr('Can\'t copy here: use the .csv.'), true) }
 }
 
 el('csvBtn').onclick = async () => {
-  setStatus('Chargement de tout l\'historique…')
+  setStatus(tr('Loading the whole history…'))
   let all
-  try { all = await allTracks() } catch { return setStatus("Impossible de charger l'historique.", true) }
+  try { all = await allTracks() } catch { return setStatus(tr('Couldn\'t load the history.'), true) }
   setStatus('')
   const rows = [['#', 'Artiste', 'Titre', 'Heure'],
     ...all.map((t, i) => [i + 1, t.artist, t.title, new Date(t.at).toLocaleString('fr-FR')])]
@@ -462,7 +462,7 @@ el('csvBtn').onclick = async () => {
   if (!prof?.radio) {
     document.body.classList.add('gated')
     el('gate').hidden = false
-    if (prof) el('gateText').textContent = 'Ton compte n\'a pas encore accès à la radio : demande-le à la personne qui t\'a invité·e.'
+    if (prof) el('gateText').textContent = tr('Your account has no radio access yet: ask whoever invited you.')
     return
   }
   const params = new URLSearchParams(location.search)

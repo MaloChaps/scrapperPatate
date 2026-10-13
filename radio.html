@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -84,7 +84,9 @@
   /* Grand titre : crème dans un pavé rouge, comme Le Mix */
   h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(40px,12vw,140px);line-height:.88;letter-spacing:-.02em}
   h1 em{font-style:italic}
-  .sitenav{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+  .sitenav{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+  .sitenav a{display:inline-flex;align-items:center;min-height:36px}
+  @media (max-width:719px){.topbar{flex-wrap:wrap}.sitenav{flex:1 1 100%;justify-content:flex-start}}
   .sitenav a{padding:8px 14px;border:1px solid var(--ink);border-radius:99px;color:var(--ink);font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;white-space:nowrap}
   @media (hover:hover){.sitenav a:hover{background:var(--ink);color:var(--bg)}}
   .sitenav .sitenav__me.avatar{display:inline-grid;place-items:center;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:var(--accent);color:var(--on-accent)}
@@ -210,8 +212,8 @@
 
   <!-- Pas d'accès : la radio est réservée aux comptes invités qui en ont l'accès (js/radio.js) -->
   <div class="gate" id="gate" hidden>
-    <p id="gateText">La radio est réservée aux comptes invités.</p>
-    <a class="btn-mix" href="./#library">Se connecter</a>
+    <p id="gateText" data-t>The radio is for invited members.</p>
+    <a class="btn-mix" href="./#library" data-t>Sign in</a>
   </div>
 
   <div class="custom-player">
@@ -229,15 +231,15 @@
       </svg>
     </div>
     <div class="cp-body">
-      <div class="cp-station">La Patate Douce · en direct</div>
-      <div class="now-label" >En ce moment</div>
+      <div class="cp-station" data-t>La Patate Douce · live</div>
+      <div class="now-label" data-t>Now playing</div>
       <div class="now-title" id="nowTitle">—</div>
       <div class="now-artist" id="nowArtist"></div>
       <div class="now-links" id="nowLinks" hidden></div>
       <div class="cp-controls">
-        <button class="btn-main" id="radioPlayBtn"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg> Écouter</button>
+        <button class="btn-main" id="radioPlayBtn"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg> <span data-t>Listen</span></button>
         <div class="vol-wrap">
-          <span class="vol-icon" id="volIcon" role="button" aria-label="Couper le son"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+          <span class="vol-icon" id="volIcon" role="button" aria-label="Mute"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
           <input type="range" class="vol" id="volSlider" min="0" max="1" step="0.01" value="1">
         </div>
       </div>
@@ -245,28 +247,25 @@
   </div>
 
   <div class="controls">
-    <button class="btn-ghost" id="refreshBtn">Rafraîchir</button>
-    <a class="btn-ghost" href="./?source=radio">Créer playlist Spotify</a>
-    <span class="count"><b id="countNum">0</b> titres</span>
+    <button class="btn-ghost" id="refreshBtn" data-t>Refresh</button>
+    <a class="btn-ghost" href="./?source=radio" data-t>Build a mix from the radio</a>
+    <span class="count"><b id="countNum">0</b> <span data-t>tracks</span></span>
   </div>
   <div class="status" id="status"></div>
 
   <div class="list" id="list"></div>
 
   <div class="export">
-    <a class="btn-ghost" href="./?source=radio">Créer playlist Spotify</a>
-    <button class="btn-ghost" id="copyBtn">Copier la liste</button>
-    <button class="btn-ghost" id="csvBtn">Télécharger .csv</button>
+    <a class="btn-ghost" href="./?source=radio" data-t>Build a mix from the radio</a>
+    <button class="btn-ghost" id="copyBtn" data-t>Copy the list</button>
+    <button class="btn-ghost" id="csvBtn" data-t>Download .csv</button>
   </div>
 
-  <p class="footnote">
-    Un robot tourne en continu côté serveur et note chaque nouveau titre toutes les minutes, même quand cette page est fermée : la liste se met à jour toute seule. Le cœur ajoute un titre à tes Titres likés Spotify, le + à une de tes playlists.
-    « Créer playlist Spotify » ouvre <a href="./?source=radio">Le Mix</a> avec les titres de la radio : thème, styles, niveau, enchaînement par tempo et écoute des extraits.
-  </p>
+  <p class="footnote" data-t>A bot logs every new track around the clock, even when this page is closed: the list updates on its own. The heart adds a track to your Spotify Liked Songs, the + to one of your playlists.</p>
 
 </div>
 
-<div class="pl-menu" id="plMenu" role="dialog" aria-label="Ajouter à une playlist" hidden></div>
+<div class="pl-menu" id="plMenu" role="dialog" aria-label="Add to a playlist" hidden></div>
 <script src="js/i18n.js"></script>
 <script>translatePage()</script>
 <script src="js/shared.js"></script>

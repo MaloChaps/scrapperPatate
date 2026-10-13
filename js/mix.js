@@ -89,9 +89,9 @@ async function readPlaylist(id, src) {
   while (path) {
     const r = await spFetch(path)
     for (const it of r.items || []) {
-      const tr = it.item ?? it.track
-      if (!tr || tr.type !== 'track' || tr.is_local || !tr.uri) continue
-      out.push({ title: tr.name, artist: tr.artists?.[0]?.name || '', isrc: tr.external_ids?.isrc, uri: tr.uri, src })
+      const tk = it.item ?? it.track
+      if (!tk || tk.type !== 'track' || tk.is_local || !tk.uri) continue
+      out.push({ title: tk.name, artist: tk.artists?.[0]?.name || '', isrc: tk.external_ids?.isrc, uri: tk.uri, src })
     }
     path = r.next
   }
@@ -542,7 +542,9 @@ el("toForm").onclick = () => showScreen('form')
 /* Onglets : Créer (le mix en cours s'il y en a un), Communauté, Bibliothèque (js/community.js, js/account.js) */
 document.querySelector('.nav').addEventListener('click', e => {
   const go = e.target.closest('[data-go]')?.dataset.go
-  if (go === 'form') showScreen(result && document.body.dataset.screen !== 'result' ? 'result' : 'form')
+  /* Créer : depuis la bibliothèque ou la communauté, retour au mix en cours s'il y en a un ; sinon les réglages */
+  const from = document.body.dataset.screen
+  if (go === 'form') showScreen(result && (from === 'account' || from === 'community') ? 'result' : 'form')
   if (go === 'account') openAccount()
   if (go === 'community') openCommunity()
 })

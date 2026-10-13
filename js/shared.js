@@ -57,7 +57,7 @@ function radioStream(audio, { onStatus = () => {}, onChange = () => {} } = {}) {
   }
   const retry = () => {
     clearTimeout(timer)
-    timer = setTimeout(() => { if (on) { onStatus('Reconnexion…'); connect() } }, 3000)
+    timer = setTimeout(() => { if (on) { onStatus(t('Reconnecting…')); connect() } }, 3000)
   }
   function stop(blocked = false) {
     on = false
@@ -139,7 +139,7 @@ async function spExchange(code) {
     })
   })
   const d = await res.json()
-  if (!d.access_token) throw new Error(d.error_description || d.error || 'connexion refusée')
+  if (!d.access_token) throw new Error(d.error_description || d.error || t('sign-in refused'))
   localStorage.setItem('sp_token', d.access_token)
   localStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
   localStorage.removeItem('sp_v')
