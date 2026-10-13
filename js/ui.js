@@ -2,7 +2,7 @@
    fond flou aux couleurs des pochettes, bouton de langue. */
 
 /* Pochettes Deezer : l'adresse donne la taille (…/56x56-000000-80-0-0.jpg) ; on prend une version plus grande */
-const bigCover = url => (url || '').replace(/\/\d+x\d+-(\d+-\d+-\d+-\d+\.jpg)$/, '/500x500-$1')
+const bigCover = (url, size = 500) => (url || '').replace(/\/\d+x\d+-(\d+-\d+-\d+-\d+\.jpg)$/, `/${size}x${size}-$1`)
 
 /* Une pochette par album (les titres d'un même album ne la répètent pas), n au plus */
 function distinctCovers(tracks, n) {

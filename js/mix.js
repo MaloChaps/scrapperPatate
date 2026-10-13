@@ -181,7 +181,7 @@ async function checkSeed(i) {
     ])
     if (run !== seedRuns[i]) return
     const total = items.total ?? p.items?.total ?? p.tracks?.total
-    const cover = p.images?.at(-1)?.url
+    const cover = p.images?.[0]?.url
     const coverHtml = `<span class="seed-state__cover" style="${cover ? `background-image:url(${esc(cover)})` : ''}"></span>`
     if (items.blocked || !total)
       return seedState(i, 'err', `${coverHtml}<span class="seed-state__text"><b>${esc(p.name)}</b> · ${items.blocked ? t('content blocked by Spotify') : t('empty')}</span>`)
@@ -247,7 +247,7 @@ async function loadMine() {
       const r = await spFetch(path)
       for (const p of r.items || []) {
         if (!p) continue
-        out.push({ id: p.id, name: p.name, cover: p.images?.at(-1)?.url, big: p.images?.[0]?.url, total: p.items?.total ?? p.tracks?.total ?? 0,
+        out.push({ id: p.id, name: p.name, cover: p.images?.[0]?.url, total: p.items?.total ?? p.tracks?.total ?? 0,
                    owner: p.owner?.display_name || p.owner?.id || '', mine: p.owner?.id === me.id })
       }
       path = r.next
@@ -786,7 +786,7 @@ function renderResult() {
       <input type="checkbox" data-i="${i}" checked>
       <span class="track__index">${String(i + 1).padStart(2, '0')}</span>
       <button class="track__cover" type="button" data-play="${i}" ${t.preview ? `aria-label="${tr('Play preview')}"` : `disabled aria-label="${tr('No preview')}"`}
-        style="${t.cover ? `background-image:url(${esc(t.cover)})` : ''}"></button>
+        style="${t.cover ? `background-image:url(${esc(bigCover(t.cover, 250))})` : ''}"></button>
       <span class="track__info">
         <span class="track__name">${esc(t.title)}</span>
         <span class="track__artist">${esc(t.artist)}</span>
