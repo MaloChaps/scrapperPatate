@@ -3,6 +3,8 @@
    Sources : Deezer (titres, BPM, artistes similaires, fans), Last.fm si LASTFM_API_KEY (styles fins).
    adjust + current : ajuste une playlist déjà générée (« + Français », « Plus calme »…) au lieu d'en faire une nouvelle */
 
+import { STYLES, fromDeezer, topTags, tagStyles, type LastfmTag } from '../_shared/styles.ts'
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
@@ -12,29 +14,7 @@ const LASTFM_KEY = Deno.env.get('LASTFM_API_KEY') || ''
 const TIME_BUDGET_MS = 110_000  // la fonction est coupée à 150 s
 const MIX_MAX = 250             // mode « Juste mes playlists » : titres analysés au plus
 
-/* ── Styles : étiquettes Last.fm (précises) ou genres d'album Deezer (secours) ── */
-const STYLES: Record<string, { tags: string[] }> = {
-  funk:      { tags: ['funk', 'p-funk', 'deep funk', 'funk rock', 'jazz funk', 'jazz-funk', 'afro-funk', 'afro funk', 'latin funk', 'rare groove', 'boogie'] },
-  soul:      { tags: ['soul', 'northern soul', 'southern soul', 'deep soul', 'modern soul', 'neo-soul', 'psychedelic soul', 'philly soul', 'motown', 'rare groove'] },
-  disco:     { tags: ['disco', 'boogie', 'post-disco', 'italo disco', 'nu disco', 'nu-disco', 'cosmic disco'] },
-  jazz:      { tags: ['jazz', 'jazz funk', 'jazz-funk', 'soul jazz', 'jazz fusion', 'fusion', 'spiritual jazz', 'latin jazz', 'acid jazz', 'ethio-jazz'] },
-  afro:      { tags: ['afrobeat', 'afro-funk', 'afro funk', 'highlife', 'african', 'afro', 'ethio-jazz', 'afro-beat', 'semba'] },
-  bresil:    { tags: ['mpb', 'bossa nova', 'samba', 'brazilian', 'brazil', 'tropicalia', 'samba soul', 'brasil'] },
-  latin:     { tags: ['latin', 'salsa', 'latin jazz', 'boogaloo', 'cumbia', 'latin funk', 'afro-cuban', 'latin soul'] },
-  rnb:       { tags: ['rnb', 'r&b', 'rhythm and blues', 'contemporary r&b', 'new jack swing'] },
-  house:     { tags: ['house', 'deep house', 'electronic', 'electronica', 'techno', 'dance', 'french house'] },
-  hiphop:    { tags: ['hip-hop', 'hip hop', 'rap', 'jazz rap', 'boom bap'] },
-  reggae:    { tags: ['reggae', 'dub', 'roots reggae', 'rocksteady', 'ska', 'lovers rock'] },
-  rock:      { tags: ['rock', 'classic rock', 'psychedelic rock', 'indie rock', 'garage rock', 'psychedelic'] },
-  pop:       { tags: ['pop', 'synthpop', 'indie pop', 'dream pop', 'city pop'] },
-  folk:      { tags: ['folk', 'singer-songwriter', 'acoustic', 'country'] },
-  chanson:   { tags: ['chanson', 'french', 'chanson francaise', 'variete francaise', 'french pop'] },
-  chill:     { tags: ['chillout', 'downtempo', 'chill', 'ambient', 'trip-hop', 'lounge', 'balearic'] },
-  classique: { tags: ['classical', 'soundtrack', 'score'] },
-  metal:     { tags: ['metal', 'heavy metal', 'hard rock', 'punk'] }
-}
-const TAG_TO_STYLES = new Map<string, string[]>()
-for (const [id, s] of Object.entries(STYLES)) for (const t of s.tags) TAG_TO_STYLES.set(t, [...(TAG_TO_STYLES.get(t) || []), id])
+/* ── Styles (_shared/styles.ts) ── */
 /* Styles voisins : les genres d'album Deezer sont grossiers (beaucoup de funk classé « R&B »),
    donc un style déduit de Deezer compte aussi pour ses voisins */
 const NEIGHBORS: Record<string, string[]> = {
@@ -42,16 +22,13 @@ const NEIGHBORS: Record<string, string[]> = {
   house: ['disco'], bresil: ['latin', 'jazz'], latin: ['bresil', 'afro'], hiphop: ['rnb'], chill: ['jazz', 'house'], jazz: ['chill', 'funk'],
   afro: ['funk', 'jazz', 'latin'], reggae: ['afro'], folk: ['chanson'], chanson: ['folk', 'pop'], rock: ['pop'], pop: ['rnb']
 }
-/* Genres d'album Deezer → styles (mêmes règles que la page : « Rock indé », « Pop indé/Folk »… compris) */
-const DEEZER_RULES: [string, RegExp][] = [
-  ['funk', /funk/i], ['soul', /soul/i], ['rnb', /r&b|rnb|rhythm/i], ['disco', /disco|boogie/i],
-  ['jazz', /jazz|blues/i], ['afro', /afro|africa/i], ['bresil', /brésil|bresil|mpb|samba|bossa/i],
-  ['latin', /latin|salsa|bolero|cumbia|reggaeton/i], ['house', /electro|house|techno|dance/i],
-  ['hiphop', /hip.?hop|\brap\b/i], ['reggae', /reggae|\bdub\b|\bska\b/i],
-  ['rock', /rock|alternative|indé|indie|punk/i], ['pop', /pop/i], ['folk', /folk|country|singer/i],
-  ['chanson', /chanson|variété|french/i], ['classique', /classi|film|soundtrack/i], ['metal', /metal/i]
-]
-const fromDeezer = (genres: string[]) => DEEZER_RULES.filter(([, re]) => genres.some(g => re.test(g))).map(([id]) => id)
+/* Style choisi : étiquettes Last.fm dominantes si on les a, sinon tous les styles connus */
+const hasStyle = (t: { styles: string[], core?: string[], precise?: boolean }, wanted: string[]) =>
+  (t.precise && t.core?.length ? t.core : t.styles).some(s => wanted.includes(s))
+/* Titre de départ déjà trié par la page (source radio, genres d'album Deezer) : on ne le refiltre
+   que si Last.fm en dit plus que Deezer */
+const prefiltered = (t: { seed: boolean, styles: string[], precise?: boolean }, seedsFiltered: boolean) =>
+  t.seed && seedsFiltered && (!t.precise || !t.styles.length)
 
 /* ── Ajustements d'une playlist déjà générée ─────────────────── */
 type Adjust = 'fr' | 'hiphop' | 'house' | 'calm' | 'fast' | 'rare'
@@ -137,7 +114,7 @@ const songKey = (artist: string, title: string) => loose(firstArtist(artist)) + 
 
 type Track = {
   title: string, artist: string, artistId?: number, isrc?: string, uri?: string,
-  deezerId?: number, bpm: number, styles: string[], precise?: boolean, fans: number | null,
+  deezerId?: number, bpm: number, styles: string[], core?: string[], precise?: boolean, fans: number | null,
   cover: string, preview?: string, src?: number, seed: boolean, score?: number, fr?: boolean
 }
 
@@ -155,17 +132,17 @@ function artistFans(id?: number) {
   if (!fansCache.has(id)) fansCache.set(id, deezer(`/artist/${id}`).then(a => a?.nb_fan ?? null))
   return fansCache.get(id)!
 }
-const tagCache = new Map<string, Promise<{ styles: string[], fr: boolean }>>()
-function artistTags(name: string): Promise<{ styles: string[], fr: boolean }> {
-  if (!LASTFM_KEY || !name) return Promise.resolve({ styles: [], fr: false })
+type Tags = { styles: string[], core: string[], fr: boolean }
+const tagCache = new Map<string, Promise<Tags>>()
+function artistTags(name: string): Promise<Tags> {
+  if (!LASTFM_KEY || !name) return Promise.resolve({ styles: [], core: [], fr: false })
   const k = loose(name)
   if (!tagCache.has(k)) tagCache.set(k, (async () => {
     await lastfmSlot()
     const url = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptags&autocorrect=1&format=json&api_key=${LASTFM_KEY}&artist=${encodeURIComponent(name)}`
     const d = await fetch(url).then(r => r.ok ? r.json() : null).catch(() => null)
-    // deno-lint-ignore no-explicit-any
-    const tags: { name: string, count: number }[] = (d?.toptags?.tag || []).filter((t: any) => t.count >= 15).slice(0, 10)
-    return { styles: [...new Set(tags.flatMap(t => TAG_TO_STYLES.get(t.name.toLowerCase()) || []))], fr: tags.some(t => FR_TAG.test(t.name)) }
+    const tags = topTags((d?.toptags?.tag || []) as LastfmTag[])
+    return { ...tagStyles(tags), fr: tags.some(t => FR_TAG.test(t.name)) }
   })())
   return tagCache.get(k)!
 }
@@ -181,7 +158,7 @@ async function trackFromDeezer(d: any, seed: boolean, extra: Partial<Track> = {}
   ])
   return {
     title: d.title, artist, artistId: d.artist?.id, isrc: d.isrc, deezerId: d.id,
-    bpm: d.bpm || 0, styles: tags.styles.length ? tags.styles : fromDeezer(genres), precise: tags.styles.length > 0, fans,
+    bpm: d.bpm || 0, styles: tags.styles.length ? tags.styles : fromDeezer(genres), core: tags.core, precise: tags.styles.length > 0, fans,
     fr: tags.fr || genres.includes('Chanson française'),
     cover: d.album?.cover_small || '', preview: d.preview || '', seed, ...extra
   }
@@ -202,7 +179,7 @@ async function resolveSeed(s: Seed, skipFans = false): Promise<Track> {
     const hit = (r?.data || []).find((x: any) => near(loose(artist), loose(x.artist?.name)) && near(loose(title), loose(cleanTitle(x.title) || x.title)))
     if (hit) d = await deezer(`/track/${hit.id}`)
   }
-  if (!d) { const tags = await artistTags(firstArtist(s.artist)); return { ...unresolved(s, tags.styles), fr: tags.fr } }
+  if (!d) { const tags = await artistTags(firstArtist(s.artist)); return { ...unresolved(s, tags.styles), core: tags.core, fr: tags.fr } }
   const t = await trackFromDeezer(d, true, { title: s.title, artist: s.artist, uri: s.uri, isrc: d.isrc || s.isrc, src: s.src, ...(skipFans ? { fans: null } : {}) })
   if (!t.bpm && s.bpm) t.bpm = +s.bpm
   return t
@@ -458,13 +435,12 @@ Deno.serve(async req => {
     ])
 
     /* 4. Styles choisis : seuls les titres qui en font partie (jamais ceux au style inconnu) */
-    const exactStyle = (t: Track) => t.styles.some(s => wantedStyles.includes(s))
+    const exactStyle = (t: Track) => hasStyle(t, wantedStyles)
     const nearStyle = (t: Track) => (relax || !t.precise) && t.styles.some(s => wantedStyles.some(w => NEIGHBORS[w]?.includes(s)))
-    /* seedsFiltered : la page a déjà trié les titres de départ par style (source radio, genres connus) */
     const styleOk = (t: Track) => (t.seed || fitsNiche(t.fans)) && themeOk(t, th, range, relax) &&
-      (!wantedStyles.length || (t.seed && seedsFiltered) || exactStyle(t) || nearStyle(t))
+      (!wantedStyles.length || prefiltered(t, seedsFiltered) || exactStyle(t) || nearStyle(t))
     /* Style certain d'abord : un titre retenu seulement par voisinage passe après */
-    const rank = (t: Track) => (t.score || 0) + (wantedStyles.length && (exactStyle(t) || (t.seed && seedsFiltered)) ? 0.15 : 0)
+    const rank = (t: Track) => (t.score || 0) + (wantedStyles.length && (exactStyle(t) || prefiltered(t, seedsFiltered)) ? 0.15 : 0)
       + (curve !== 'none' && t.bpm ? 0.1 : 0)  // courbe de tempo : les titres au tempo connu d'abord
 
     if (adjust) return json(await adjusted())
@@ -546,7 +522,7 @@ Deno.serve(async req => {
         (adjust === 'rare' || t.seed || fitsNiche(t.fans)) &&
         !t.styles.some(st => th.avoid.includes(st) && st !== adjust) &&
         (adjust === 'calm' || adjust === 'fast' || !th.bpm || !t.bpm || bpmFit(t.bpm, range) >= 0.5) &&
-        (!wantedStyles.length || !!STYLE_TAGS[adjust] || (t.seed && seedsFiltered) || exactStyle(t) || nearStyle(t))
+        (!wantedStyles.length || !!STYLE_TAGS[adjust] || prefiltered(t, seedsFiltered) || exactStyle(t) || nearStyle(t))
       const pool0 = () => [...candidates.map(c => c.t), ...seedTracks]
       /* Pas assez de titres dans le bon sens : un tour de recherche autour de ceux qui y sont */
       if (pool0().filter(t => match(t) && canAdd(t)).length < N / 3 && !late()) {
@@ -576,7 +552,7 @@ Deno.serve(async req => {
         if (!th.like.length || !st.length) return 0.5
         return st.some(x => th.avoid.includes(x)) ? 0 : st.some(x => th.like.includes(x)) ? 1 : 0.35
       }
-      const exact = (t: Track) => t.styles.some(x => wantedStyles.includes(x))
+      const exact = (t: Track) => hasStyle(t, wantedStyles) || prefiltered(t, seedsFiltered)
       const nearby = (t: Track) => !t.precise && t.styles.some(x => wantedStyles.some(w => NEIGHBORS[w]?.includes(x)))
       const keepIt = (t: Track) =>
         (!wantedStyles.length || exact(t) || nearby(t)) &&

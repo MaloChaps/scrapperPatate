@@ -16,13 +16,13 @@ const info   = new Map()  // trackKey → { art, genre } (table track_info)
 
 const trackKey = t => `${norm(t.artist)}|${norm(t.title)}`
 
-/* Pastilles de style d'après les genres d'album Deezer (stylesOfGenre, js/shared.js) : 2 au plus,
-   hip-hop et électro en couleur. Pas de pastille quand Deezer n'a pas de genre fiable pour le titre */
+/* Pastilles de style (stylesOfInfo, js/shared.js : Last.fm, sinon genres d'album Deezer) : 2 au plus,
+   hip-hop et électro en couleur. Pas de pastille quand aucun style n'est connu pour le titre */
 const STYLE_LABELS = {
   hiphop: 'Rap', house: 'Électro', funk: 'Funk', soul: 'Soul', rnb: 'R&B', disco: 'Disco', jazz: 'Jazz', afro: 'Afro',
-  bresil: 'Brésil', latin: 'Latin', reggae: 'Reggae', rock: 'Rock', pop: 'Pop', folk: 'Folk', chanson: 'Chanson', classique: 'Classique'
+  bresil: 'Brésil', latin: 'Latin', reggae: 'Reggae', rock: 'Rock', pop: 'Pop', folk: 'Folk', chanson: 'Chanson', chill: 'Chill', classique: 'Classique', metal: 'Metal'
 }
-const genreTags = t => stylesOfGenre(info.get(trackKey(t))?.genre).slice(0, 2)
+const genreTags = t => stylesOfInfo(info.get(trackKey(t))).filter(id => STYLE_LABELS[id]).slice(0, 2)
   .map(id => `<span class="genre genre--${id}">${STYLE_LABELS[id]}</span>`).join('')
 
 function setStatus(msg, isErr) {
@@ -109,7 +109,7 @@ async function fetchAll(table, columns, order) {
 
 async function loadInfo() {
   try {
-    for (const r of await fetchAll('track_info', 'artist, title, art, genre', ['key'])) info.set(trackKey(r), { art: r.art, genre: r.genre })
+    for (const r of await fetchAll('track_info', 'artist, title, art, genre, styles', ['key'])) info.set(trackKey(r), { art: r.art, genre: r.genre, styles: r.styles })
   } catch {}  // sans pochettes ni genres, la liste reste utilisable
 }
 
@@ -132,7 +132,7 @@ const allTracks = async () => (await fetchAll('plays', 'id, title, artist, playe
 /* Pochette et genre d'un titre qui vient de passer : le serveur les cherche juste après l'avoir noté */
 async function fetchInfo(t, retries = 2) {
   await sleep(15000)
-  const { data } = await sb.from('track_info').select('art, genre').eq('artist', t.artist).eq('title', t.title).maybeSingle()
+  const { data } = await sb.from('track_info').select('art, genre, styles').eq('artist', t.artist).eq('title', t.title).maybeSingle()
   if (data) { info.set(trackKey(t), data); render(); if (nowTrack && trackKey(nowTrack) === trackKey(t)) renderNow() }
   else if (retries) fetchInfo(t, retries - 1)
 }

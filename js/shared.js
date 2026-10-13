@@ -76,6 +76,9 @@ const GENRE_STYLES = [
   ['folk', /folk|country|singer/i], ['chanson', /chanson|variété|french/i], ['classique', /classi|film|soundtrack/i]
 ]
 const stylesOfGenre = genre => genre ? GENRE_STYLES.filter(([, re]) => re.test(genre)).map(([id]) => id) : []
+/* Styles d'une ligne track_info : colonne styles (étiquettes Last.fm de l'artiste, remplie par fill-styles),
+   sinon genres d'album Deezer tant que le serveur ne l'a pas encore traitée */
+const stylesOfInfo = i => i?.styles ?? stylesOfGenre(i?.genre)
 
 /* ── Spotify (PKCE, jeton partagé par les deux pages via localStorage) ── */
 const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')

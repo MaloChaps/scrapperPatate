@@ -322,12 +322,12 @@ let radioPlays = null
 async function loadRadio() {
   const [plays, info] = await Promise.all([
     fetchAll('plays', 'title,artist,played_at&order=played_at.desc'),
-    fetchAll('track_info', 'artist,title,genre,bpm')  // genre et tempo calculés par le serveur
+    fetchAll('track_info', 'artist,title,genre,styles,bpm')  // styles et tempo calculés par le serveur
   ])
   const byKey = new Map(info.map(r => [radioKey(r), r]))
   radioPlays = plays.map(r => {
     const i = byKey.get(radioKey(r))
-    return { title: r.title, artist: r.artist, at: Date.parse(r.played_at), styles: stylesOfGenre(i?.genre), bpm: i?.bpm || 0 }
+    return { title: r.title, artist: r.artist, at: Date.parse(r.played_at), styles: stylesOfInfo(i), bpm: i?.bpm || 0 }
   })
   syncRadio()
 }
@@ -544,9 +544,9 @@ el("go").onclick = async () => {
     if (!pool.length) return showError(state.styles.size ? 'Aucun titre de ces styles sur cette période : choisis une période plus longue ou d\'autres styles.' : 'Aucun titre passé à la radio sur cette période.')
     lastSeeds = (pool.length > RADIO_MAX ? [...pool].sort(() => Math.random() - 0.5).slice(0, RADIO_MAX) : pool)
       .map(({ title, artist, bpm }) => ({ title, artist, ...(bpm ? { bpm } : {}) }))
-    /* Styles déjà appliqués ici sur toute la radio : le serveur ne refiltre pas ces titres,
-       mais filtre les découvertes (mode « Radio + découvertes ») */
-    return generate(lastSeeds, state.mode === 'mix' ? { styles: [] } : { seedsFiltered: true })
+    /* Styles déjà appliqués ici (track_info.styles : Last.fm, sinon Deezer) : le serveur ne refiltre
+       que si Last.fm en dit plus, et filtre les découvertes */
+    return generate(lastSeeds, { seedsFiltered: true })
   }
   const ids = [...new Set(seedInputs.map(x => playlistId(x.value)).filter(Boolean))]
   if (!ids.length) return showError('Colle au moins un lien de playlist Spotify.')
@@ -568,7 +568,7 @@ el("go").onclick = async () => {
   await generate(seeds)
   if (failed.length) showError(`${failed.length} playlist(s) illisible(s), le mix a été fait avec les autres.`)
 }
-el("regen").onclick = () => lastSeeds && generate(lastSeeds, SOURCE !== 'radio' ? {} : state.mode === 'mix' ? { styles: [] } : { seedsFiltered: true }, 'Régénérée')
+el("regen").onclick = () => lastSeeds && generate(lastSeeds, SOURCE === 'radio' ? { seedsFiltered: true } : {}, 'Régénérée')
 el("complete").onclick = () => {
   if (!lastBody || !result) return
   generate(lastBody.seeds, { keep: pickedTracks(), relax: true }, 'Complétée')
