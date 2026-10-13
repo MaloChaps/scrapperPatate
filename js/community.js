@@ -20,7 +20,7 @@ async function openCommunity() {
   if (error) return el("communityList").innerHTML = `<li class="empty">${t('Couldn\'t load the mixes ({e}).', { e: esc(error.message) })}</li>`
   el("communityList").innerHTML = communityRows.length ? communityRows.map(m => `
     <li class="pcard glass" data-c="${m.id}">
-      <a class="fan" href="./?c=${m.id}" aria-label="${esc(m.name)}">${fanHTML(m.version.tracks, 4)}</a>
+      <a class="pcard__cover" href="./?c=${m.id}" aria-label="${esc(m.name)}">${mosaicHTML(m.version.tracks)}</a>
       <div>
         <h3 class="pcard__name"><a href="./?c=${m.id}">${esc(m.name)}</a></h3>
         <p class="pcard__meta">${t('by {who}', { who: esc(m.author_name || 'DJ') })} · ${tn(m.version.tracks.length, '{n} track', '{n} tracks')} · ${mixDate(m.published_at)}</p>
@@ -42,10 +42,11 @@ el("communityList").addEventListener('click', async e => {
     catch { share.textContent = shareUrl(share.dataset.share) }
     return
   }
-  const a = e.target.closest('a[href^="./?c="]')
-  if (!a) return
+  /* Toute la carte ouvre le mix (sauf ses boutons) */
+  const card = e.target.closest('[data-c]')
+  if (!card || (e.target.closest('button, a') && !e.target.closest('a[href^="./?c="]'))) return
   e.preventDefault()
-  openShared(a.closest('[data-c]').dataset.c)
+  openShared(card.dataset.c)
 })
 
 /* Playlist publiée → écran de résultat. La sienne : on l'ouvre dans sa bibliothèque, avec toutes ses versions */

@@ -5,14 +5,18 @@
 
 let me = null  // fiche du compte connecté (myProfile + display_name), null si déconnecté
 
-/* ── Écran Bibliothèque ─────────────────────────────────────── */
+/* ── Écrans Bibliothèque (tab = 'playlists') et Mon compte (profil, mot de passe, invitations) ── */
 function openAccount(why = '', tab = 'playlists') {
   el("loginWhy").textContent = why || t('Le Mix is invite-only. Sign in with the email address that got the invite.')
+  const library = tab === 'playlists'
+  el("accountTitle").textContent = library ? t('Library') : t('My account')
+  el("tabs").hidden = library
   showTab(tab)
   showScreen('account')
+  document.querySelector('[data-go="account"]').setAttribute('aria-current', library ? 'page' : 'false')
   if (!me) el("loginEmail").focus()
 }
-el("accountBtn").onclick = () => openAccount()  // ton profil → Bibliothèque, onglet Playlists
+el("accountBtn").onclick = () => openAccount('', 'profile')
 
 /* Onglets : Playlists, Profil, Mot de passe, Invitations */
 function showTab(tab) {
@@ -20,6 +24,7 @@ function showTab(tab) {
   document.querySelectorAll('#signedIn [data-panel]').forEach(p => p.hidden = p.dataset.panel !== tab)
 }
 el("tabs").onclick = e => { const tab = e.target.closest('[data-tab]')?.dataset.tab; if (tab) showTab(tab) }
+/* Bibliothèque : seulement tes playlists */
 
 /* Nom affiché sur les playlists publiées : celui choisi, sinon le début de l'adresse e-mail */
 const djName = () => me?.display_name || (me?.email || '').split('@')[0]
@@ -116,7 +121,7 @@ async function loadMixes() {
     const vs = m.mix_versions || [], last = vs.at(-1), pub = vs.find(v => v.id === m.published_version)
     return `
     <li class="pcard glass" data-mix="${m.id}">
-      <a class="fan" href="${mixHref(m, last?.n)}" aria-label="${esc(m.name)}">${fanHTML(last?.tracks, 4)}</a>
+      <a class="pcard__cover" href="${mixHref(m, last?.n)}" aria-label="${esc(m.name)}">${mosaicHTML(last?.tracks)}</a>
       <div>
         ${pub ? `<span class="badge">${t('Live in Community · V{n}', { n: pub.n })}</span>` : ''}
         <h3 class="pcard__name"><a href="${mixHref(m, last?.n)}">${esc(m.name)}</a></h3>
@@ -167,6 +172,8 @@ el("mixList").addEventListener('click', async e => {
     return loadMixes()
   }
   const b = e.target.closest('[data-del]')
+  /* Clic ailleurs sur la carte (pas sur un bouton, un lien ou le champ du nom) : ouvrir la dernière version */
+  if (!b && !e.target.closest('button, a, input')) return li.querySelector('.pcard__actions a')?.click()
   if (!b) return
   if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = t('Sure? Tap again'); return }
   b.disabled = true
@@ -317,5 +324,6 @@ sb.auth.onAuthStateChange(event => { if (event === 'SIGNED_IN' || event === 'SIG
   if (params.get('mix') && me) openMix(params.get('mix'), params.get('v'))
   else if (params.get('c')) openShared(params.get('c'))  // js/community.js
   else if (location.hash === '#library') openAccount()
+  else if (location.hash === '#account') openAccount('', 'profile')
   else if (location.hash === '#community') openCommunity()
 })()

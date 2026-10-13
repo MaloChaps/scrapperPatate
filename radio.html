@@ -84,6 +84,10 @@
   /* Grand titre : crème dans un pavé rouge, comme Le Mix */
   h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(40px,12vw,140px);line-height:.88;letter-spacing:-.02em}
   h1 em{font-style:italic}
+  .sitenav{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+  .sitenav a{padding:8px 14px;border:1px solid var(--ink);border-radius:99px;color:var(--ink);font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;white-space:nowrap}
+  @media (hover:hover){.sitenav a:hover{background:var(--ink);color:var(--bg)}}
+  .sitenav .sitenav__me.avatar{display:inline-grid;place-items:center;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:var(--accent);color:var(--on-accent)}
   .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--accent);color:var(--on-accent);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;flex:0 0 auto;white-space:nowrap}
   @media (hover:hover){.btn-mix:hover{opacity:.85}}
   .btn-ghost:hover{background:var(--card)}
@@ -195,7 +199,13 @@
 
   <header class="topbar">
     <h1>La <em>Radio</em></h1>
-    <a class="btn-mix" href="./">Le Mix</a>
+    <!-- Mêmes onglets que Le Mix : créer, communauté, bibliothèque, compte -->
+    <nav class="sitenav" aria-label="Sections">
+      <a href="./" data-t>Create</a>
+      <a href="./#community" data-t>Community</a>
+      <a href="./#library" data-t>Library</a>
+      <a class="sitenav__me" id="meBtn" href="./#library" data-t>Sign in</a>
+    </nav>
   </header>
 
   <!-- Pas d'accès : la radio est réservée aux comptes invités qui en ont l'accès (js/radio.js) -->
@@ -257,6 +267,8 @@
 </div>
 
 <div class="pl-menu" id="plMenu" role="dialog" aria-label="Ajouter à une playlist" hidden></div>
+<script src="js/i18n.js"></script>
+<script>translatePage()</script>
 <script src="js/shared.js"></script>
 <script src="js/radio.js"></script>
 </body>

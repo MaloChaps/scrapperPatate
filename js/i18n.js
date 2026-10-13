@@ -30,6 +30,7 @@ function translatePage(root = document) {
 }
 
 const FR = {
+  "My account": "Mon compte",
   "Name your playlist (or: mood · date)": "Nom de ta playlist (sinon : ambiance · date)",
   "← Settings": "← Réglages",
   "Tweak": "Ajuster",

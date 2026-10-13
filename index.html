@@ -68,25 +68,19 @@
     <p class="label" data-for="discover" data-t>Discoveries</p>
     <div class="range" data-for="discover"><input type="range" id="disc" min="0" max="100" step="10" value="50" aria-label="Discoveries"><output id="discVal"></output></div>
 
-    <!-- Réglages fins : ouverts par défaut, repliables ; ce qui n'est pas par défaut s'affiche à côté du titre -->
-    <details class="more" id="more" open>
-      <summary><span data-t>Fine-tune</span><span class="more__sum" id="moreSum"></span></summary>
-      <div class="filters filters--more">
-        <p class="label" data-t>Artists</p>
-        <div class="filters__chips filters__chips--scroll" id="niche"></div>
-        <p class="filters__note" id="nicheDesc"></p>
+    <p class="label" data-t>Artists</p>
+    <div class="filters__chips filters__chips--scroll" id="niche"></div>
+    <p class="filters__note" id="nicheDesc"></p>
 
-        <p class="label" data-t>Flow</p>
-        <div class="filters__chips filters__chips--scroll" id="curve"></div>
-      </div>
-    </details>
+    <p class="label" data-t>Flow</p>
+    <div class="filters__chips filters__chips--scroll" id="curve"></div>
   </div>
 
   <div class="error" id="error" role="alert"></div>
 
-  <!-- ── Bibliothèque (compte) ── -->
+  <!-- ── Bibliothèque (tes playlists, onglet du haut) et Mon compte (profil, mot de passe, invitations : bouton du compte) ── -->
   <section class="account" id="account">
-    <div class="section-header"><h2 class="section-title" data-t>Library</h2></div>
+    <div class="section-header"><h2 class="section-title" id="accountTitle" data-t>Library</h2></div>
 
     <form class="login account__block" id="loginForm" hidden>
       <p id="loginWhy"></p>
@@ -99,8 +93,7 @@
 
     <div id="signedIn" hidden>
       <nav class="tabs" id="tabs" role="tablist">
-        <button class="chip" type="button" role="tab" data-tab="playlists" aria-pressed="true" data-t>Playlists</button>
-        <button class="chip" type="button" role="tab" data-tab="profile" aria-pressed="false" data-t>Profile</button>
+        <button class="chip" type="button" role="tab" data-tab="profile" aria-pressed="true" data-t>Profile</button>
         <button class="chip" type="button" role="tab" data-tab="password" aria-pressed="false" data-t>Password</button>
         <button class="chip" type="button" role="tab" data-tab="invites" aria-pressed="false" id="invitesTab" hidden data-t>Invites</button>
       </nav>
@@ -157,18 +150,18 @@
 
   <!-- ── Résultat ── -->
   <section class="result" id="result">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow" id="resEyebrow"></p>
-        <h2 class="section-title" id="resTitle"></h2>
-      </div>
-      <button class="pill-button" id="saveMix" type="button" data-t>Save</button>
-      <button class="pill-button" id="publishMix" type="button" data-t>Publish</button>
-      <button class="pill-button" id="listenAll" type="button" data-t>Play the mix</button>
+    <!-- En-tête : où est ce mix, son nom ; puis l'action principale (écouter), garder / partager, refaire -->
+    <div class="result__head">
+      <p class="eyebrow" id="resEyebrow"></p>
+      <h2 class="section-title" id="resTitle"></h2>
     </div>
     <div class="result__bar">
-      <button class="pill-button" id="toForm" type="button" data-t>← Settings</button>
+      <button class="pill-button pill-button--filled" id="listenAll" type="button" data-t>Play the mix</button>
+      <button class="pill-button" id="saveMix" type="button" data-t>Save</button>
+      <button class="pill-button" id="publishMix" type="button" data-t>Publish</button>
+      <span class="result__bar-gap"></span>
       <button class="pill-button" id="regen" type="button" data-t>↻ Regenerate</button>
+      <button class="pill-button" id="toForm" type="button" data-t>← Settings</button>
     </div>
     <div class="versions" id="versions" hidden></div>
     <div class="profile" id="profile"></div>

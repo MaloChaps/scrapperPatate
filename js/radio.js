@@ -457,6 +457,8 @@ el('csvBtn').onclick = async () => {
 ;(async () => {
   /* Réservée aux comptes avec l'accès radio (profiles.radio) ; les autres voient l'invitation à se connecter */
   const prof = await myProfile()
+  /* Compte : initiale (vers Mon compte) ou « Se connecter » */
+  if (prof) Object.assign(el('meBtn'), { className: 'sitenav__me avatar', textContent: (prof.email || '?')[0], href: './#account', title: prof.email })
   if (!prof?.radio) {
     document.body.classList.add('gated')
     el('gate').hidden = false

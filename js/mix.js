@@ -432,16 +432,9 @@ function syncThemeNote() {
     (warns.length ? `<span class="warn">⚠ ${esc(warns.join(' · '))}</span>` : '') + (count ? `<span class="peek">${esc(count)}</span>` : '')
 }
 
-/* « Plus de réglages » replié : ce qui n'est pas par défaut, à côté du titre */
-function syncMore() {
-  const name = el("plName").value.trim()
-  const bits = [state.niche !== 'auto' && NICHE[state.niche].label, state.curve !== 'theme' && CURVES[state.curve], name && `« ${name} »`].filter(Boolean)
-  el("moreSum").textContent = bits.length ? '· ' + bits.join(' · ') : ''
-}
 /* Tout ce qui dépend de plusieurs réglages à la fois */
 function syncLive() {
   syncThemeNote()
-  syncMore()
   syncSummary()
 }
 
