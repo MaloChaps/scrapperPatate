@@ -329,6 +329,13 @@ Deno.serve(async req => {
   const t0 = Date.now()
   const late = () => Date.now() - t0 > TIME_BUDGET_MS
 
+  /* Réservé aux comptes connectés (Le Mix est sur invitation) : jeton du compte vérifié par Supabase Auth */
+  const auth = req.headers.get('Authorization') || ''
+  const who = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/user`, {
+    headers: { apikey: Deno.env.get('SUPABASE_ANON_KEY') || '', Authorization: auth }
+  }).catch(() => null)
+  if (!who?.ok) return json({ error: 'connexion requise' }, 401)
+
   try {
     const { seeds = [], theme = 'libre', length = 30, discovery = 0.5, mode = 'discover',
             niche = 'auto', styles: wanted = [], without = [], curve: curveIn = 'theme', relax = false, keep: keepIn = [],
