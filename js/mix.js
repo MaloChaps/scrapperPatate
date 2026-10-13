@@ -642,15 +642,28 @@ el("versions").addEventListener('click', e => {
 /* Ajuster : à partir des titres cochés de la version affichée (les décochés sont remplacés en priorité) */
 el("adjust").insertAdjacentHTML('beforeend', Object.entries(ADJUSTS).map(([k, a]) =>
   `<button class="chip" type="button" data-adjust="${k}">${esc(a.label)}</button>`).join(''))
-/* Source « Mes playlists » : + n'importe quel style, + comme un artiste (tapé, ou bouton sur un titre) */
+/* + n'importe quel style, + comme un artiste (tapé, ou bouton sur un titre) */
 el("adjustMore").insertAdjacentHTML('beforeend', Object.entries(STYLES).filter(([k]) => !ADJUSTS[k]).map(([k, label]) =>
   `<button class="chip" type="button" data-adjust="${k}">${esc(label)}</button>`).join(''))
-el("adjustMore").hidden = el("adjustArtist").hidden = SOURCE === 'radio'
-function runAdjust(kind, artist) {
+function runAdjust(kind, artist, styles) {
   if (!lastBody || !result) return
   const current = pickedTracks()
   if (!current.length) return showError('Coche au moins un titre à garder.')
-  generate(lastBody.seeds, { adjust: kind, current, size: result.tracks.length, ...(artist ? { artist } : {}) }, adjustMeta(kind, artist?.name).label)
+  const seeds = radioSeedsFor(kind, artist, styles)
+  generate(lastBody.seeds, { adjust: kind, current, size: result.tracks.length, ...(artist ? { artist } : {}), ...(seeds ? { seeds } : {}) },
+    adjustMeta(kind, artist?.name).label)
+}
+/* « Juste la radio » : le serveur ne choisit que parmi les titres envoyés. Pour « + un style » ou « + comme un artiste »,
+   on lui envoie les titres de la radio (période choisie) qui vont dans ce sens plutôt que le tirage du départ :
+   ceux de l'artiste d'abord, puis ceux qui ont ses styles (ceux du titre touché, sinon ceux de ses titres à la radio) */
+function radioSeedsFor(kind, artist, styles) {
+  if (SOURCE !== 'radio' || lastBody.mode !== 'mix' || !radioPlays || !(kind === 'artist' || STYLES[kind])) return null
+  const all = radioTitles(), la = artist && loose(artist.name)
+  const own = la ? all.filter(t => loose(firstArtist(t.artist)) === la) : []
+  const near = kind === 'artist' ? (styles?.length ? styles : [...new Set(own.flatMap(t => t.styles))]) : [kind]
+  const rest = all.filter(t => !own.includes(t) && t.styles.some(s => near.includes(s))).sort(() => Math.random() - 0.5)
+  const seeds = [...own, ...rest].slice(0, RADIO_MAX)
+  return seeds.length ? seeds.map(({ title, artist, bpm }) => ({ title, artist, ...(bpm ? { bpm } : {}) })) : null
 }
 for (const id of ['adjust', 'adjustMore']) el(id).addEventListener('click', e => {
   const k = e.target.closest('[data-adjust]')?.dataset.adjust
@@ -759,7 +772,7 @@ function renderResult() {
       <span class="track__info">
         <span class="track__name">${esc(t.title)}</span>
         <span class="track__artist">${esc(t.artist)}</span>
-        ${SOURCE === 'radio' ? '' : `<button class="track__like" type="button" data-like="${i}">+ comme ça</button>`}
+        <button class="track__like" type="button" data-like="${i}">+ comme ça</button>
       </span>
       <span class="track__tags">
         ${t.styles.slice(0, 2).map(s => `<span class="tag">${esc(STYLES[s] || s)}</span>`).join('')}
@@ -846,7 +859,7 @@ el("list").addEventListener('click', e => {
   if (like) {
     e.preventDefault()  // dans le label du titre : ne pas le décocher
     const t = result.tracks[+like.dataset.like]
-    return runAdjust('artist', { name: firstArtist(t.artist), id: t.artistId || undefined })
+    return runAdjust('artist', { name: firstArtist(t.artist), id: t.artistId || undefined }, t.styles)
   }
   const b = e.target.closest('[data-play]')
   if (!b) return

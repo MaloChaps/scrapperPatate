@@ -199,8 +199,8 @@ async function likeArtist(a: { name?: string, id?: number } | null) {
     name = hit?.name || name
   }
   if (!id) return null
-  const rel = await deezer(`/artist/${id}/related?limit=20`)
-  return { id, name, related: (rel?.data || []) as { id: number, nb_fan?: number }[] }
+  const [rel, tags] = await Promise.all([deezer(`/artist/${id}/related?limit=20`), artistTags(name)])
+  return { id, name, styles: tags.core.length ? tags.core : tags.styles, related: (rel?.data || []) as { id: number, nb_fan?: number }[] }
 }
 
 /* ── Tempo ────────────────────────────────────────────────────── */
@@ -278,7 +278,9 @@ const median = (xs: number[]) => {
 }
 
 /* Ajustement : ce qui va dans le sens demandé (match) et, parmi le reste, ce qu'on retire en premier (away : plus grand = d'abord) */
-function adjustRule(kind: Adjust, current: Track[], range: [number, number], like?: Set<number>) {
+/* like : ids Deezer de l'artiste demandé et de ses proches ; likeStyles (mode « juste mes titres ») : ses styles, pour accepter
+   aussi des titres du même univers quand ses proches ne sont pas dans la liste */
+function adjustRule(kind: Adjust, current: Track[], range: [number, number], like?: Set<number>, likeStyles: string[] = []) {
   const bpm = (t: Track) => effBpm(t.bpm, range)
   const refBpm = median(current.map(bpm)), refFans = median(current.map(t => t.fans || 0))
   const discoveryFirst = (t: Track) => (t.seed ? 0 : 1) + Math.random() * 0.5
@@ -287,7 +289,7 @@ function adjustRule(kind: Adjust, current: Track[], range: [number, number], lik
     case 'calm':   return { match: (t: Track) => !!refBpm && !!t.bpm && bpm(t) <= refBpm - 6, away: (t: Track) => bpm(t) || refBpm }
     case 'fast':   return { match: (t: Track) => !!refBpm && !!t.bpm && bpm(t) >= refBpm + 6, away: (t: Track) => -(bpm(t) || refBpm) }
     case 'rare':   return { match: (t: Track) => !!refFans && t.fans !== null && t.fans <= refFans / 3, away: (t: Track) => t.fans ?? refFans }
-    case 'artist': return { match: (t: Track) => !!t.artistId && !!like?.has(t.artistId), away: discoveryFirst }
+    case 'artist': return { match: (t: Track) => (!!t.artistId && !!like?.has(t.artistId)) || hasStyle(t, likeStyles), away: discoveryFirst }
     default:       return { match: (t: Track) => t.styles.includes(kind), away: discoveryFirst }
   }
 }
@@ -295,8 +297,8 @@ function adjustRule(kind: Adjust, current: Track[], range: [number, number], lik
 /* Remplace jusqu'à un tiers de la playlist (plus les titres décochés, déjà absents de current) par les meilleurs titres
    qui vont dans le sens demandé. On ne retire que ce qu'on peut remplacer ; la courbe de tempo est refaite,
    sans courbe les nouveaux titres prennent la place des anciens. */
-function applyAdjust(kind: Adjust, current: Track[], candidates: Track[], N: number, curve: Curve, range: [number, number], canAdd: (t: Track) => boolean, like?: Set<number>) {
-  const { match, away } = adjustRule(kind, current, range, like)
+function applyAdjust(kind: Adjust, current: Track[], candidates: Track[], N: number, curve: Curve, range: [number, number], canAdd: (t: Track) => boolean, like?: Set<number>, likeStyles?: string[]) {
+  const { match, away } = adjustRule(kind, current, range, like, likeStyles)
   const inCurrent = new Set(current.map(t => songKey(t.artist, t.title)))
   const deficit = Math.max(0, N - current.length)
   const slots = Math.max(deficit, Math.round(N / 3))
@@ -601,12 +603,13 @@ Deno.serve(async req => {
         + (curve !== 'none' && t.bpm ? 0.3 : 0)  // courbe de tempo : les titres au tempo connu d'abord
         + (wantedStyles.length && exact(t) ? 1 : 0)  // style exact d'abord, les voisins ne font que compléter
 
-      /* Ajustement : seulement parmi tes titres */
+      /* Ajustement : seulement parmi tes titres ; « + comme un artiste » : lui et ses proches d'abord, puis son univers */
       if (adjust) {
+        if (likeIds) for (const t of tracks0) if (t.artistId && likeIds.has(t.artistId)) t.score = (t.score || 0) + 2
         const res = withArtist(applyAdjust(adjust, current, tracks0, N, curve, range, t => liked ? true :
           (!rule || adjust === 'rare' || t.fans === null || (t.fans >= rule.min && t.fans <= rule.max)) &&
           !t.styles.some(st => th.avoid.includes(st) && st !== adjust) && !excluded(t, adjust) &&
-          (!wantedStyles.length || styleAdjust || exact(t) || nearby(t)), likeIds))
+          (!wantedStyles.length || styleAdjust || exact(t) || nearby(t)), likeIds, liked?.styles))
         return {
           mode: 'mix', ...res, tracks: res.tracks.map(toClient(range)), curve, bpm: seedBpm ? Math.round(seedBpm) : null,
           profile: [...styleShare.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([style, x]) => ({ style, share: Math.round(x * 100) })),
