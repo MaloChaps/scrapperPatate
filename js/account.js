@@ -12,7 +12,7 @@ function openAccount(why = '', tab = 'playlists') {
   showScreen('account')
   if (!me) el("loginEmail").focus()
 }
-el("accountBtn").onclick = () => openAccount('', me ? 'profile' : 'playlists')
+el("accountBtn").onclick = () => openAccount()  // ton profil → Bibliothèque, onglet Playlists
 
 /* Onglets : Playlists, Profil, Mot de passe, Invitations */
 function showTab(tab) {
@@ -116,7 +116,7 @@ async function loadMixes() {
     const vs = m.mix_versions || [], last = vs.at(-1), pub = vs.find(v => v.id === m.published_version)
     return `
     <li class="pcard glass" data-mix="${m.id}">
-      <a class="fan" href="${mixHref(m, last?.n)}" aria-label="${esc(m.name)}">${fanHTML(last?.tracks)}</a>
+      <a class="fan" href="${mixHref(m, last?.n)}" aria-label="${esc(m.name)}">${fanHTML(last?.tracks, 4)}</a>
       <div>
         ${pub ? `<span class="badge">${t('Live in Community · V{n}', { n: pub.n })}</span>` : ''}
         <h3 class="pcard__name"><a href="${mixHref(m, last?.n)}">${esc(m.name)}</a></h3>

@@ -20,7 +20,7 @@ async function openCommunity() {
   if (error) return el("communityList").innerHTML = `<li class="empty">${t('Couldn\'t load the mixes ({e}).', { e: esc(error.message) })}</li>`
   el("communityList").innerHTML = communityRows.length ? communityRows.map(m => `
     <li class="pcard glass" data-c="${m.id}">
-      <a class="fan" href="./?c=${m.id}" aria-label="${esc(m.name)}">${fanHTML(m.version.tracks)}</a>
+      <a class="fan" href="./?c=${m.id}" aria-label="${esc(m.name)}">${fanHTML(m.version.tracks, 4)}</a>
       <div>
         <h3 class="pcard__name"><a href="./?c=${m.id}">${esc(m.name)}</a></h3>
         <p class="pcard__meta">${t('by {who}', { who: esc(m.author_name || 'DJ') })} · ${tn(m.version.tracks.length, '{n} track', '{n} tracks')} · ${mixDate(m.published_at)}</p>
