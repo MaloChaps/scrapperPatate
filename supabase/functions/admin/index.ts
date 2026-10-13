@@ -1,6 +1,7 @@
-/* Gestion des comptes, réservée aux admins (profiles.admin) : liste, invitation par e-mail, accès radio.
+/* Comptes : tout membre peut inviter (par e-mail) ; seul un membre qui a l'accès radio peut le donner à son invité.
+   Liste des membres et changement de leurs droits : admins seulement (profiles.admin).
    Appelée par le site avec le jeton du compte connecté ; les écritures passent par la clé service_role.
-   POST { action: 'list' } | { action: 'invite', email, radio, redirectTo } | { action: 'set', id, radio } */
+   POST { action: 'invite', email, radio, redirectTo } | admins : { action: 'list' } | { action: 'set', id, radio } */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const CORS = {
@@ -22,11 +23,12 @@ Deno.serve(async req => {
   const sb = createClient(URL_, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const { data: { user } } = await sb.auth.getUser(token)
   if (!user) return json({ error: 'connexion requise' }, 401)
-  const { data: me } = await sb.from('profiles').select('admin').eq('id', user.id).maybeSingle()
-  if (!me?.admin) return json({ error: 'réservé aux admins' }, 403)
+  const { data: me } = await sb.from('profiles').select('admin, radio').eq('id', user.id).maybeSingle()
+  if (!me) return json({ error: 'compte inconnu' }, 403)
 
   try {
     const body = await req.json()
+    if (body.action !== 'invite' && !me.admin) return json({ error: 'réservé aux admins' }, 403)
     if (body.action === 'list') {
       const { data, error } = await sb.from('profiles').select('id, email, radio, admin, created_at').order('created_at')
       if (error) throw error
@@ -38,6 +40,7 @@ Deno.serve(async req => {
     if (body.action === 'invite') {
       const email = String(body.email || '').trim().toLowerCase()
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'adresse e-mail invalide' }, 400)
+      if (body.radio && !me.radio && !me.admin) return json({ error: 'tu ne peux pas donner l\'accès radio : tu ne l\'as pas' }, 403)
       const redirectTo = SITES.some(re => re.test(String(body.redirectTo || ''))) ? String(body.redirectTo) : undefined
       const { data, error } = await sb.auth.admin.inviteUserByEmail(email, { redirectTo })
       if (error) return json({ error: error.message }, 400)

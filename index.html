@@ -95,7 +95,7 @@
       <nav class="tabs" id="tabs" role="tablist">
         <button class="chip" type="button" role="tab" data-tab="profile" aria-pressed="true" data-t>Profile</button>
         <button class="chip" type="button" role="tab" data-tab="password" aria-pressed="false" data-t>Password</button>
-        <button class="chip" type="button" role="tab" data-tab="invites" aria-pressed="false" id="invitesTab" hidden data-t>Invites</button>
+        <button class="chip" type="button" role="tab" data-tab="invites" aria-pressed="false" id="invitesTab" data-t>Invites</button>
       </nav>
 
       <div class="panel" data-panel="playlists">
@@ -128,7 +128,7 @@
       <div class="panel" data-panel="invites" id="adminBox" hidden>
         <form class="invite" id="inviteForm">
           <input class="field" type="email" id="inviteEmail" placeholder="Email to invite" required>
-          <label class="check"><input type="checkbox" id="inviteRadio"> <span data-t>radio access</span></label>
+          <label class="check" id="inviteRadioWrap"><input type="checkbox" id="inviteRadio"> <span data-t>radio access</span></label>
           <button class="chip" type="submit" data-t>Invite</button>
         </form>
         <p class="hint" id="inviteMsg" aria-live="polite"></p>

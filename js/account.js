@@ -52,7 +52,9 @@ async function syncAccount() {
   el("displayName").value = me.display_name
   el("meRadio").textContent = me.radio ? t('Access to the radio and to mixes made from its tracks') : t('No access (ask whoever invited you)')
   el("meSince").textContent = user?.created_at ? new Date(user.created_at).toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }) : ''
-  el("invitesTab").hidden = !me.admin
+  /* Invitations : tout membre peut inviter ; l'accès radio ne se donne que si on l'a ; la liste des membres est pour les admins */
+  el("inviteRadioWrap").hidden = !me.radio && !me.admin
+  el("members").hidden = !me.admin
   loadMixes()
   if (me.admin) loadMembers()
 }
@@ -303,11 +305,11 @@ el("inviteForm").onsubmit = async e => {
   const email = el("inviteEmail").value.trim()
   el("inviteMsg").textContent = t('Sending the invite…')
   try {
-    await admin({ action: 'invite', email, radio: el("inviteRadio").checked, redirectTo: SP_REDIRECT })
+    await admin({ action: 'invite', email, radio: (me.radio || me.admin) && el("inviteRadio").checked, redirectTo: SP_REDIRECT })
     el("inviteMsg").textContent = t('Invite sent to {email}.', { email })
     el("inviteEmail").value = ''
     el("inviteRadio").checked = false
-    loadMembers()
+    if (me.admin) loadMembers()
   } catch (err) {
     el("inviteMsg").textContent = t('Couldn\'t invite: {e}', { e: err.message })
   }
