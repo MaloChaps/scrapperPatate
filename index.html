@@ -2,253 +2,443 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>La frite</title>
-<link rel="stylesheet" href="da.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Le Mix</title>
+<meta name="description" content="Générateur de playlists Spotify à partir de tes playlists préférées">
+<meta name="theme-color" content="#938965">
+<link rel="manifest" href="mix.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Le Mix">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="da.css">
 <style>
-  /* Couleurs : jetons de da.css (--bg, --ink, --accent, --on-accent, --line), plus ces nuances propres à la page */
-  :root{
-    --ink-dim:color-mix(in srgb, var(--ink) 72%, var(--bg));   /* textes secondaires */
-    --panel:color-mix(in srgb, var(--ink) 5%, var(--bg));      /* fond du player */
-    --card:color-mix(in srgb, var(--ink) 5%, transparent);     /* lignes de la liste */
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{background:var(--bg);color:var(--ink)}
+  *,*::before,*::after{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
   body{
-    font-family:var(--font-body);
-    min-height:100vh;
-    line-height:1.45;
-    background:var(--bg);
-    padding:clamp(18px,4vw,48px);
+    margin:0;min-height:100dvh;background:var(--bg);color:var(--ink);
+    font-family:var(--font-body);font-size:18px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+    overscroll-behavior-y:none;
   }
-  .wrap{max-width:780px;margin:0 auto}
-
-
-  .custom-player{
-    display:flex;gap:24px;align-items:center;
-    background:var(--panel);border:1px solid var(--line);border-radius:4px;
-    padding:24px;
-  }
-  .vinyl{flex:0 0 auto;width:110px;height:110px;position:relative}
-  .vinyl svg,.vinyl img{width:100%;height:100%;display:block;border-radius:50%}
-  .vinyl img{object-fit:cover;display:none}
-  .vinyl.has-cover img{display:block}
-  .vinyl.has-cover svg{display:none}
-  .vinyl.spinning svg,.vinyl.spinning img{animation:spin 3.2s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  @media (prefers-reduced-motion:reduce){.vinyl.spinning svg,.vinyl.spinning img{animation:none}}
-  .cp-body{min-width:0;flex:1}
-  .cp-station{font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);margin-bottom:8px}
-  .now-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)}
-  .now-title{font-family:var(--font-display);font-size:26px;font-weight:400;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .now-artist{font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cp-controls{display:flex;gap:12px;align-items:center;margin-top:14px}
-  .vol-wrap{display:flex;align-items:center;gap:8px}
-  .vol-icon{display:flex;cursor:pointer;user-select:none;transition:transform .1s}
-  .vol-icon .ico{width:20px;height:20px}
-  .btn-main .ico{width:.9em;height:.9em;flex:0 0 auto}
-  .vol-icon:active{transform:scale(.88)}
-  input[type=range].vol{
-    -webkit-appearance:none;appearance:none;
-    width:96px;height:4px;border-radius:2px;outline:none;cursor:pointer;
-    background:linear-gradient(to right,var(--ink) var(--vol,100%),var(--line) var(--vol,100%));
-    transition:height .15s;
-  }
-  input[type=range].vol:hover{height:5px}
-  input[type=range].vol::-webkit-slider-thumb{
-    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
-    background:var(--ink);cursor:pointer;
-    box-shadow:0 0 0 2px color-mix(in srgb, var(--ink) 20%, transparent);
-    transition:background .15s,transform .12s,box-shadow .15s;
-  }
-  input[type=range].vol::-webkit-slider-thumb:hover{
-    background:var(--ink);transform:scale(1.2);box-shadow:0 0 0 4px color-mix(in srgb, var(--ink) 25%, transparent);
-  }
-  input[type=range].vol::-moz-range-thumb{
-    width:14px;height:14px;border-radius:50%;background:var(--ink);border:none;cursor:pointer;
+  body.locked{overflow:hidden}
+  a{color:inherit}
+  button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+  .wrap{
+    --gutter-l:max(16px, env(safe-area-inset-left));
+    --gutter-r:max(16px, env(safe-area-inset-right));
+    max-width:1040px;margin:0 auto;padding:0 var(--gutter-r) calc(var(--bar-h, 160px) + 24px) var(--gutter-l);  /* --bar-h : hauteur réelle de la barre du bas (js/mix.js) */
   }
 
-  .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;align-items:center}
-  button{font-family:var(--font-mono);cursor:pointer;border:none;border-radius:999px;font-weight:500;letter-spacing:.02em;transition:transform .12s ease, background .2s ease, opacity .2s}
-  button:active{transform:scale(.97)}
-  button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-  .btn-main{background:var(--accent);color:var(--on-accent);font-size:16px;padding:13px 24px;display:inline-flex;align-items:center;gap:9px}
-  .btn-main.live{background:var(--ink);color:var(--bg)}
-  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--ink);padding:10px 16px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
-  a.btn-ghost{display:inline-flex;align-items:center;border-radius:999px;font-family:var(--font-mono);font-weight:500;text-decoration:none}
-  /* Accès au générateur : en haut à droite de la page */
-  /* Grand titre à gauche, CTA Le Mix à droite, centrés sur la même ligne */
-  .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:clamp(20px,4vw,36px)}
-  /* Grand titre : crème dans un pavé rouge, comme Le Mix */
-  h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(40px,12vw,140px);line-height:.88;letter-spacing:-.02em}
+  /* Mode « Juste mes playlists » : pas de réglage de découvertes */
+  body[data-mode="mix"] .filters [data-for="discover"]{display:none}
+  /* Source : liens Spotify, ou titres de la radio (ouvert depuis la page radio) */
+  body[data-source="radio"] .filters [data-for="spotify"],
+  body:not([data-source="radio"]) .filters [data-for="radio"]{display:none}
+
+  /* Trois écrans : réglages, résultat, compte */
+  body[data-screen="form"] .result,
+  body[data-screen="result"] .hero,
+  body[data-screen="result"] .filters,
+  body[data-screen="account"] .hero,
+  body[data-screen="account"] .filters,
+  body[data-screen="account"] .result,
+  body:not([data-screen="account"]) .account,
+  body:not([data-screen="form"]) [data-only="form"],
+  body:not([data-screen="result"]) [data-only="result"],
+  body:not([data-screen="account"]) [data-only="account"]{display:none !important}
+  /* Réservé aux comptes avec l'accès radio (js/account.js pose data-radio) */
+  body:not([data-radio]) [data-radio-only]{display:none !important}
+  body[data-screen="account"] .actionbar{display:none}
+  .source-switch{margin:-8px 0 22px;font:400 13px var(--font-mono)}
+  .source-switch a{color:inherit}
+
+  .label{margin:0;font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+
+  /* Barre du haut : retour à gauche, nom au centre, action à droite ; reste visible en défilant */
+  .appbar{
+    position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:12px;
+    margin:0 calc(-1 * var(--gutter-r)) 0 calc(-1 * var(--gutter-l));
+    padding:calc(10px + env(safe-area-inset-top)) var(--gutter-r) 10px var(--gutter-l);
+    background:var(--bg);box-shadow:0 1px 0 var(--line-strong);
+  }
+  .appbar__left,.appbar__right{display:flex;gap:8px}
+  .back{text-decoration:none}
+  /* Radio en fond : bouton au centre de la barre et sur l'écran de chargement */
+  .radio-btn{white-space:nowrap}
+  .radio-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+
+  .hero{padding:clamp(20px,6vw,64px) 0 8px;border-bottom:1px solid var(--line-strong)}
+  /* Grand titre : crème dans un pavé rouge */
+  h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(56px,16vw,140px);line-height:.88;letter-spacing:-.02em}
   h1 em{font-style:italic}
-  .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--accent);color:var(--on-accent);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;flex:0 0 auto;white-space:nowrap}
-  @media (hover:hover){.btn-mix:hover{opacity:.85}}
-  .btn-ghost:hover{background:var(--card)}
-  .count{font-family:var(--font-mono);font-size:13px;color:var(--ink-dim);margin-left:auto}
-  .count b{color:var(--ink)}
+  .intro{max-width:46ch;margin:18px 0 22px}
 
-  .list{margin-top:26px;display:flex;flex-direction:column;gap:1px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
-  .row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card)}
-  .row .thumb{display:block;width:38px;height:38px;border-radius:6px;flex:0 0 auto;background:var(--card);border:1px solid var(--line);object-fit:cover}
-  .row .idx{font-family:var(--font-mono);font-size:12px;color:var(--ink-dim);width:26px;flex:0 0 auto;text-align:right}
-  .row .info{min-width:0;flex:1}
-  .row .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .a{font-size:13px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .genre{display:inline-block;vertical-align:1px;margin-right:6px;padding:1px 6px 0;border:1px solid var(--line-strong);border-radius:999px;font-family:var(--font-mono);font-size:9.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;line-height:1.3;color:var(--ink)}
-  .genre--hiphop{background:var(--ink);border-color:var(--ink);color:var(--on-accent)}
-  .genre--house{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-  .row .time{font-family:var(--font-mono);font-size:11px;color:var(--ink-dim)}
-  .row .links{display:flex;gap:5px;flex:0 0 auto;align-items:center}
-  /* Écouter ailleurs : logo + nom (logo seul dans la liste sur mobile) */
-  .svc{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:5px 11px 5px 9px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:500 11px/1 var(--font-mono);letter-spacing:.02em;text-decoration:none;white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
-  .svc svg{width:14px;height:14px;flex:0 0 auto;fill:currentColor}
-  @media (hover:hover){
-    .svc.sp:hover{background:#1DB954;border-color:#1DB954;color:#000}
-    .svc.yt:hover{background:#FF0000;border-color:#FF0000;color:#fff}
-    .svc.dz:hover{background:#A238FF;border-color:#A238FF;color:#fff}
+  /* Pastilles et boutons (comme les filtres du site cocktail) */
+  .pill-button{padding:8px 14px;border:1px solid var(--ink);border-radius:99px;background:transparent;color:var(--ink);font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;transition:background-color .2s,color .2s}
+  .pill-button .ico{width:1.1em;height:1.1em;margin-right:.4em;vertical-align:-.2em}
+  .pill-button--filled{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+  .pill-button:disabled{opacity:.4;cursor:default}
+  @media (hover:hover){.pill-button:not(:disabled):hover{background:var(--ink);color:var(--bg)}}
+
+  .chip{display:inline-flex;align-items:center;padding:6px 12px;border:0;border-radius:99px;background:var(--field);color:var(--ink);font:400 14px var(--font-mono);transition:background-color .2s,color .2s}
+  .chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+  .chip .count{margin-left:7px;font-size:12px;opacity:.6}
+  .chip:disabled{opacity:.35;cursor:default}
+  /* Style exclu : contour, barré, « sans » devant */
+  .chip__sans{display:none}
+  .chip[data-out]{background:transparent;box-shadow:inset 0 0 0 1px var(--ink);text-decoration:line-through}
+  .chip[data-out] .chip__sans{display:inline-block;margin-right:.3em;text-decoration:none}  /* inline-block : pas barré */
+  .chip .count:empty{display:none}
+  .filters__note .peek{display:block;margin-top:4px}
+  .summary{margin:0;font:500 12px var(--font-mono);text-align:center;text-wrap:balance}
+  .summary:empty{display:none}
+  @media (hover:hover){.chip:not(:disabled):hover{background:var(--ink);color:var(--bg)}}
+  @media (prefers-reduced-motion:reduce){.chip{transition:none}}
+
+  /* Réglages : étiquette à gauche, choix à droite */
+  .filters{display:grid;grid-template-columns:156px 1fr;align-items:center;gap:18px 0;margin-top:28px}
+  .filters .label{font-size:13px;letter-spacing:.02em;align-self:start;padding-top:7px}
+  .filters__chips{display:flex;flex-wrap:wrap;gap:8px}
+  .filters__note{grid-column:2;margin-top:-10px;font:400 12px var(--font-mono);opacity:.75}
+  .filters__note .warn{display:block;margin-top:4px;font-weight:500;opacity:1}
+  .more{grid-column:1/-1;border-top:1px solid var(--line)}
+  .more>summary{padding:14px 0 4px;font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;list-style:none}
+  .more>summary::-webkit-details-marker{display:none}
+  .more>summary::before{content:'+';display:inline-block;width:1.2em}
+  .more[open]>summary::before{content:'−'}
+  .more__sum{margin-left:.6em;font-weight:400;letter-spacing:0;text-transform:none;opacity:.75}
+  .filters--more{margin-top:10px}
+  .field{width:100%;min-width:0;padding:9px 22px;border:0;border-radius:99px;outline:none;background:var(--field);color:var(--ink);font:400 16px var(--font-mono);-webkit-appearance:none;appearance:none}
+  .field:focus-visible{box-shadow:0 0 0 1px var(--ink)}
+  .field::placeholder{color:var(--ink);opacity:.75}
+  .seeds{display:flex;flex-direction:column;gap:8px}
+  .seed{display:flex;align-items:center;gap:8px 12px}
+  .seed__input{position:relative;flex:1;min-width:0;display:flex}
+  .seed__input .field{padding-right:84px}
+  .seed__paste{position:absolute;right:5px;top:50%;transform:translateY(-50%);padding:6px 11px;font-size:11px;background:var(--bg)}
+  .seed__clear{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:32px;height:32px;padding:0;font-size:18px;line-height:1;letter-spacing:0;background:var(--bg)}
+  .seed__input [hidden]{display:none}
+  .seed-state{flex:0 0 240px;display:flex;align-items:center;gap:8px;min-width:0;font:400 12px var(--font-mono)}
+  .seed-state:empty{visibility:hidden}
+  .seed-state.err{color:var(--ink)}
+  .seed-state.wait{opacity:.6}
+  .seed-state__cover{width:28px;height:28px;flex-shrink:0;border-radius:4px;background:var(--field) center/cover}
+  .seed-state__text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .seed-state__text b{font-weight:500}
+  .seed-state .pill-button{padding:5px 10px;font-size:11px}
+  .field.ok{box-shadow:0 0 0 1px var(--ink)}
+  .field.err{box-shadow:0 0 0 2px var(--accent)}
+  /* Mes playlists Spotify : un clic remplit (ou vide) une case */
+  .pick{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .add-seed{align-self:flex-start}
+  .add-seed[hidden]{display:none}
+  .seed[hidden]{display:none}
+  /* Séparateur « ou colle un lien » */
+  .or{display:flex;align-items:center;gap:12px;font:400 12px var(--font-mono);opacity:.75}
+  .or::before,.or::after{content:'';flex:1;height:1px;background:var(--line-strong)}
+  .mine{display:flex;flex-direction:column;gap:8px}
+  .mine__login{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;padding:16px 18px;border-radius:12px;background:var(--field)}
+  .mine__login p{margin:0;font:400 13px var(--font-mono)}
+  .mine:empty{display:none}
+  .mine__head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;font:400 12px var(--font-mono)}
+  .mine__head .field{flex:1;min-width:160px;padding:7px 18px;font-size:14px}
+  .mine__list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;max-height:330px;overflow-y:auto;overscroll-behavior:contain;padding:2px}
+  .mine__item{display:flex;align-items:center;gap:10px;min-width:0;padding:6px 12px 6px 6px;border:0;border-radius:8px;background:var(--field);color:var(--ink);font:400 13px var(--font-mono);text-align:left;transition:background-color .2s,color .2s}
+  .mine__item[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+  .mine__item:disabled{opacity:.35;cursor:default}
+  .mine__item .seed-state__cover{width:36px;height:36px}
+  .mine__text{min-width:0;display:flex;flex-direction:column}
+  .mine__text b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mine__text small{font-size:11px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  @media (hover:hover){.mine__item:not(:disabled):not([aria-pressed="true"]):hover{background:var(--ink);color:var(--bg)}}
+  .range{display:flex;align-items:center;gap:14px;max-width:520px}
+  .range input{flex:1;accent-color:var(--ink)}
+  .range output{min-width:84px;font:500 13px var(--font-mono);text-align:right}
+
+  .hint{font:400 12px var(--font-mono);opacity:.8}
+
+  /* Barre d'action en bas, à portée de pouce */
+  .actionbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:20;
+    padding:10px max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background:var(--bg);box-shadow:0 -1px 0 var(--line-strong);
   }
-  .now-links{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-  .now-links[hidden]{display:none}
-  .now-links .svc{min-height:32px;padding:7px 13px 7px 11px;font-size:12px}
-  /* Cœur : ajoute aux Titres likés Spotify */
-  /* Cœur (Titres likés) et + (ajouter à une playlist) */
-  .heart,.add{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex:0 0 auto;padding:0;border:0;border-radius:99px;background:transparent;color:var(--ink-dim);cursor:pointer;transition:color .15s,transform .12s}
-  .heart svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
-  .add svg{width:16px;height:16px}
-  .add[aria-expanded="true"]{color:var(--ink)}
-  @media (hover:hover){.add:hover{color:var(--ink);transform:scale(1.1)}}
-  .heart[aria-pressed="true"]{color:var(--accent)}
-  .heart[aria-pressed="true"] svg{fill:currentColor}
-  .heart.wait{opacity:.45;pointer-events:none}
-  .heart.none{opacity:.3}
-  @media (hover:hover){.heart:hover{color:var(--accent);transform:scale(1.1)}}
-  .now-links .heart,.now-links .add{width:28px;height:28px}
+  .actionbar__inner{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+  .actionbar .hint{text-align:center}
+  .actionbar .hint:empty{display:none}
+  .btn-cta{width:100%;min-height:52px;padding:14px 22px;border:0;border-radius:99px;background:var(--accent);color:var(--on-accent);font:500 14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+  .btn-cta:disabled{opacity:.4;cursor:default}
+  @media (min-width:600px){.btn-cta{width:auto;align-self:center;min-width:320px}}
 
-  /* Menu « Ajouter à une playlist » : sous le bouton ; en bas de l'écran sur mobile */
-  .pl-menu{position:absolute;z-index:30;width:300px;max-height:min(420px,60vh);display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line-strong);border-radius:12px;background:var(--bg);box-shadow:0 18px 40px rgba(31,29,20,.3)}
-  .pl-menu[hidden]{display:none}
-  .pl-menu__title{font:500 12px var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pl-menu__note{font:400 12px var(--font-mono);color:var(--ink-dim)}
-  .pl-menu__filter{width:100%;padding:8px 16px;border:0;border-radius:99px;outline:none;background:var(--card);color:var(--ink);font:400 14px var(--font-mono)}
-  .pl-menu__filter:focus-visible{box-shadow:0 0 0 1px var(--ink)}
-  .pl-menu__list{display:flex;flex-direction:column;gap:2px;overflow-y:auto;overscroll-behavior:contain;margin:0 -6px}
-  .pl-item{display:flex;align-items:center;gap:10px;padding:6px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:400 13px var(--font-mono);text-align:left;cursor:pointer}
-  .pl-item[hidden]{display:none}
-  .pl-item span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pl-item img,.pl-item__cover{width:36px;height:36px;flex:0 0 auto;border-radius:4px;background:var(--card);object-fit:cover}
-  @media (hover:hover){.pl-item:hover{background:var(--card)}}
-
-
-
-  .more{display:block;width:100%;border:0;border-radius:0;padding:16px;background:var(--card)}
-  .empty{padding:40px 20px;text-align:center;color:var(--ink-dim);background:var(--card)}
-  .empty b{color:var(--ink);font-family:var(--font-display);font-weight:500}
-
-  .hour-sep{padding:10px 16px 6px;display:flex;align-items:center;gap:10px;background:transparent}
-  .hour-sep .hour-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
-  .hour-sep .hour-line{flex:1;height:1px;background:var(--line)}
-
-  .export{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
-  .footnote{margin-top:26px;font-size:12.5px;color:var(--ink-dim);border-top:1px solid var(--line);padding-top:16px}
-  .footnote a{color:var(--ink)}
-  .status{font-family:var(--font-mono);font-size:12px;color:var(--ink-dim);margin-top:12px;min-height:16px}
-  .status.err{color:var(--ink)}
-
-  @media(max-width:600px){
-    /* Player */
-    .custom-player{flex-direction:column;align-items:center;text-align:center;padding:20px 16px;gap:16px}
-    .vinyl{width:96px;height:96px}
-    .cp-body{width:100%}
-    .cp-station,.now-label{text-align:center}
-    .now-title{font-size:20px}
-    .now-links{justify-content:center;flex-wrap:nowrap;gap:5px}
-    .pl-menu{position:fixed;left:0 !important;right:0;top:auto !important;bottom:0;width:auto;max-height:70vh;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
-    .now-links .svc{padding:6px 9px 6px 8px;font-size:11px;gap:5px}
-    .cp-controls{justify-content:center}
-    .vol-wrap{flex:1;justify-content:flex-end}
-
-    /* Liste */
-    .row .time,.row .idx{display:none}
-    .row{flex-wrap:wrap;row-gap:6px}
-    .row .thumb{width:34px;height:34px}
-    /* Boutons sur une 2e ligne, sous le titre : le titre garde toute la largeur */
-    .row .links{flex-basis:100%;padding-left:48px;margin-left:-6px}
-    .row .svc{width:32px;height:32px;padding:0;justify-content:center}
-    .row .svc span{display:none}
-
-    /* Export */
-    .export{flex-direction:column}
-    .export button{border-radius:12px;text-align:center;justify-content:center}
-
+  @media (max-width:599px){
+    .filters{grid-template-columns:1fr;gap:8px}
+    .filters .label{padding-top:14px}
+    .filters__note{grid-column:1;margin-top:0}
+    .mine__list{grid-template-columns:1fr;max-height:300px}
+    .seed{flex-wrap:wrap}
+    .seed-state{flex-basis:100%;padding-left:22px}
+    .seed-state:empty{display:none}
+    /* Choix uniques : une rangée qui défile, pastilles plus grandes au doigt */
+    .chip{min-height:40px;padding:8px 15px}
+    .filters__chips--scroll{flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x proximity;scroll-padding-inline:var(--gutter-l) var(--gutter-r);scrollbar-width:none;
+      margin:0 calc(-1 * var(--gutter-r)) 0 calc(-1 * var(--gutter-l));padding:2px var(--gutter-r) 6px var(--gutter-l)}
+    .filters__chips--scroll::-webkit-scrollbar{display:none}
+    .filters__chips--scroll .chip{flex-shrink:0;scroll-snap-align:start}
   }
+
+  /* Chargement : plein écran, annulable */
+  .loading{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    padding:24px;background:color-mix(in srgb, var(--bg) 96%, transparent);text-align:center}
+  .loading.on{display:flex}
+  .loading__title{margin:0 0 12px;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(44px,12vw,72px);line-height:.9}
+  .loading__step{margin:0;font:500 13px var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+  .loading__bar{width:min(320px,80%);height:2px;margin:18px auto;background:var(--line)}
+  .loading__bar span{display:block;height:100%;width:0;background:var(--ink);transition:width .6s ease}
+  .loading .pill-button{margin-top:18px}
+  .error{display:none;margin-top:20px;padding:12px 16px;border-radius:4px;background:var(--accent);color:var(--on-accent);font:400 14px var(--font-mono)}
+  .error.on{display:block}
+
+  /* Résultat : liste en grands titres */
+  .result{margin-top:clamp(20px,5vw,48px)}
+  .section-header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 16px;padding-bottom:16px;border-bottom:1px solid var(--line-strong)}
+  .section-title{margin:0;color:var(--ink);font-family:var(--font-display);font-weight:400;font-size:clamp(36px,9vw,56px);line-height:.95;letter-spacing:-.02em}
+  .section-title small{font:400 13px var(--font-mono);letter-spacing:.04em;vertical-align:.9em}
+  .profile{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px}
+  .short{display:none;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:14px 0 6px;padding:14px 16px;border-radius:4px;background:var(--accent);color:var(--on-accent);font:400 13px var(--font-mono)}
+  .short.on{display:flex}
+  .short p{margin:0;flex:1;min-width:220px}
+  .tag{font:400 12px var(--font-mono);padding:3px 9px;border:1px solid var(--line-strong);border-radius:99px;white-space:nowrap}
+  .tag--fill{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+  /* Versions (une par ajustement) et ajustements de la playlist */
+  .versions{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0}
+  .versions[hidden]{display:none}
+  .versions .chip{font-size:12px;padding:5px 11px}
+  .adjust{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:18px 0 6px;padding:14px 0 0;border-top:1px solid var(--line)}
+  .adjust__label{font:500 11px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;margin-right:4px}
+  .adjust--more{margin-top:0;padding-top:4px;border-top:0}
+  .adjust[hidden]{display:none}
+  .adjust__field{flex:1 1 180px;max-width:320px;min-height:34px;padding:6px 14px}
+  .track__like{display:inline-block;margin-top:6px;padding:3px 9px;border:1px solid currentColor;border-radius:99px;background:transparent;color:inherit;font:400 11px var(--font-mono)}
+  .track__like:disabled{opacity:.4}
+  @media (hover:hover){.track__like:not(:disabled):hover{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}}
+  .adjust-note{margin:10px 0 0;font:400 13px var(--font-mono)}
+  .adjust-note:empty{display:none}
+  .tag--new{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+  .tracks{margin:8px 0 0;padding:0;list-style:none}
+  .track{display:grid;grid-template-columns:28px 72px 1fr auto 24px;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;-webkit-user-select:none;transition:background-color .15s,color .15s,padding .15s,opacity .15s}
+  /* Coche visible : on touche la ligne pour retirer ou remettre le titre */
+  .track__check{width:22px;height:22px;border:1px solid currentColor;border-radius:50%;display:grid;place-items:center;font:500 12px var(--font-mono)}
+  .track__check::after{content:'✓'}
+  .track.off .track__check::after{content:''}
+  @media (hover:hover){.track:hover{padding-inline:8px;background:var(--ink);color:var(--bg)}}
+  .track input{position:absolute;opacity:0;pointer-events:none}
+  .track.off{opacity:.35}
+  .track__index{font:400 12px var(--font-mono)}
+  .track__cover{width:72px;height:72px;border-radius:4px;background:var(--field) center/cover}
+  /* Pochette = bouton d'écoute de l'extrait (30 s, Deezer) */
+  .track__play{position:relative;border:0;padding:0;overflow:hidden}
+  /* Pastille lecture toujours visible : on comprend qu'on peut écouter (icônes aux couleurs de da.css) */
+  .track__play::after{content:'';position:absolute;right:6px;bottom:6px;width:28px;height:28px;border-radius:50%;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23E3301A' d='M7 4.5v15l13-7.5z'/%3E%3C/svg%3E") 55% 50%/12px no-repeat,var(--on-accent);box-shadow:0 1px 4px rgb(0 0 0 / .25);transition:transform .15s,background-color .15s,color .15s}
+  .track__play::before{content:'';position:absolute;inset:0;background:color-mix(in srgb, var(--ink) 35%, transparent);opacity:0;transition:opacity .15s}
+  .track__play:not([disabled]):hover::after{transform:scale(1.12)}
+  .track__play:not([disabled]):hover::before,.track.playing .track__play::before{opacity:1}
+  .track.playing .track__play::after{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23EFDBB3' d='M6 4h4v16H6zM14 4h4v16h-4z'/%3E%3C/svg%3E") center/11px no-repeat,var(--accent)}
+  .track__play[disabled]::after{content:none}
+  .track__play[disabled]{cursor:default}
+  .track.playing{background:color-mix(in srgb, var(--ink) 8%, transparent)}
+  .track__name,.track__artist{display:block}
+  .track__name{margin:0;font-family:var(--font-display);font-weight:400;font-size:clamp(20px,4.6vw,30px);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .track__artist{margin-top:4px;font:400 13px var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .track__info{min-width:0}
+  .track__tags{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;max-width:280px}
+  .track:hover .tag{border-color:currentColor}
+  @media (max-width:599px){
+    .track{grid-template-columns:22px 60px 1fr 24px;gap:6px 12px}
+    .track__tags{grid-column:3;grid-row:2;justify-content:flex-start;max-width:none}
+    .track__check{grid-column:4;grid-row:1}
+    .track__cover{width:60px;height:60px;grid-row:span 2}
+    .track__play::after{right:4px;bottom:4px;width:24px;height:24px;font-size:10px}
+  }
+
+  /* Compte : connexion, mes mixes, invitations */
+  .account{padding-top:clamp(20px,6vw,48px)}
+  .account__block{margin-top:28px}
+  .account__block > .label{display:block;margin-bottom:10px}
+  .login{display:flex;flex-direction:column;gap:12px;max-width:420px}
+  .login p{margin:0}
+  .login .btn-cta{width:100%;min-width:0}
+  .me{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:16px;font:400 14px var(--font-mono)}
+  .mixes,.members{margin:0;padding:0;list-style:none}
+  .mixes li,.members li{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .mixes a.mix__name{flex:1 1 220px;min-width:0;color:inherit;text-decoration:none;font-family:var(--font-display);font-size:clamp(20px,4.6vw,28px);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  @media (hover:hover){.mixes a.mix__name:hover{text-decoration:underline}}
+  .mix__meta,.members .member__email{font:400 12px var(--font-mono)}
+  .members .member__email{flex:1 1 200px;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+  .invite{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:8px}
+  .invite .field{flex:1 1 220px;max-width:360px}
+  .check{display:inline-flex;align-items:center;gap:6px;font:400 13px var(--font-mono);cursor:pointer}
+  .empty{font:400 13px var(--font-mono);opacity:.75}
+  .done{display:none;margin-top:16px;padding:16px;border:1px solid var(--ink);border-radius:4px}
+  .done.on{display:block}
+  .done__actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
-
-
-  <header class="topbar">
-    <h1>La <em>Radio</em></h1>
-    <a class="btn-mix" href="generateur.html">Le Mix</a>
+  <header class="appbar">
+    <div class="appbar__left">
+      <a class="back pill-button" href="radio.html" id="toRadio" data-only="form" hidden>← Radio</a>
+      <button class="pill-button" id="toForm" data-only="result">← Réglages</button>
+      <button class="pill-button" id="fromAccount" data-only="account">← Le Mix</button>
+    </div>
+    <div class="appbar__right">
+      <button class="pill-button" id="toResult" data-only="form" hidden>Mon mix →</button>
+      <button class="pill-button" id="regen" data-only="result">↻ Régénérer</button>
+      <button class="pill-button radio-btn" id="radioBtn" type="button" aria-pressed="false" data-radio-only></button>
+      <button class="pill-button" id="accountBtn" type="button">Compte</button>
+    </div>
   </header>
 
-  <div class="custom-player">
-    <audio id="radioAudio" preload="none"></audio>
-    <div class="vinyl" id="vinyl">
-      <img id="nowCover" src="" alt="">
-      <svg viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="49" fill="#1F1D14"/>
-        <circle cx="50" cy="50" r="49" fill="none" stroke="color-mix(in srgb, var(--ink) 8%, transparent)" stroke-width="1"/>
-        <circle cx="50" cy="50" r="40" fill="none" stroke="color-mix(in srgb, var(--ink) 6%, transparent)" stroke-width="1"/>
-        <circle cx="50" cy="50" r="31" fill="none" stroke="color-mix(in srgb, var(--ink) 6%, transparent)" stroke-width="1"/>
-        <circle cx="50" cy="50" r="18" fill="#E3301A"/>
-        <circle cx="50" cy="50" r="4.5" fill="#1F1D14"/>
-        <circle cx="62" cy="38" r="2" fill="rgba(255,255,255,.25)"/>
-      </svg>
+  <section class="hero">
+    <h1>Le <em>Mix</em></h1>
+    <p class="intro" id="intro">Jusqu'à trois playlists Spotify que tu aimes : le générateur garde tes meilleurs titres, ajoute des découvertes du même univers et les enchaîne.</p>
+    <p class="source-switch" data-radio-only><a id="sourceSwitch" href="./?source=radio">Ou à partir des titres de la radio →</a></p>
+  </section>
+
+  <div class="filters">
+    <p class="label">Mode</p>
+    <div class="filters__chips filters__chips--scroll" id="mode"></div>
+    <p class="filters__note" id="modeDesc"></p>
+
+    <p class="label" data-for="spotify">Playlists</p>
+    <div class="pick" data-for="spotify">
+      <div class="mine" id="mine"></div>
+      <div class="or">ou colle un lien</div>
+      <div class="seeds" id="seeds"></div>
+      <button class="pill-button add-seed" type="button" id="addSeed">+ Ajouter un lien</button>
     </div>
-    <div class="cp-body">
-      <div class="cp-station">La Patate Douce · en direct</div>
-      <div class="now-label" >En ce moment</div>
-      <div class="now-title" id="nowTitle">—</div>
-      <div class="now-artist" id="nowArtist"></div>
-      <div class="now-links" id="nowLinks" hidden></div>
-      <div class="cp-controls">
-        <button class="btn-main" id="radioPlayBtn"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg> Écouter</button>
-        <div class="vol-wrap">
-          <span class="vol-icon" id="volIcon" role="button" aria-label="Couper le son"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
-          <input type="range" class="vol" id="volSlider" min="0" max="1" step="0.01" value="1">
-        </div>
+
+    <p class="label" data-for="radio">Période</p>
+    <div class="filters__chips filters__chips--scroll" id="period" data-for="radio"></div>
+
+    <p class="label">Styles</p>
+    <div class="filters__chips" id="styles"></div>
+    <p class="filters__note" id="stylesNote"></p>
+
+    <p class="label">Ambiance</p>
+    <div class="filters__chips filters__chips--scroll" id="themes"></div>
+    <p class="filters__note" id="themeDesc"></p>
+
+    <p class="label">Longueur</p>
+    <div class="range"><input type="range" id="len" min="15" max="60" step="5" value="30"><output id="lenVal"></output></div>
+
+    <p class="label" data-for="discover">Découvertes</p>
+    <div class="range" data-for="discover"><input type="range" id="disc" min="0" max="100" step="10" value="50"><output id="discVal"></output></div>
+
+    <!-- Réglages secondaires : ouverts par défaut, repliables ; ce qui n'est pas par défaut s'affiche à côté du titre -->
+    <details class="more" id="more" open>
+      <summary>Plus de réglages<span class="more__sum" id="moreSum"></span></summary>
+      <div class="filters filters--more">
+        <p class="label">Type d'artiste</p>
+        <div class="filters__chips filters__chips--scroll" id="niche"></div>
+        <p class="filters__note" id="nicheDesc"></p>
+
+        <p class="label">Enchaînement</p>
+        <div class="filters__chips filters__chips--scroll" id="curve"></div>
+
+        <p class="label">Titre</p>
+        <input class="field" id="plName" placeholder="Automatique : ambiance · date" enterkeyhint="done" maxlength="100">
+      </div>
+    </details>
+  </div>
+
+  <div class="error" id="error"></div>
+
+  <section class="account" id="account">
+    <div class="section-header"><h2 class="section-title">Compte</h2></div>
+
+    <form class="login account__block" id="loginForm" hidden>
+      <p id="loginWhy">Le Mix est sur invitation. Entre l'adresse e-mail qui a reçu l'invitation : on t'envoie un lien pour te connecter.</p>
+      <input class="field" type="email" id="loginEmail" placeholder="ton@email.fr" autocomplete="email" required>
+      <button class="btn-cta" type="submit" id="loginGo">Recevoir le lien</button>
+      <p class="hint" id="loginMsg" aria-live="polite"></p>
+    </form>
+
+    <div id="signedIn" hidden>
+      <div class="me"><span id="meEmail"></span><span class="tag" id="meRadio" hidden>Accès radio</span>
+        <button class="pill-button" id="logout" type="button">Se déconnecter</button></div>
+
+      <div class="account__block">
+        <p class="label">Mes mixes</p>
+        <ul class="mixes" id="mixList"></ul>
+      </div>
+
+      <div class="account__block" id="adminBox" hidden>
+        <p class="label">Invitations</p>
+        <form class="invite" id="inviteForm">
+          <input class="field" type="email" id="inviteEmail" placeholder="e-mail à inviter" required>
+          <label class="check"><input type="checkbox" id="inviteRadio"> accès radio</label>
+          <button class="chip" type="submit">Inviter</button>
+        </form>
+        <p class="hint" id="inviteMsg" aria-live="polite"></p>
+        <ul class="members" id="members"></ul>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="controls">
-    <button class="btn-ghost" id="refreshBtn">Rafraîchir</button>
-    <a class="btn-ghost" href="generateur.html?source=radio">Créer playlist Spotify</a>
-    <span class="count"><b id="countNum">0</b> titres</span>
-  </div>
-  <div class="status" id="status"></div>
-
-  <div class="list" id="list"></div>
-
-  <div class="export">
-    <a class="btn-ghost" href="generateur.html?source=radio">Créer playlist Spotify</a>
-    <button class="btn-ghost" id="copyBtn">Copier la liste</button>
-    <button class="btn-ghost" id="csvBtn">Télécharger .csv</button>
-  </div>
-
-  <p class="footnote">
-    Un robot tourne en continu côté serveur et note chaque nouveau titre toutes les minutes, même quand cette page est fermée : la liste se met à jour toute seule. Le cœur ajoute un titre à tes Titres likés Spotify, le + à une de tes playlists.
-    « Créer playlist Spotify » ouvre <a href="generateur.html?source=radio">Le Mix</a> avec les titres de la radio : thème, styles, niveau, enchaînement par tempo et écoute des extraits.
-  </p>
-
+  <section class="result" id="result">
+    <div class="section-header">
+      <h2 class="section-title" id="resTitle"></h2>
+      <button class="pill-button" id="saveMix" type="button">Enregistrer</button>
+      <button class="pill-button" id="listenAll"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>Écouter le mix</button>
+    </div>
+    <div class="versions" id="versions" hidden></div>
+    <div class="profile" id="profile"></div>
+    <p class="adjust-note" id="adjustNote"></p>
+    <div class="adjust" id="adjust"><span class="adjust__label">Ajuster</span></div>
+    <div class="adjust adjust--more" id="adjustMore"><span class="adjust__label">Plus de</span></div>
+    <form class="adjust adjust--more" id="adjustArtist">
+      <span class="adjust__label">Comme</span>
+      <input class="field adjust__field" id="likeName" placeholder="Un artiste" autocomplete="off" enterkeyhint="go" maxlength="80">
+      <button class="chip" type="submit">Ajouter</button>
+    </form>
+    <div class="short" id="short">
+      <p id="shortText"></p>
+      <button class="pill-button" id="complete">Compléter en assouplissant</button>
+    </div>
+    <ol class="tracks" id="list"></ol>
+    <div class="done" id="done"></div>
+  </section>
 </div>
 
-<div class="pl-menu" id="plMenu" role="dialog" aria-label="Ajouter à une playlist" hidden></div>
+<nav class="actionbar">
+  <div class="actionbar__inner">
+    <p class="summary" id="summary" data-only="form" aria-live="polite"></p>
+    <p class="hint" id="goHint" data-only="form"></p>
+    <p class="hint" id="createStep" data-only="result"></p>
+    <button class="btn-cta" id="go" data-only="form">Générer le mix</button>
+    <button class="btn-cta" id="create" data-only="result">Créer sur Spotify</button>
+  </div>
+</nav>
+
+<div class="loading" id="loading" role="status" aria-live="polite">
+  <p class="loading__title">Le <em>Mix</em></p>
+  <p class="loading__step" id="step"></p>
+  <div class="loading__bar"><span id="bar"></span></div>
+  <p class="hint">Compte environ une minute.</p>
+  <button class="pill-button radio-btn" id="radioBtnWait" type="button" aria-pressed="false"></button>
+  <button class="pill-button" id="cancel">Annuler</button>
+</div>
+
+<audio id="radioAudio" preload="none"></audio>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/shared.js"></script>
-<script src="js/radio.js"></script>
+<script src="js/mix.js"></script>
+<script src="js/account.js"></script>
 </body>
 </html>

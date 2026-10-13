@@ -3,7 +3,6 @@
    Côté serveur (Supabase) : la Edge Function poll-radio note chaque titre dans `plays` toutes les minutes
    et remplit `track_info` (pochettes, genres) ; cette page ne fait que lire. */
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 const RADIO_API  = 'https://api.radioking.io/widget/radio/radio-jockey/track/current'
 const POLL_MS    = 20000
@@ -206,7 +205,7 @@ el('radioPlayBtn').onclick = () => stream.toggle()
 
 /* Vers Le Mix pendant l'écoute : Le Mix reprend la radio (radio=1) */
 document.addEventListener('click', e => {
-  const a = e.target.closest('a[href^="generateur.html"]')
+  const a = e.target.closest('a[href^="./"]')
   if (!a || !stream.on) return
   const url = new URL(a.href)
   url.searchParams.set('radio', '1')
@@ -456,16 +455,19 @@ el('csvBtn').onclick = async () => {
 
 /* ── Démarrage ──────────────────────────────────────────────── */
 ;(async () => {
+  /* Réservée aux comptes avec l'accès radio (profiles.radio) ; les autres voient l'invitation à se connecter */
+  const prof = await myProfile()
+  if (!prof?.radio) {
+    document.body.classList.add('gated')
+    el('gate').hidden = false
+    if (prof) el('gateText').textContent = 'Ton compte n\'a pas encore accès à la radio : demande-le à la personne qui t\'a invité·e.'
+    return
+  }
   const params = new URLSearchParams(location.search)
-  /* Cette page est l'adresse de retour Spotify : une connexion lancée depuis Le Mix lui est renvoyée */
-  if (params.get('state') === 'mix') return location.replace('generateur.html' + location.search)
-  /* Retour d'une connexion lancée par un cœur. Dans la fenêtre à part : on enregistre le jeton
-     (la page d'origine le voit passer) et on ferme. Fenêtre bloquée : on like le titre en attente. */
-  if (params.get('state') === 'like') {
+  /* Retour d'une connexion lancée par un cœur sans fenêtre à part (bloquée) : l'accueil (adresse de retour Spotify)
+     a enregistré le jeton et renvoie ici (?liked) ; on like le titre en attente */
+  if (params.has('liked')) {
     history.replaceState({}, '', location.pathname)
-    try { if (params.get('code')) await spExchange(params.get('code')) }
-    catch (e) { setStatus(`Connexion Spotify impossible (${e.message}).`, true) }
-    if (window.opener && window.name === 'spotify-login') return window.close()
     const pending = lsGet('sp_like_pending', null)
     localStorage.removeItem('sp_like_pending')
     if (pending && spReady()) toggleLike(pending)

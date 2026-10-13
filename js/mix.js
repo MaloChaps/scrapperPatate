@@ -75,7 +75,7 @@ const adjustMeta = (kind, artist = '') => ADJUSTS[kind] || (kind === 'artist'
 /* ── Spotify ─────────────────────────────────────────────────── */
 /* Connexion par redirection (et non dans une fenêtre à part comme la radio) : installée sur iPhone,
    l'app ne partage pas son stockage avec la fenêtre que Safari ouvrirait. Le formulaire est enregistré
-   avant de partir ; Spotify renvoie sur la page radio, qui renvoie ici (state=mix). */
+   avant de partir ; Spotify renvoie sur cette page (adresse de retour : le dossier du site). */
 async function spLogin() {
   saveForm()
   location = await spAuthUrl('mix')
@@ -327,7 +327,7 @@ async function fetchAll(table, select) {
   const all = []
   for (let from = 0; ; from += 1000) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${select}&offset=${from}&limit=1000`,
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } })
+      { headers: await sbHeaders() })
     const page = res.ok ? await res.json() : []
     all.push(...page)
     if (page.length < 1000) return all
@@ -528,7 +528,8 @@ function restoreForm() {
 }
 
 function updateHint() {
-  el("goHint").textContent = spToken() ? '' : 'Connexion Spotify demandée au premier clic'
+  const signedIn = typeof me !== 'undefined' && me  // compte : js/account.js, chargé après cette page
+  el("goHint").textContent = !signedIn ? 'Connexion à ton compte demandée au premier clic' : spToken() ? '' : 'Connexion Spotify demandée au premier clic'
 }
 
 /* La barre du bas (résumé, bouton) change de hauteur : le bas de la page lui laisse toujours la place */
@@ -600,7 +601,7 @@ async function generate(seeds, extra = {}, label = 'Originale') {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/build-playlist`, {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      headers: { ...await sbHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: aborter.signal
     })
@@ -678,6 +679,7 @@ el("adjustArtist").onsubmit = e => {
 }
 
 el("go").onclick = async () => {
+  if (!me) return openAccount('Connecte-toi pour générer ton mix (Le Mix est sur invitation).')  // js/account.js
   if (!spToken()) return spLogin()
   saveForm()  // l'app se souvient des derniers réglages
   el("error").classList.remove('on')
@@ -791,6 +793,7 @@ function renderResult() {
   }
   el("done").classList.remove('on')
   el("createStep").textContent = ''
+  el("saveMix").textContent = v.savedId ? 'Enregistré ✓' : 'Enregistrer'
   updateCreateCount()
 }
 /* Icônes SVG (couleur du texte) à la place des emojis */
@@ -917,6 +920,7 @@ el("create").onclick = async () => {
     const missed = picked.length - found.length
     step.textContent = ''
     const url = pl.external_urls.spotify
+    saveCurrentMix(url)  // dans Mes mixes, avec le lien Spotify (js/account.js)
     el("done").innerHTML = `✓ ${found.length} titre${found.length > 1 ? 's' : ''} ajouté${found.length > 1 ? 's' : ''}${missed ? ` · ${missed} introuvable${missed > 1 ? 's' : ''} sur Spotify` : ''}
       <div class="done__actions">
         <a class="pill-button pill-button--filled" href="${esc(url)}" target="_blank" rel="noopener">Ouvrir dans Spotify ↗</a>
@@ -960,6 +964,13 @@ if (radioWanted) radio.play()
     if (i < 0) seedInputs[free < 0 ? 0 : free].value = `https://open.spotify.com/playlist/${shared}`
   }
   const code = params.get('code')
+  /* Connexion lancée par un cœur de la radio : dans la fenêtre à part on enregistre le jeton et on ferme
+     (la radio le voit passer), sinon on retourne à la radio qui like le titre en attente */
+  if (params.get('state') === 'like') {
+    try { if (code) await spExchange(code) } catch {}
+    if (window.opener && window.name === 'spotify-login') return window.close()
+    return location.replace('radio.html?liked')
+  }
   if (code) {
     history.replaceState({}, '', location.pathname)
     try { await spExchange(code) } catch (e) { showError(`Connexion Spotify impossible (${e.message}).`) }

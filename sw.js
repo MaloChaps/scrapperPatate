@@ -3,9 +3,9 @@
    Polices et images : cache d'abord (elles ne changent pas).
    Les API (Supabase, Spotify, Deezer) ne passent jamais par le cache.
    Incrémenter CACHE seulement si la liste SHELL change ou si une police / image est remplacée. */
-const CACHE = 'le-mix-v14'
+const CACHE = 'le-mix-v15'
 const SHELL = [
-  'generateur.html', 'js/shared.js', 'js/mix.js', 'da.css', 'mix.webmanifest',
+  './', 'js/shared.js', 'js/mix.js', 'da.css', 'mix.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'fonts/HWAnimoTRIAL/HWAnimoTRIAL-R500.ttf',
   'fonts/HW%20Left%20Trial/HWLeftTRIAL-Regular.ttf', 'fonts/HW%20Left%20Trial/HWLeftTRIAL-Bold.ttf',
@@ -41,6 +41,6 @@ self.addEventListener('fetch', e => {
   const req = e.request
   const url = new URL(req.url)
   if (req.method !== 'GET' || url.origin !== location.origin) return
-  if (req.mode === 'navigate') return e.respondWith(networkFirst(req, 'generateur.html'))
+  if (req.mode === 'navigate') return e.respondWith(networkFirst(req, './'))
   e.respondWith(CODE.test(url.pathname) ? networkFirst(req) : cacheFirst(req))
 })
