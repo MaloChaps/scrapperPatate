@@ -3,9 +3,9 @@
    Polices et images : cache d'abord (elles ne changent pas).
    Les API (Supabase, Spotify, Deezer) ne passent jamais par le cache.
    Incrémenter CACHE seulement si la liste SHELL change ou si une police / image est remplacée. */
-const CACHE = 'le-mix-v15'
+const CACHE = 'le-mix-v16'
 const SHELL = [
-  './', 'js/shared.js', 'js/mix.js', 'da.css', 'mix.webmanifest',
+  './', 'js/i18n.js', 'js/shared.js', 'js/ui.js', 'js/mix.js', 'js/account.js', 'js/community.js', 'da.css', 'mix.css', 'mix.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'fonts/HWAnimoTRIAL/HWAnimoTRIAL-R500.ttf',
   'fonts/HW%20Left%20Trial/HWLeftTRIAL-Regular.ttf', 'fonts/HW%20Left%20Trial/HWLeftTRIAL-Bold.ttf',
