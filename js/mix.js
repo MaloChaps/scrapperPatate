@@ -527,6 +527,10 @@ function updateHint() {
   el("goHint").textContent = spToken() ? '' : 'Connexion Spotify demandée au premier clic'
 }
 
+/* La barre du bas (résumé, bouton) change de hauteur : le bas de la page lui laisse toujours la place */
+new ResizeObserver(([e]) => document.documentElement.style.setProperty('--bar-h', e.borderBoxSize[0].blockSize + 'px'))
+  .observe(document.querySelector('.actionbar'))
+
 /* ── Écrans ─────────────────────────────────────────────────── */
 function showScreen(name) {
   document.body.dataset.screen = name

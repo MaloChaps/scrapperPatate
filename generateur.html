@@ -29,7 +29,7 @@
   .wrap{
     --gutter-l:max(16px, env(safe-area-inset-left));
     --gutter-r:max(16px, env(safe-area-inset-right));
-    max-width:1040px;margin:0 auto;padding:0 var(--gutter-r) calc(120px + env(safe-area-inset-bottom)) var(--gutter-l);
+    max-width:1040px;margin:0 auto;padding:0 var(--gutter-r) calc(var(--bar-h, 160px) + 24px) var(--gutter-l);  /* --bar-h : hauteur réelle de la barre du bas (js/mix.js) */
   }
 
   /* Mode « Juste mes playlists » : pas de réglage de découvertes */
