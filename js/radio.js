@@ -6,7 +6,7 @@
 
 const RADIO_API  = 'https://api.radioking.io/widget/radio/radio-jockey/track/current'
 const POLL_MS    = 20000
-const PAGE_SIZE  = 300   // titres affichés par page (l'historique grossit d'environ 300 titres par jour)
+const PAGE_SIZE  = 50    // titres affichés par page (« Voir plus » pour la suite ; l'historique grossit d'environ 300 titres par jour)
 
 let tracks   = []    // titres chargés, du plus récent au plus ancien : { id, title, artist, at }
 let total    = 0     // nombre de titres dans tout l'historique
