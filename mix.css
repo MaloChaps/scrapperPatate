@@ -82,13 +82,6 @@ body:is([data-screen="account"],[data-screen="community"]) .actionbar{display:no
 .filters__chips{display:flex;flex-wrap:wrap;gap:8px}
 .filters__note{grid-column:2;margin-top:-10px;font:400 12px var(--font-mono);opacity:.75}
 .filters__note .warn{display:block;margin-top:4px;font-weight:500;opacity:1}
-.more{grid-column:1/-1;border-top:1px solid var(--line)}
-.more>summary{padding:14px 0 4px;font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;list-style:none}
-.more>summary::-webkit-details-marker{display:none}
-.more>summary::before{content:'+';display:inline-block;width:1.2em}
-.more[open]>summary::before{content:'−'}
-.more__sum{margin-left:.6em;font-weight:400;letter-spacing:0;text-transform:none;opacity:.75}
-.filters--more{margin-top:10px}
 .field{width:100%;min-width:0;padding:9px 22px;border:0;border-radius:99px;outline:none;background:var(--field);color:var(--ink);font:400 16px var(--font-mono);-webkit-appearance:none;appearance:none}
 .field:focus-visible{box-shadow:0 0 0 1px var(--ink)}
 .field::placeholder{color:var(--ink);opacity:.75}
@@ -218,16 +211,8 @@ body:is([data-screen="account"],[data-screen="community"]) .actionbar{display:no
 .track__index{font:400 12px var(--font-mono)}
 .track__cover{width:72px;height:72px;border-radius:4px;background:var(--field) center/cover}
 /* Pochette = bouton d'écoute de l'extrait (30 s, Deezer) */
-.track__play{position:relative;border:0;padding:0;overflow:hidden}
 /* Pastille lecture toujours visible : on comprend qu'on peut écouter (icônes aux couleurs de da.css) */
-.track__play::after{content:'';position:absolute;right:6px;bottom:6px;width:28px;height:28px;border-radius:50%;
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23E3301A' d='M7 4.5v15l13-7.5z'/%3E%3C/svg%3E") 55% 50%/12px no-repeat,var(--on-accent);box-shadow:0 1px 4px rgb(0 0 0 / .25);transition:transform .15s,background-color .15s,color .15s}
-.track__play::before{content:'';position:absolute;inset:0;background:color-mix(in srgb, var(--ink) 35%, transparent);opacity:0;transition:opacity .15s}
-.track__play:not([disabled]):hover::after{transform:scale(1.12)}
-.track__play:not([disabled]):hover::before,.track.playing .track__play::before{opacity:1}
-.track.playing .track__play::after{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23EFDBB3' d='M6 4h4v16H6zM14 4h4v16h-4z'/%3E%3C/svg%3E") center/11px no-repeat,var(--accent)}
-.track__play[disabled]::after{content:none}
-.track__play[disabled]{cursor:default}
 .track.playing{background:color-mix(in srgb, var(--ink) 8%, transparent)}
 .track__name,.track__artist{display:block}
 .track__name{margin:0;font-family:var(--font-display);font-weight:400;font-size:clamp(20px,4.6vw,30px);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -240,7 +225,6 @@ body:is([data-screen="account"],[data-screen="community"]) .actionbar{display:no
   .track__tags{grid-column:3;grid-row:2;justify-content:flex-start;max-width:none}
   .track__check{grid-column:4;grid-row:1}
   .track__cover{width:60px;height:60px;grid-row:span 2}
-  .track__play::after{right:4px;bottom:4px;width:24px;height:24px;font-size:10px}
 }
 
 /* Compte : connexion, mes mixes, invitations */
@@ -262,17 +246,6 @@ body:is([data-screen="account"],[data-screen="community"]) .actionbar{display:no
 .infos{display:grid;grid-template-columns:max-content 1fr;gap:10px 24px;margin:8px 0 20px;font:400 14px var(--font-mono)}
 .infos dt{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;padding-top:2px}
 .infos dd{margin:0;min-width:0;overflow-wrap:anywhere}
-.mixes,.members{margin:0;padding:0;list-style:none}
-.mixes li,.members li{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
-.mixes li{align-items:flex-start;padding:16px 0}
-.mix__head{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;min-width:0}
-.mixes a.mix__name{min-width:0;max-width:100%;color:inherit;text-decoration:none;font-family:var(--font-display);font-size:clamp(22px,5vw,32px);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media (hover:hover){.mixes a.mix__name:hover{text-decoration:underline}}
-.mix__rename{flex:1 1 240px;max-width:420px}
-.mix__versions{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%}
-.mix__versions a{text-decoration:none;color:inherit}
-.mix__actions{display:flex;flex-wrap:wrap;gap:8px}
-.mix__meta,.members .member__email{font:400 12px var(--font-mono)}
 .members .member__email{flex:1 1 200px;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px}
 .invite{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:8px}
 .invite .field{flex:1 1 220px;max-width:360px}
@@ -324,17 +297,6 @@ body:is([data-screen="account"],[data-screen="community"]) .actionbar{display:no
 .empty{font:400 13px var(--font-mono);opacity:.75}
 .grid > .empty{grid-column:1/-1;padding:24px;border-radius:12px;background:var(--field)}
 
-/* Pochettes des playlists : carrés entiers qui se chevauchent un peu ; au survol, la pochette passe devant
-   et affiche artiste / titre */
-.fan{--h:var(--fan-h,120px);position:relative;display:flex;align-items:flex-end;padding:22px 0 4px;isolation:isolate;text-decoration:none}
-.fan__item{position:relative;flex:0 0 auto;width:var(--h);height:var(--h);margin-left:calc(var(--h) * -.42);border-radius:6px;background:var(--bg) center/cover no-repeat;box-shadow:0 0 0 1.5px var(--ink),-6px 0 12px -6px rgb(0 0 0 / .45);transition:transform .25s cubic-bezier(.2,.8,.2,1)}
-.fan__item:first-child{margin-left:0}
-@media (hover:hover){.fan__item:hover{z-index:5;transform:translateY(-14px)}}
-.fan__tip{position:absolute;left:50%;bottom:calc(100% + 6px);z-index:6;min-width:140px;max-width:210px;padding:6px 10px;border-radius:6px;background:var(--on-accent);color:var(--ink);font:400 12px var(--font-mono);line-height:1.3;transform:translateX(-50%);opacity:0;pointer-events:none;transition:opacity .15s;box-shadow:0 0 0 1px var(--ink)}
-.fan__tip b{display:block;font:500 14px var(--font-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fan__item:hover .fan__tip{opacity:1}
-.fan__item--blank{background:var(--field)}
-
 /* Pochette de playlist : mosaïque carrée des pochettes de ses albums (js/ui.js, mosaicHTML) */
 .pcard__cover{display:block;text-decoration:none}
 .mosaic{display:grid;grid-template-columns:repeat(var(--k,1),1fr);aspect-ratio:1;width:min(100%, 220px);border-radius:6px;overflow:hidden;background:var(--bg);box-shadow:0 0 0 1.5px var(--ink)}
@@ -366,7 +328,7 @@ body:is([data-screen="account"],[data-screen="community"]) .actionbar{display:no
 .result__bar .pill-button--filled{padding:10px 18px}
 @media (hover:hover){.result__bar .pill-button--filled:not(:disabled):hover{background:var(--ink);border-color:var(--ink);color:var(--bg)}}
 @media (max-width:599px){.result__bar-gap{flex-basis:100%;height:0}}
-.tabs[hidden],.panel[hidden],.result__bar[hidden]{display:none}
+.tabs[hidden],.panel[hidden]{display:none}
 
 /* Barre du haut : même hauteur et même alignement pour tous les boutons (onglets, radio, langue, compte) */
 .appbar .nav button,.appbar .pill-button,.appbar .lang{display:inline-flex;align-items:center;justify-content:center;min-height:36px;line-height:1}

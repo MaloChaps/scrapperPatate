@@ -114,9 +114,6 @@ async function loadMixes() {
     .eq('user_id', me.id)
     .order('updated_at', { ascending: false }).order('n', { referencedTable: 'mix_versions' }).limit(100)
   if (error) return el("mixList").innerHTML = `<li class="empty">${t('Couldn\'t load your playlists ({e}).', { e: esc(error.message) })}</li>`
-  /* Accueil, « In the crate… » : pochettes d'albums de tes mixes */
-  const crate = data.flatMap(m => distinctCovers(m.mix_versions?.at(-1)?.tracks || [], 4)).sort(() => Math.random() - 0.5)
-  if (crate.length) { renderStack(crate); setAmbient(crate.map(c => c.cover)) }
   el("mixList").innerHTML = data.length ? data.map(m => {
     const vs = m.mix_versions || [], last = vs.at(-1), pub = vs.find(v => v.id === m.published_version)
     return `

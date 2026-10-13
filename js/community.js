@@ -69,10 +69,3 @@ async function openShared(id) {
   showVersion(0)
   showScreen('result')
 }
-
-/* Accueil sans mixes à toi : la carte « In the crate… » montre les pochettes des derniers mixes de la communauté */
-loadCommunity().then(() => {
-  if (crateItems.length) return  // déjà rempli avec tes mixes
-  const crate = (communityRows || []).flatMap(m => distinctCovers(m.version.tracks, 2))
-  if (crate.length) { renderStack(crate); setAmbient(crate.map(c => c.cover)) }
-})
