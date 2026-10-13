@@ -24,6 +24,7 @@ Le site ne fait que **lire** la base ; tout ce qui écrit tourne côté serveur 
 
 - **`poll-radio`** (tâche planifiée `poll-patate-douce`, chaque minute) : note le titre en cours dans `plays` (sans doublon) et cherche sur Deezer la pochette et les genres des nouveaux titres (`track_info`).
 - **`fill-tempo`** (tâche `fill-tempo`, chaque minute) : remplit `track_info.bpm` (Deezer, sinon calculé sur l'extrait de 30 s).
+- **`fill-styles`** (tâche `fill-styles`, chaque minute) : remplit `track_info.styles` avec les étiquettes Last.fm dominantes de l'artiste (règles dans `_shared/styles.ts`), sinon les genres d'album Deezer. La page s'en sert pour le filtre Styles et les pastilles.
 - **`build-playlist`** (appelée par Le Mix) : profil des playlists de départ, découvertes (Deezer, styles Last.fm), tri et enchaînement par tempo. Secret `LASTFM_API_KEY`.
 
 Déployer une fonction : `npx supabase functions deploy <nom> --project-ref wnbcoczjfqyxggkfyooh`.
