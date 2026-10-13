@@ -548,6 +548,7 @@ el("toResult").onclick = () => showScreen('result')
 function setLoading(on) {
   el("loading").classList.toggle('on', on)
   document.body.classList.toggle('locked', on)
+  if (!on && radio.on) radio.stop()  // la radio s'écoute « en attendant » le calcul seulement
 }
 
 /* ── Génération ─────────────────────────────────────────────── */
@@ -622,11 +623,12 @@ async function generate(seeds, extra = {}, label = 'Originale') {
 }
 
 /* ── Versions : la génération, puis une par régénération, complétion ou ajustement ── */
-let versions = [], shown = -1  // { result, theme, body, label, off: indices décochés, fresh: titres nouveaux dans cette version }
+let versions = [], shown = -1  // { result, theme, body, label, off: indices décochés, fresh: titres nouveaux, savedId : version enregistrée }
+let savedMixId = null  // playlist enregistrée (Tes playlists) dont ces versions font partie (js/account.js)
 const songId = t => `${norm(t.artist)}|${norm(t.title)}`
 function addVersion(res, theme, body, label, fromShown) {
   const before = fromShown && versions[shown] ? new Set(versions[shown].result.tracks.map(songId)) : null
-  if (!fromShown && label === 'Originale') versions = []
+  if (!fromShown && label === 'Originale') { versions = []; savedMixId = null }  // nouveau mix : nouvelle playlist
   versions.push({ result: res, theme, body, label, off: new Set(), fresh: new Set(before ? res.tracks.map(songId).filter(k => !before.has(k)) : []) })
   showVersion(versions.length - 1)
 }
@@ -741,7 +743,7 @@ function renderResult() {
   const v = versions[shown]
   el("versions").hidden = versions.length < 2
   el("versions").innerHTML = versions.map((x, i) =>
-    `<button class="chip" type="button" data-v="${i}" aria-pressed="${i === shown}">V${i + 1} · ${esc(x.label)}</button>`).join('')
+    `<button class="chip" type="button" data-v="${i}" aria-pressed="${i === shown}">V${x.n || i + 1} · ${esc(x.label)}${x.savedId ? ' ✓' : ''}</button>`).join('')
   const a = result.adjust, adj = a && adjustMeta(a.kind, a.artist)
   el("adjustNote").textContent = a
     ? `${adj.label} : ${plural(a.added, 'titre')} ${a.added > 1 ? 'ajoutés' : 'ajouté'}${a.removed ? `, ${plural(a.removed, 'titre')} ${a.removed > 1 ? 'retirés' : 'retiré'}` : ''}` +
@@ -793,7 +795,7 @@ function renderResult() {
   }
   el("done").classList.remove('on')
   el("createStep").textContent = ''
-  el("saveMix").textContent = v.savedId ? 'Enregistré ✓' : 'Enregistrer'
+  el("saveMix").textContent = v.savedId ? `V${v.n} enregistrée ✓` : savedMixId ? 'Enregistrer cette version' : 'Enregistrer'
   updateCreateCount()
 }
 /* Icônes SVG (couleur du texte) à la place des emojis */
@@ -804,20 +806,16 @@ const ICON = {
 }
 const icon = name => `<svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${ICON[name]}</svg>`
 
-/* ── Radio en fond : pendant le calcul, les réglages et le résultat ── */
-/* Coupée le temps d'écouter les extraits, reprise ensuite */
+/* ── Radio en attendant : bouton de l'écran de calcul (comptes avec l'accès radio) ── */
+/* Coupée le temps d'écouter un extrait, et à la fin du calcul */
 let radioPaused = false
-const saveRadio = on => { try { sessionStorage.setItem('mix_radio', on ? '1' : '') } catch {} }
-const radio = radioStream(el("radioAudio"), {
-  onChange: (on, blocked) => { if (!radioPaused) saveRadio(on); renderRadio(blocked) }
-})
-function renderRadio(blocked = false) {
+const radio = radioStream(el("radioAudio"), { onChange: () => renderRadio() })
+function renderRadio() {
   const on = radio.on
-  el("radioBtn").innerHTML = `${icon(on ? 'pause' : 'play')}${blocked ? 'Reprendre la radio' : 'Radio'}`
   el("radioBtnWait").innerHTML = `${icon(on ? 'pause' : 'play')}${on ? 'Couper la radio' : 'Écouter la radio en attendant'}`
-  for (const b of [el("radioBtn"), el("radioBtnWait")]) b.setAttribute('aria-pressed', on)
+  el("radioBtnWait").setAttribute('aria-pressed', on)
 }
-el("radioBtn").onclick = el("radioBtnWait").onclick = () => {
+el("radioBtnWait").onclick = () => {
   if (radio.on) return radio.stop()
   if (playingIdx >= 0) stopPreview()  // reprend la radio si elle avait été coupée pour l'extrait
   if (!radio.on) radio.play()
@@ -942,15 +940,12 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 
 showScreen('form')
 renderRadio()
-/* Radio en cours sur la page radio (radio=1), ou avant un aller-retour de connexion Spotify */
-let radioWanted = false
-try { radioWanted = startParams.has('radio') || sessionStorage.getItem('mix_radio') === '1' } catch {}
+/* Lien venu de la page radio pendant l'écoute (radio=1) : plus de radio en fond ici, on nettoie l'adresse */
 if (startParams.has('radio')) {
   const u = new URL(location.href)
   u.searchParams.delete('radio')
   history.replaceState({}, '', u)
 }
-if (radioWanted) radio.play()
 ;(async () => {
   restoreForm()
   syncLive()

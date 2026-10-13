@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Le Mix</title>
+<title>Créer ton mix Spotify · Le Mix</title>
 <meta name="description" content="Générateur de playlists Spotify à partir de tes playlists préférées">
 <meta name="theme-color" content="#938965">
 <link rel="manifest" href="mix.webmanifest">
@@ -49,11 +49,11 @@
   body:not([data-screen="form"]) [data-only="form"],
   body:not([data-screen="result"]) [data-only="result"],
   body:not([data-screen="account"]) [data-only="account"]{display:none !important}
+  body[data-screen="account"] [data-not="account"]{display:none !important}
   /* Réservé aux comptes avec l'accès radio (js/account.js pose data-radio) */
   body:not([data-radio]) [data-radio-only]{display:none !important}
   body[data-screen="account"] .actionbar{display:none}
-  .source-switch{margin:-8px 0 22px;font:400 13px var(--font-mono)}
-  .source-switch a{color:inherit}
+
 
   .label{margin:0;font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 
@@ -72,7 +72,7 @@
 
   .hero{padding:clamp(20px,6vw,64px) 0 8px;border-bottom:1px solid var(--line-strong)}
   /* Grand titre : crème dans un pavé rouge */
-  h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(56px,16vw,140px);line-height:.88;letter-spacing:-.02em}
+  h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(44px,11vw,108px);line-height:.9;letter-spacing:-.02em}
   h1 em{font-style:italic}
   .intro{max-width:46ch;margin:18px 0 22px}
 
@@ -274,13 +274,26 @@
   .login[hidden]{display:none}
   .login .btn-cta{width:100%;min-width:0}
   .login .link-btn{align-self:flex-start}
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 8px}
+  .panel{margin-top:12px}
+  .panel[hidden]{display:none}
+  .panel__lead{flex-basis:100%;margin:0 0 4px}
+  .panel__msg{flex-basis:100%;margin:0}
   .password{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
   .password .field{flex:1 1 220px;max-width:320px}
-  .me{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:16px;font:400 14px var(--font-mono)}
+  .infos{display:grid;grid-template-columns:max-content 1fr;gap:10px 24px;margin:8px 0 20px;font:400 14px var(--font-mono)}
+  .infos dt{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;padding-top:2px}
+  .infos dd{margin:0;min-width:0;overflow-wrap:anywhere}
   .mixes,.members{margin:0;padding:0;list-style:none}
   .mixes li,.members li{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
-  .mixes a.mix__name{flex:1 1 220px;min-width:0;color:inherit;text-decoration:none;font-family:var(--font-display);font-size:clamp(20px,4.6vw,28px);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mixes li{align-items:flex-start;padding:16px 0}
+  .mix__head{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;min-width:0}
+  .mixes a.mix__name{min-width:0;max-width:100%;color:inherit;text-decoration:none;font-family:var(--font-display);font-size:clamp(22px,5vw,32px);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   @media (hover:hover){.mixes a.mix__name:hover{text-decoration:underline}}
+  .mix__rename{flex:1 1 240px;max-width:420px}
+  .mix__versions{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%}
+  .mix__versions a{text-decoration:none;color:inherit}
+  .mix__actions{display:flex;flex-wrap:wrap;gap:8px}
   .mix__meta,.members .member__email{font:400 12px var(--font-mono)}
   .members .member__email{flex:1 1 200px;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px}
   .invite{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:8px}
@@ -296,25 +309,26 @@
 <div class="wrap">
   <header class="appbar">
     <div class="appbar__left">
-      <a class="back pill-button" href="radio.html" id="toRadio" data-only="form" hidden>← Radio</a>
+      <a class="back pill-button" href="radio.html" id="toRadio" data-only="form" data-radio-only>← Radio</a>
       <button class="pill-button" id="toForm" data-only="result">← Réglages</button>
-      <button class="pill-button" id="fromAccount" data-only="account">← Le Mix</button>
+      <button class="pill-button" id="fromAccount" data-only="account">← Créer un mix</button>
     </div>
     <div class="appbar__right">
       <button class="pill-button" id="toResult" data-only="form" hidden>Mon mix →</button>
       <button class="pill-button" id="regen" data-only="result">↻ Régénérer</button>
-      <button class="pill-button radio-btn" id="radioBtn" type="button" aria-pressed="false" data-radio-only></button>
-      <button class="pill-button" id="accountBtn" type="button">Compte</button>
+      <button class="pill-button" id="accountBtn" type="button" data-not="account">Se connecter</button>
     </div>
   </header>
 
   <section class="hero">
-    <h1>Le <em>Mix</em></h1>
+    <h1>Créer ton mix <em>Spotify</em></h1>
     <p class="intro" id="intro">Jusqu'à trois playlists Spotify que tu aimes : le générateur garde tes meilleurs titres, ajoute des découvertes du même univers et les enchaîne.</p>
-    <p class="source-switch" data-radio-only><a id="sourceSwitch" href="./?source=radio">Ou à partir des titres de la radio →</a></p>
   </section>
 
   <div class="filters">
+    <p class="label">Titre</p>
+    <input class="field" id="plName" placeholder="Nom de ta playlist (sinon : ambiance · date)" enterkeyhint="done" maxlength="100">
+
     <p class="label">Mode</p>
     <div class="filters__chips filters__chips--scroll" id="mode"></div>
     <p class="filters__note" id="modeDesc"></p>
@@ -354,9 +368,6 @@
 
         <p class="label">Enchaînement</p>
         <div class="filters__chips filters__chips--scroll" id="curve"></div>
-
-        <p class="label">Titre</p>
-        <input class="field" id="plName" placeholder="Automatique : ambiance · date" enterkeyhint="done" maxlength="100">
       </div>
     </details>
   </div>
@@ -364,10 +375,10 @@
   <div class="error" id="error"></div>
 
   <section class="account" id="account">
-    <div class="section-header"><h2 class="section-title">Compte</h2></div>
+    <div class="section-header"><h2 class="section-title">Mon compte</h2></div>
 
     <form class="login account__block" id="loginForm" hidden>
-      <p id="loginWhy">Le Mix est sur invitation. Entre l'adresse e-mail qui a reçu l'invitation : on t'envoie un lien pour te connecter.</p>
+      <p id="loginWhy">Le Mix est sur invitation. Connecte-toi avec l'adresse e-mail qui a reçu l'invitation.</p>
       <input class="field" type="email" id="loginEmail" placeholder="ton@email.fr" autocomplete="username" required>
       <input class="field" type="password" id="loginPass" placeholder="Mot de passe" autocomplete="current-password">
       <button class="btn-cta" type="submit" id="loginGo">Se connecter</button>
@@ -376,24 +387,36 @@
     </form>
 
     <div id="signedIn" hidden>
-      <div class="me"><span id="meEmail"></span><span class="tag" id="meRadio" hidden>Accès radio</span>
-        <button class="pill-button" id="logout" type="button">Se déconnecter</button></div>
+      <!-- Onglets : Playlists, Infos, Mot de passe, Invitations (admins) -->
+      <nav class="tabs" id="tabs" role="tablist">
+        <button class="chip" type="button" role="tab" data-tab="playlists" aria-pressed="true">Tes playlists</button>
+        <button class="chip" type="button" role="tab" data-tab="infos" aria-pressed="false">Infos</button>
+        <button class="chip" type="button" role="tab" data-tab="password" aria-pressed="false">Mot de passe</button>
+        <button class="chip" type="button" role="tab" data-tab="invites" aria-pressed="false" id="invitesTab" hidden>Invitations</button>
+      </nav>
 
-      <form class="account__block password" id="passForm">
-        <p class="label" style="flex-basis:100%">Mot de passe</p>
-        <input type="email" autocomplete="username" id="passUser" hidden>
-        <input class="field" type="password" id="newPass" placeholder="Nouveau mot de passe (8 caractères ou plus)" autocomplete="new-password" minlength="8" required>
-        <button class="chip" type="submit">Enregistrer</button>
-        <p class="hint" id="passMsg" aria-live="polite" style="flex-basis:100%;margin:0"></p>
-      </form>
-
-      <div class="account__block">
-        <p class="label">Mes mixes</p>
+      <div class="panel" data-panel="playlists">
         <ul class="mixes" id="mixList"></ul>
       </div>
 
-      <div class="account__block" id="adminBox" hidden>
-        <p class="label">Invitations</p>
+      <div class="panel" data-panel="infos" hidden>
+        <dl class="infos">
+          <dt>E-mail</dt><dd id="meEmail"></dd>
+          <dt>Radio</dt><dd id="meRadio"></dd>
+          <dt>Membre depuis</dt><dd id="meSince"></dd>
+        </dl>
+        <button class="pill-button" id="logout" type="button">Se déconnecter</button>
+      </div>
+
+      <form class="panel password" data-panel="password" id="passForm" hidden>
+        <p class="panel__lead">Choisis un mot de passe pour te connecter sans attendre d'e-mail.</p>
+        <input type="email" autocomplete="username" id="passUser" hidden>
+        <input class="field" type="password" id="newPass" placeholder="Nouveau mot de passe (8 caractères ou plus)" autocomplete="new-password" minlength="8" required>
+        <button class="chip" type="submit">Enregistrer</button>
+        <p class="hint panel__msg" id="passMsg" aria-live="polite"></p>
+      </form>
+
+      <div class="panel" data-panel="invites" id="adminBox" hidden>
         <form class="invite" id="inviteForm">
           <input class="field" type="email" id="inviteEmail" placeholder="e-mail à inviter" required>
           <label class="check"><input type="checkbox" id="inviteRadio"> accès radio</label>
@@ -445,7 +468,7 @@
   <p class="loading__step" id="step"></p>
   <div class="loading__bar"><span id="bar"></span></div>
   <p class="hint">Compte environ une minute.</p>
-  <button class="pill-button radio-btn" id="radioBtnWait" type="button" aria-pressed="false"></button>
+  <button class="pill-button radio-btn" id="radioBtnWait" type="button" aria-pressed="false" data-radio-only></button>
   <button class="pill-button" id="cancel">Annuler</button>
 </div>
 
