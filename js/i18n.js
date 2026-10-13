@@ -30,6 +30,9 @@ function translatePage(root = document) {
 }
 
 const FR = {
+  "Name your playlist (or: mood · date)": "Nom de ta playlist (sinon : ambiance · date)",
+  "← Settings": "← Réglages",
+  "Tweak": "Ajuster",
   "+ Add a link": "+ Ajouter un lien",
   "Access to the radio and to mixes made from its tracks": "Accès à la radio et aux mixes faits avec ses titres",
   "Add": "Ajouter",

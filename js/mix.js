@@ -375,7 +375,7 @@ function syncRadio() {
 }
 renderChoice('period', PERIODS, 'period', syncRadio)
 if (SOURCE === 'radio') {
-  el("intro").textContent = t('Tracks played on the radio, filtered by style and mood and sequenced by tempo. Listen to the previews before creating the Spotify playlist.')
+  if (el("intro")) el("intro").textContent = t('Tracks played on the radio, filtered by style and mood and sequenced by tempo. Listen to the previews before creating the Spotify playlist.')
   loadRadio()
 }
 renderChoice('themes', THEMES, 'theme', syncDescs)
@@ -750,7 +750,7 @@ function renderResult() {
   autoName = `${THEMES[resultTheme].label} · ${date}`
   renderTitle()
   const v = versions[shown]
-  el("resFan").innerHTML = fanHTML(result.tracks, 6)
+  if (el("resFan")) el("resFan").innerHTML = fanHTML(result.tracks, 6)
   setAmbient(distinctCovers(result.tracks, 3).map(c => c.cover))
   el("resEyebrow").textContent = v.from ? t('From the community · by {who}', { who: v.from }) : savedMixId ? t('In your library') : t('Fresh mix')
   el("versions").hidden = versions.length < 2

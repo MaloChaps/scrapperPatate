@@ -32,7 +32,7 @@ async function syncAccount() {
     me.display_name = data?.display_name || ''
   }
   document.body.toggleAttribute('data-radio', !!me?.radio)
-  el("accountBtn").className = me ? 'avatar' : 'btn btn--dark btn--sm'
+  el("accountBtn").className = me ? 'avatar' : 'pill-button'
   el("accountBtn").textContent = me ? djName().slice(0, 1) : t('Sign in')
   el("accountBtn").title = me ? djName() : ''
   el("loginForm").hidden = !!me

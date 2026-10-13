@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Le Mix · Build your next playlist</title>
 <meta name="description" content="Build your next playlist from the Spotify playlists you love, and grow your own DJ library.">
-<meta name="theme-color" content="#f1f1ef">
+<meta name="theme-color" content="#938965">
 <link rel="manifest" href="mix.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -17,90 +17,61 @@
 <link rel="stylesheet" href="mix.css">
 </head>
 <body>
-<div class="ambient" id="ambient" aria-hidden="true"></div>
-
 <div class="wrap">
-  <!-- Barre du haut : marque, onglets (créer, communauté, bibliothèque), langue, compte -->
+  <!-- Barre du haut : onglets (créer, communauté, bibliothèque), radio, langue, compte -->
   <header class="appbar">
-    <a class="brand" href="./">Le <em>Mix</em></a>
-    <nav class="nav" aria-label="Sections">
-      <button type="button" data-go="form" data-t>Create</button>
-      <button type="button" data-go="community" data-t>Community</button>
-      <button type="button" data-go="account" data-t>Library</button>
-    </nav>
+    <div class="appbar__left">
+      <nav class="nav" aria-label="Sections">
+        <button type="button" data-go="form" data-t>Create</button>
+        <button type="button" data-go="community" data-t>Community</button>
+        <button type="button" data-go="account" data-t>Library</button>
+      </nav>
+    </div>
     <div class="appbar__right">
-      <a class="btn btn--ghost btn--sm" href="radio.html" id="toRadio" data-radio-only data-t>Radio</a>
+      <a class="back pill-button" href="radio.html" id="toRadio" data-radio-only data-t>Radio</a>
       <button class="lang" type="button" id="langBtn" aria-label="Français">FR</button>
-      <button class="btn btn--dark btn--sm" id="accountBtn" type="button" data-t>Sign in</button>
+      <button class="pill-button" id="accountBtn" type="button" data-t>Sign in</button>
     </div>
   </header>
 
   <!-- ── Créer ── -->
-  <section class="hero">
-    <div>
-      <p class="eyebrow" data-t>Your DJ library starts here</p>
-      <h1 data-t-html>Build your next <em>playlist.</em></h1>
-      <p class="intro" id="intro" data-t>Pick up to three Spotify playlists you love. Le Mix keeps the gems, digs up artists in the same vibe and sequences it all by tempo, like a DJ would.</p>
-    </div>
-    <div class="crate glass">
-      <div class="crate__head"><p class="crate__title" data-t>In the crate…</p>
-        <button class="btn btn--sm" type="button" id="crateRefresh"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3.5M4 5v4h4M4 13a8 8 0 0 0 14.9 3.5M20 19v-4h-4"/></svg><span data-t>Refresh</span></button></div>
-      <div class="fan" id="heroStack"></div>
-    </div>
-  </section>
-
   <div class="filters">
-    <section class="card glass">
-      <h2 class="card__title"><span>01</span><b data-t>Name it</b></h2>
-      <div class="rows">
-        <p class="label" data-t>Title</p>
-        <input class="field field--big" id="plName" placeholder="Sunday crate digging" enterkeyhint="done" maxlength="100">
+    <p class="label" data-t>Title</p>
+    <input class="field" id="plName" placeholder="Name your playlist (or: mood · date)" enterkeyhint="done" maxlength="100">
 
-        <p class="label" data-t>Mode</p>
-        <div class="filters__chips filters__chips--scroll" id="mode"></div>
-        <p class="filters__note" id="modeDesc"></p>
-      </div>
-    </section>
+    <p class="label" data-t>Mode</p>
+    <div class="filters__chips filters__chips--scroll" id="mode"></div>
+    <p class="filters__note" id="modeDesc"></p>
 
-    <section class="card glass">
-      <h2 class="card__title"><span>02</span><b data-t>Start from</b></h2>
-      <div class="rows">
-        <p class="label" data-for="spotify" data-t>Playlists</p>
-        <div class="pick" data-for="spotify">
-          <div class="mine" id="mine"></div>
-          <div class="or" data-t>or paste a link</div>
-          <div class="seeds" id="seeds"></div>
-          <button class="btn btn--ghost btn--sm add-seed" type="button" id="addSeed" data-t>+ Add a link</button>
-        </div>
+    <p class="label" data-for="spotify" data-t>Playlists</p>
+    <div class="pick" data-for="spotify">
+      <div class="mine" id="mine"></div>
+      <div class="or" data-t>or paste a link</div>
+      <div class="seeds" id="seeds"></div>
+      <button class="pill-button add-seed" type="button" id="addSeed" data-t>+ Add a link</button>
+    </div>
 
-        <p class="label" data-for="radio" data-t>Period</p>
-        <div class="filters__chips filters__chips--scroll" id="period" data-for="radio"></div>
-      </div>
-    </section>
+    <p class="label" data-for="radio" data-t>Period</p>
+    <div class="filters__chips filters__chips--scroll" id="period" data-for="radio"></div>
 
-    <section class="card glass">
-      <h2 class="card__title"><span>03</span><b data-t>Shape the vibe</b></h2>
-      <div class="rows">
-        <p class="label" data-t>Styles</p>
-        <div class="filters__chips" id="styles"></div>
-        <p class="filters__note" id="stylesNote"></p>
+    <p class="label" data-t>Styles</p>
+    <div class="filters__chips" id="styles"></div>
+    <p class="filters__note" id="stylesNote"></p>
 
-        <p class="label" data-t>Mood</p>
-        <div class="filters__chips filters__chips--scroll" id="themes"></div>
-        <p class="filters__note" id="themeDesc"></p>
+    <p class="label" data-t>Mood</p>
+    <div class="filters__chips filters__chips--scroll" id="themes"></div>
+    <p class="filters__note" id="themeDesc"></p>
 
-        <p class="label" data-t>Length</p>
-        <div class="range"><input type="range" id="len" min="15" max="60" step="5" value="30" aria-label="Length"><output id="lenVal"></output></div>
+    <p class="label" data-t>Length</p>
+    <div class="range"><input type="range" id="len" min="15" max="60" step="5" value="30" aria-label="Length"><output id="lenVal"></output></div>
 
-        <p class="label" data-for="discover" data-t>Discoveries</p>
-        <div class="range" data-for="discover"><input type="range" id="disc" min="0" max="100" step="10" value="50" aria-label="Discoveries"><output id="discVal"></output></div>
-      </div>
-    </section>
+    <p class="label" data-for="discover" data-t>Discoveries</p>
+    <div class="range" data-for="discover"><input type="range" id="disc" min="0" max="100" step="10" value="50" aria-label="Discoveries"><output id="discVal"></output></div>
 
     <!-- Réglages fins : ouverts par défaut, repliables ; ce qui n'est pas par défaut s'affiche à côté du titre -->
-    <details class="card glass more" id="more" open>
-      <summary><h2 class="card__title"><span>04</span><b data-t>Fine-tune</b></h2><span class="more__sum" id="moreSum"></span></summary>
-      <div class="rows">
+    <details class="more" id="more" open>
+      <summary><span data-t>Fine-tune</span><span class="more__sum" id="moreSum"></span></summary>
+      <div class="filters filters--more">
         <p class="label" data-t>Artists</p>
         <div class="filters__chips filters__chips--scroll" id="niche"></div>
         <p class="filters__note" id="nicheDesc"></p>
@@ -113,61 +84,16 @@
 
   <div class="error" id="error" role="alert"></div>
 
-  <!-- ── Résultat ── -->
-  <section class="result" id="result">
-    <div class="result__hero glass">
-      <div class="fan" id="resFan" style="--fan-h:min(230px, 52vw)"></div>
-      <div>
-        <p class="eyebrow" id="resEyebrow" data-t>Your mix</p>
-        <h2 class="section-title" id="resTitle"></h2>
-        <div class="profile" id="profile"></div>
-        <div class="result__actions">
-          <button class="btn btn--primary" id="listenAll" type="button" data-t>Play the mix</button>
-          <button class="btn" id="saveMix" type="button" data-t>Save</button>
-          <button class="btn" id="publishMix" type="button" data-t>Publish</button>
-          <button class="btn btn--ghost" id="regen" type="button" data-t>↻ Regenerate</button>
-          <button class="btn btn--ghost" id="toForm" type="button" data-t>Edit settings</button>
-        </div>
-      </div>
-    </div>
-    <div class="versions" id="versions" hidden></div>
-    <p class="adjust-note" id="adjustNote"></p>
-
-    <details class="tweak glass" id="tweak" open>
-      <summary><span class="tweak__title" data-t>Tweak it</span><span class="hint" data-t>Each tweak swaps up to a third of the tracks (unticked ones first) and becomes a new version.</span></summary>
-      <div class="adjust" id="adjust"><span class="adjust__label" data-t>Vibe</span></div>
-      <div class="adjust" id="adjustMore"><span class="adjust__label" data-t>More</span></div>
-      <form class="adjust" id="adjustArtist">
-        <span class="adjust__label" data-t>Like</span>
-        <input class="field adjust__field" id="likeName" placeholder="An artist you love" autocomplete="off" enterkeyhint="go" maxlength="80">
-        <button class="chip" type="submit" data-t>Add</button>
-      </form>
-    </details>
-
-    <div class="short" id="short">
-      <p id="shortText"></p>
-      <button class="btn btn--dark btn--sm" id="complete" type="button" data-t>Fill the gaps</button>
-    </div>
-    <ol class="tracks" id="list"></ol>
-    <div class="done" id="done"></div>
-  </section>
-
-  <!-- ── Bibliothèque (Mon compte) ── -->
+  <!-- ── Bibliothèque (compte) ── -->
   <section class="account" id="account">
-    <div class="page-head">
-      <div>
-        <p class="eyebrow" data-t>Your DJ library</p>
-        <h2 class="section-title" data-t>Library</h2>
-      </div>
-    </div>
+    <div class="section-header"><h2 class="section-title" data-t>Library</h2></div>
 
-    <form class="login glass" id="loginForm" hidden>
-      <p class="card__title" data-t>Sign in</p>
+    <form class="login account__block" id="loginForm" hidden>
       <p id="loginWhy"></p>
       <input class="field" type="email" id="loginEmail" placeholder="you@email.com" autocomplete="username" required>
       <input class="field" type="password" id="loginPass" placeholder="Password" autocomplete="current-password">
       <button class="btn-cta" type="submit" id="loginGo" data-t>Sign in</button>
-      <button class="btn btn--ghost btn--sm" type="button" id="loginLink" data-t>No password? Email me a sign-in link</button>
+      <button class="pill-button link-btn" type="button" id="loginLink" data-t>No password? Email me a sign-in link</button>
       <p class="hint" id="loginMsg" aria-live="polite"></p>
     </form>
 
@@ -179,35 +105,35 @@
         <button class="chip" type="button" role="tab" data-tab="invites" aria-pressed="false" id="invitesTab" hidden data-t>Invites</button>
       </nav>
 
-      <div data-panel="playlists">
+      <div class="panel" data-panel="playlists">
         <ul class="grid" id="mixList"></ul>
       </div>
 
-      <div class="panel glass" data-panel="profile" hidden>
+      <div class="panel" data-panel="profile" hidden>
         <dl class="infos">
-          <dt class="label" data-t>DJ name</dt>
+          <dt data-t>DJ name</dt>
           <dd><form class="inline-form" id="nameForm">
             <input class="field" id="displayName" maxlength="40" placeholder="Shown on the playlists you publish">
             <button class="chip" type="submit" data-t>Save</button>
-            <span class="hint panel__msg" id="nameMsg" aria-live="polite"></span>
+            <span class="hint" id="nameMsg" aria-live="polite"></span>
           </form></dd>
-          <dt class="label" data-t>Email</dt><dd id="meEmail"></dd>
-          <dt class="label" data-t>Radio</dt><dd id="meRadio"></dd>
-          <dt class="label" data-t>Member since</dt><dd id="meSince"></dd>
+          <dt data-t>Email</dt><dd id="meEmail"></dd>
+          <dt data-t>Radio</dt><dd id="meRadio"></dd>
+          <dt data-t>Member since</dt><dd id="meSince"></dd>
         </dl>
-        <button class="btn btn--ghost" id="logout" type="button" data-t>Sign out</button>
+        <button class="pill-button" id="logout" type="button" data-t>Sign out</button>
       </div>
 
-      <form class="panel glass inline-form" data-panel="password" id="passForm" hidden>
-        <p class="panel__msg" data-t>Pick a password to sign in without waiting for an email.</p>
+      <form class="panel password" data-panel="password" id="passForm" hidden>
+        <p class="panel__lead" data-t>Pick a password to sign in without waiting for an email.</p>
         <input type="email" autocomplete="username" id="passUser" hidden>
         <input class="field" type="password" id="newPass" placeholder="New password (8+ characters)" autocomplete="new-password" minlength="8" required>
         <button class="chip" type="submit" data-t>Save</button>
         <p class="hint panel__msg" id="passMsg" aria-live="polite"></p>
       </form>
 
-      <div class="panel glass" data-panel="invites" id="adminBox" hidden>
-        <form class="inline-form" id="inviteForm">
+      <div class="panel" data-panel="invites" id="adminBox" hidden>
+        <form class="invite" id="inviteForm">
           <input class="field" type="email" id="inviteEmail" placeholder="Email to invite" required>
           <label class="check"><input type="checkbox" id="inviteRadio"> <span data-t>radio access</span></label>
           <button class="chip" type="submit" data-t>Invite</button>
@@ -220,27 +146,61 @@
 
   <!-- ── Communauté ── -->
   <section class="community" id="community">
-    <div class="page-head">
+    <div class="section-header page-head">
       <div>
-        <p class="eyebrow" data-t>Fresh from the crew</p>
         <h2 class="section-title" data-t>Community</h2>
         <p class="intro" data-t>Mixes published by Le Mix DJs. Play them, remix them, make them yours.</p>
       </div>
     </div>
     <ul class="grid" id="communityList"></ul>
   </section>
+
+  <!-- ── Résultat ── -->
+  <section class="result" id="result">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow" id="resEyebrow"></p>
+        <h2 class="section-title" id="resTitle"></h2>
+      </div>
+      <button class="pill-button" id="saveMix" type="button" data-t>Save</button>
+      <button class="pill-button" id="publishMix" type="button" data-t>Publish</button>
+      <button class="pill-button" id="listenAll" type="button" data-t>Play the mix</button>
+    </div>
+    <div class="result__bar">
+      <button class="pill-button" id="toForm" type="button" data-t>← Settings</button>
+      <button class="pill-button" id="regen" type="button" data-t>↻ Regenerate</button>
+    </div>
+    <div class="versions" id="versions" hidden></div>
+    <div class="profile" id="profile"></div>
+    <p class="adjust-note" id="adjustNote"></p>
+    <div class="adjust" id="adjust"><span class="adjust__label" data-t>Tweak</span></div>
+    <div class="adjust adjust--more" id="adjustMore"><span class="adjust__label" data-t>More</span></div>
+    <form class="adjust adjust--more" id="adjustArtist">
+      <span class="adjust__label" data-t>Like</span>
+      <input class="field adjust__field" id="likeName" placeholder="An artist you love" autocomplete="off" enterkeyhint="go" maxlength="80">
+      <button class="chip" type="submit" data-t>Add</button>
+    </form>
+    <div class="short" id="short">
+      <p id="shortText"></p>
+      <button class="pill-button" id="complete" type="button" data-t>Fill the gaps</button>
+    </div>
+    <ol class="tracks" id="list"></ol>
+    <div class="done" id="done"></div>
+  </section>
 </div>
 
 <!-- Lecteur de l'extrait en cours -->
-<div class="player glass" id="player" aria-live="polite">
+<div class="player" id="player" aria-live="polite">
   <div class="player__disc"><span class="player__cover" id="playerCover"></span><span class="player__vinyl"></span></div>
-  <div class="player__text"><span class="player__artist" id="playerArtist"></span><span class="player__title" id="playerTitle"></span>
+  <div class="player__text">
+    <span class="player__artist" id="playerArtist"></span><span class="player__title" id="playerTitle"></span>
     <span class="player__time" id="playerTime">0:00 / 0:30</span>
-  <div class="player__controls">
-    <button type="button" id="playerPrev" aria-label="Previous"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
-    <button type="button" id="playerStop" aria-label="Pause"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
-    <button type="button" id="playerNext" aria-label="Next"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
-  </div></div>
+    <div class="player__controls">
+      <button type="button" id="playerPrev" aria-label="Previous"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button type="button" id="playerStop" aria-label="Pause"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
+      <button type="button" id="playerNext" aria-label="Next"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    </div>
+  </div>
 </div>
 
 <nav class="actionbar">
@@ -258,8 +218,8 @@
   <p class="loading__step" id="step"></p>
   <div class="loading__bar"><span id="bar"></span></div>
   <p class="hint" data-t>Takes about a minute.</p>
-  <button class="btn btn--ghost" id="radioBtnWait" type="button" aria-pressed="false" data-radio-only></button>
-  <button class="btn btn--ghost" id="cancel" type="button" data-t>Cancel</button>
+  <button class="pill-button radio-btn" id="radioBtnWait" type="button" aria-pressed="false" data-radio-only></button>
+  <button class="pill-button" id="cancel" type="button" data-t>Cancel</button>
 </div>
 
 <audio id="radioAudio" preload="none"></audio>

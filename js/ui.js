@@ -30,12 +30,13 @@ function fanHTML(tracks, n = 7) {
 let crateItems = []
 function renderStack(items) {
   crateItems = items || []
-  el("heroStack").innerHTML = fanHTML(crateItems, 8)
+  if (el("heroStack")) el("heroStack").innerHTML = fanHTML(crateItems, 8)
 }
-el("crateRefresh").onclick = () => renderStack([...crateItems].sort(() => Math.random() - 0.5))
+if (el("crateRefresh")) el("crateRefresh").onclick = () => renderStack([...crateItems].sort(() => Math.random() - 0.5))
 
 /* Fond : les couleurs des pochettes, très floues, derrière tout l'écran */
 function setAmbient(covers) {
+  if (!el("ambient")) return  // pas de fond flou dans ce design
   const list = (covers || []).filter(Boolean).slice(0, 3)
   el("ambient").innerHTML = list.map(c => `<img src="${esc(c)}" alt="" loading="lazy">`).join('')
 }
@@ -47,4 +48,3 @@ el("langBtn").onclick = () => {
   if (typeof saveForm === 'function') saveForm()
   setLang(LANG === 'fr' ? 'en' : 'fr')
 }
-renderStack([])
