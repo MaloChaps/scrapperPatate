@@ -208,6 +208,12 @@
   .versions .chip{font-size:12px;padding:5px 11px}
   .adjust{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:18px 0 6px;padding:14px 0 0;border-top:1px solid var(--line)}
   .adjust__label{font:500 11px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;margin-right:4px}
+  .adjust--more{margin-top:0;padding-top:4px;border-top:0}
+  .adjust[hidden]{display:none}
+  .adjust__field{flex:1 1 180px;max-width:320px;min-height:34px;padding:6px 14px}
+  .track__like{display:inline-block;margin-top:6px;padding:3px 9px;border:1px solid currentColor;border-radius:99px;background:transparent;color:inherit;font:400 11px var(--font-mono)}
+  .track__like:disabled{opacity:.4}
+  @media (hover:hover){.track__like:not(:disabled):hover{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}}
   .adjust-note{margin:10px 0 0;font:400 13px var(--font-mono)}
   .adjust-note:empty{display:none}
   .tag--new{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -331,6 +337,12 @@
     <div class="profile" id="profile"></div>
     <p class="adjust-note" id="adjustNote"></p>
     <div class="adjust" id="adjust"><span class="adjust__label">Ajuster</span></div>
+    <div class="adjust adjust--more" id="adjustMore"><span class="adjust__label">Plus de</span></div>
+    <form class="adjust adjust--more" id="adjustArtist">
+      <span class="adjust__label">Comme</span>
+      <input class="field adjust__field" id="likeName" placeholder="Un artiste" autocomplete="off" enterkeyhint="go" maxlength="80">
+      <button class="chip" type="submit">Ajouter</button>
+    </form>
     <div class="short" id="short">
       <p id="shortText"></p>
       <button class="pill-button" id="complete">Compléter en assouplissant</button>

@@ -67,6 +67,10 @@ const ADJUSTS = {
   fast:   { label: 'Plus rapide', step: 'Recherche de titres plus rapides' },
   rare:   { label: 'Plus rare',   step: 'Recherche de pépites' }
 }
+/* Ajustement quelconque : l'un de ceux-ci, « + un style » (id de STYLES) ou « + comme un artiste » (artist) */
+const adjustMeta = (kind, artist = '') => ADJUSTS[kind] || (kind === 'artist'
+  ? { label: `+ Comme ${artist}`, step: `Recherche d'artistes proches de ${artist}`, match: `de ${artist} ou d'artistes proches` }
+  : { label: `+ ${STYLES[kind]}`, step: `Recherche de titres ${STYLES[kind]}`, match: STYLES[kind] })
 
 /* ── Spotify ─────────────────────────────────────────────────── */
 /* Connexion par redirection (et non dans une fenêtre à part comme la radio) : installée sur iPhone,
@@ -556,9 +560,9 @@ function showError(msg) {
 el("cancel").onclick = () => aborter?.abort()
 
 /* Étapes affichées pendant le calcul serveur (pas de suivi en direct) */
-function startSteps(mode, adjust) {
-  const steps = adjust
-    ? [[0, 'Analyse de ta playlist'], [mode === 'mix' ? 15 : 12, ADJUSTS[adjust].step], [mode === 'mix' ? 35 : 50, 'Remplacement et mise en ordre']]
+function startSteps(mode, adjustStep) {
+  const steps = adjustStep
+    ? [[0, 'Analyse de ta playlist'], [mode === 'mix' ? 15 : 12, adjustStep], [mode === 'mix' ? 35 : 50, 'Remplacement et mise en ordre']]
     : mode === 'mix'
     ? [[0, 'Lecture des tempos de tes titres'], [25, 'Filtrage par style et ambiance'], [38, 'Enchaînement des tempos']]
     : [[0, 'Analyse des styles et des tempos'], [15, 'Recherche d\'artistes proches'],
@@ -579,7 +583,7 @@ function startSteps(mode, adjust) {
 let lastBody = null  // réglages de la version affichée
 const setBusy = on => {
   el("go").disabled = el("regen").disabled = on
-  el("adjust").querySelectorAll('button').forEach(b => b.disabled = on)
+  document.querySelectorAll('[data-adjust], #adjustArtist button, [data-like]').forEach(b => b.disabled = on)
 }
 async function generate(seeds, extra = {}, label = 'Originale') {
   const fromShown = !!(extra.keep || extra.adjust)
@@ -591,7 +595,7 @@ async function generate(seeds, extra = {}, label = 'Originale') {
   el("error").classList.remove('on')
   setLoading(true)
   setBusy(true)
-  const timer = startSteps(body.mode, extra.adjust)
+  const timer = startSteps(body.mode, extra.adjust && adjustMeta(extra.adjust, extra.artist?.name).step)
   aborter = new AbortController()
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/build-playlist`, {
@@ -603,7 +607,7 @@ async function generate(seeds, extra = {}, label = 'Originale') {
     const d = await res.json().catch(() => ({ error: 'réponse illisible (' + res.status + ')' }))
     if (!res.ok || d.error) throw new Error(d.error || 'Erreur ' + res.status)
     if (extra.adjust && !d.adjust) throw new Error('le serveur ne sait pas encore ajuster (fonction build-playlist à redéployer)')
-    if (d.adjust && !d.adjust.added) return showError(`${ADJUSTS[d.adjust.kind].label} : rien trouvé qui aille dans ce sens, la playlist n'a pas changé.`)
+    if (d.adjust && !d.adjust.added) return showError(`${adjustMeta(d.adjust.kind, d.adjust.artist).label} : rien trouvé qui aille dans ce sens, la playlist n'a pas changé.`)
     addVersion(d, body.theme, fromShown ? lastBody : body, label, fromShown)
     showScreen('result')
   } catch (e) {
@@ -638,13 +642,27 @@ el("versions").addEventListener('click', e => {
 /* Ajuster : à partir des titres cochés de la version affichée (les décochés sont remplacés en priorité) */
 el("adjust").insertAdjacentHTML('beforeend', Object.entries(ADJUSTS).map(([k, a]) =>
   `<button class="chip" type="button" data-adjust="${k}">${esc(a.label)}</button>`).join(''))
-el("adjust").addEventListener('click', e => {
-  const k = e.target.closest('[data-adjust]')?.dataset.adjust
-  if (!k || !lastBody || !result) return
+/* Source « Mes playlists » : + n'importe quel style, + comme un artiste (tapé, ou bouton sur un titre) */
+el("adjustMore").insertAdjacentHTML('beforeend', Object.entries(STYLES).filter(([k]) => !ADJUSTS[k]).map(([k, label]) =>
+  `<button class="chip" type="button" data-adjust="${k}">${esc(label)}</button>`).join(''))
+el("adjustMore").hidden = el("adjustArtist").hidden = SOURCE === 'radio'
+function runAdjust(kind, artist) {
+  if (!lastBody || !result) return
   const current = pickedTracks()
   if (!current.length) return showError('Coche au moins un titre à garder.')
-  generate(lastBody.seeds, { adjust: k, current, size: result.tracks.length }, ADJUSTS[k].label)
+  generate(lastBody.seeds, { adjust: kind, current, size: result.tracks.length, ...(artist ? { artist } : {}) }, adjustMeta(kind, artist?.name).label)
+}
+for (const id of ['adjust', 'adjustMore']) el(id).addEventListener('click', e => {
+  const k = e.target.closest('[data-adjust]')?.dataset.adjust
+  if (k) runAdjust(k)
 })
+el("adjustArtist").onsubmit = e => {
+  e.preventDefault()
+  const name = el("likeName").value.trim()
+  if (!name) return el("likeName").focus()
+  el("likeName").value = ''
+  runAdjust('artist', { name })
+}
 
 el("go").onclick = async () => {
   if (!spToken()) return spLogin()
@@ -709,7 +727,7 @@ function renderResult() {
   el("versions").hidden = versions.length < 2
   el("versions").innerHTML = versions.map((x, i) =>
     `<button class="chip" type="button" data-v="${i}" aria-pressed="${i === shown}">V${i + 1} · ${esc(x.label)}</button>`).join('')
-  const a = result.adjust, adj = a && ADJUSTS[a.kind]
+  const a = result.adjust, adj = a && adjustMeta(a.kind, a.artist)
   el("adjustNote").textContent = a
     ? `${adj.label} : ${plural(a.added, 'titre')} ${a.added > 1 ? 'ajoutés' : 'ajouté'}${a.removed ? `, ${plural(a.removed, 'titre')} ${a.removed > 1 ? 'retirés' : 'retiré'}` : ''}` +
       (adj.match ? ` · ${a.matching} ${adj.match} sur ${result.tracks.length}` : '')
@@ -741,6 +759,7 @@ function renderResult() {
       <span class="track__info">
         <span class="track__name">${esc(t.title)}</span>
         <span class="track__artist">${esc(t.artist)}</span>
+        ${SOURCE === 'radio' ? '' : `<button class="track__like" type="button" data-like="${i}">+ comme ça</button>`}
       </span>
       <span class="track__tags">
         ${t.styles.slice(0, 2).map(s => `<span class="tag">${esc(STYLES[s] || s)}</span>`).join('')}
@@ -823,6 +842,12 @@ function playNext(from) {
 }
 audio.onended = audio.onerror = () => autoplay ? playNext(playingIdx) : stopPreview()
 el("list").addEventListener('click', e => {
+  const like = e.target.closest('[data-like]')
+  if (like) {
+    e.preventDefault()  // dans le label du titre : ne pas le décocher
+    const t = result.tracks[+like.dataset.like]
+    return runAdjust('artist', { name: firstArtist(t.artist), id: t.artistId || undefined })
+  }
   const b = e.target.closest('[data-play]')
   if (!b) return
   e.preventDefault()
