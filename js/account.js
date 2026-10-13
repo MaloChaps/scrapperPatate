@@ -6,7 +6,7 @@ let me = null  // fiche du compte connecté (myProfile), null si déconnecté
 
 /* ── Écran Compte ───────────────────────────────────────────── */
 function openAccount(why = '') {
-  el("loginWhy").textContent = why || 'Le Mix est sur invitation. Entre l\'adresse e-mail qui a reçu l\'invitation : on t\'envoie un lien pour te connecter.'
+  el("loginWhy").textContent = why || 'Le Mix est sur invitation. Connecte-toi avec l\'adresse e-mail qui a reçu l\'invitation.'
   showScreen('account')
   if (!me) el("loginEmail").focus()
 }
@@ -28,24 +28,45 @@ async function syncAccount() {
   if (SOURCE === 'radio' && !me) openAccount('Le Mix à partir de la radio est réservé aux comptes invités : connecte-toi.')
   if (SOURCE === 'radio' && me && !me.radio) return location.replace('./')
   if (!me) return
-  el("meEmail").textContent = me.email
+  el("meEmail").textContent = el("passUser").value = me.email
   el("meRadio").hidden = !me.radio
   el("adminBox").hidden = !me.admin
   loadMixes()
   if (me.admin) loadMembers()
 }
 
+/* E-mail + mot de passe ; sans mot de passe (première fois, oubli) : un lien de connexion par e-mail */
 el("loginForm").onsubmit = async e => {
   e.preventDefault()
-  const email = el("loginEmail").value.trim()
+  const email = el("loginEmail").value.trim(), password = el("loginPass").value
+  if (!password) return sendLink()
   el("loginGo").disabled = true
+  el("loginMsg").textContent = 'Connexion…'
+  const { error } = await sb.auth.signInWithPassword({ email, password })
+  el("loginGo").disabled = false
+  el("loginMsg").textContent = !error ? ''
+    : /invalid/i.test(error.message) ? 'E-mail ou mot de passe incorrect. Pas encore de mot de passe ? Reçois un lien, puis choisis-en un dans Compte.'
+    : 'Connexion impossible : ' + error.message
+}
+el("loginLink").onclick = () => sendLink()
+async function sendLink() {
+  const email = el("loginEmail").value.trim()
+  if (!el("loginEmail").checkValidity() || !email) return el("loginEmail").reportValidity()
   el("loginMsg").textContent = 'Envoi du lien…'
   /* shouldCreateUser: false : une adresse sans invitation ne crée pas de compte */
   const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: SP_REDIRECT } })
-  el("loginGo").disabled = false
-  el("loginMsg").textContent = error
-    ? (/signup|not allowed|not found/i.test(error.message) ? 'Cette adresse n\'a pas d\'invitation.' : 'Envoi impossible : ' + error.message)
-    : `Lien envoyé à ${email} : ouvre-le sur cet appareil pour te connecter.`
+  el("loginMsg").textContent = !error ? `Lien envoyé à ${email} : ouvre-le vite, sur cet appareil.`
+    : /signup|not allowed|not found/i.test(error.message) ? 'Cette adresse n\'a pas d\'invitation.'
+    : /rate limit/i.test(error.message) ? 'Trop d\'e-mails envoyés pour l\'instant : réessaie dans une heure, ou connecte-toi avec ton mot de passe.'
+    : 'Envoi impossible : ' + error.message
+}
+/* Choisir ou changer son mot de passe (connecté) */
+el("passForm").onsubmit = async e => {
+  e.preventDefault()
+  el("passMsg").textContent = 'Enregistrement…'
+  const { error } = await sb.auth.updateUser({ password: el("newPass").value })
+  el("passMsg").textContent = error ? 'Impossible : ' + error.message : 'Mot de passe enregistré : tu peux maintenant te connecter avec.'
+  if (!error) el("newPass").value = ''
 }
 el("logout").onclick = async () => {
   await sb.auth.signOut()

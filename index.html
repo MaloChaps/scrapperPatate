@@ -271,7 +271,11 @@
   .account__block > .label{display:block;margin-bottom:10px}
   .login{display:flex;flex-direction:column;gap:12px;max-width:420px}
   .login p{margin:0}
+  .login[hidden]{display:none}
   .login .btn-cta{width:100%;min-width:0}
+  .login .link-btn{align-self:flex-start}
+  .password{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+  .password .field{flex:1 1 220px;max-width:320px}
   .me{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:16px;font:400 14px var(--font-mono)}
   .mixes,.members{margin:0;padding:0;list-style:none}
   .mixes li,.members li{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
@@ -364,14 +368,24 @@
 
     <form class="login account__block" id="loginForm" hidden>
       <p id="loginWhy">Le Mix est sur invitation. Entre l'adresse e-mail qui a reçu l'invitation : on t'envoie un lien pour te connecter.</p>
-      <input class="field" type="email" id="loginEmail" placeholder="ton@email.fr" autocomplete="email" required>
-      <button class="btn-cta" type="submit" id="loginGo">Recevoir le lien</button>
+      <input class="field" type="email" id="loginEmail" placeholder="ton@email.fr" autocomplete="username" required>
+      <input class="field" type="password" id="loginPass" placeholder="Mot de passe" autocomplete="current-password">
+      <button class="btn-cta" type="submit" id="loginGo">Se connecter</button>
+      <button class="pill-button link-btn" type="button" id="loginLink">Pas de mot de passe ? Recevoir un lien par e-mail</button>
       <p class="hint" id="loginMsg" aria-live="polite"></p>
     </form>
 
     <div id="signedIn" hidden>
       <div class="me"><span id="meEmail"></span><span class="tag" id="meRadio" hidden>Accès radio</span>
         <button class="pill-button" id="logout" type="button">Se déconnecter</button></div>
+
+      <form class="account__block password" id="passForm">
+        <p class="label" style="flex-basis:100%">Mot de passe</p>
+        <input type="email" autocomplete="username" id="passUser" hidden>
+        <input class="field" type="password" id="newPass" placeholder="Nouveau mot de passe (8 caractères ou plus)" autocomplete="new-password" minlength="8" required>
+        <button class="chip" type="submit">Enregistrer</button>
+        <p class="hint" id="passMsg" aria-live="polite" style="flex-basis:100%;margin:0"></p>
+      </form>
 
       <div class="account__block">
         <p class="label">Mes mixes</p>
