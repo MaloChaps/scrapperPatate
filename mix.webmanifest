@@ -4,7 +4,7 @@
   "short_name": "Le Mix",
   "description": "Générateur de playlists Spotify à partir de tes playlists préférées",
   "lang": "fr",
-  "start_url": "./generateur.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#938965",
@@ -36,7 +36,7 @@
     }
   ],
   "share_target": {
-    "action": "./generateur.html",
+    "action": "./",
     "method": "GET",
     "params": {
       "title": "title",

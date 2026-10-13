@@ -1,4 +1,4 @@
-/* Commun à la page radio (index.html) et au Mix (generateur.html) :
+/* Commun au Mix (index.html, l'accueil) et à la page radio (radio.html) :
    réglages, petites fonctions utilitaires, nettoyage des titres, connexion et appels Spotify. */
 
 /* ── Réglages ───────────────────────────────────────────────── */
@@ -8,9 +8,32 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const SPOTIFY_CLIENT_ID = '92f0ed53408d48e29b72e5bc027a3a10'
 /* Une seule connexion pour les deux pages : lire/créer des playlists (Le Mix), lire/modifier les Titres likés (radio) */
 const SP_SCOPES = 'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative user-library-read user-library-modify'
-/* Adresse de retour enregistrée dans l'app Spotify : le dossier du site, c'est-à-dire la page radio.
-   Elle renvoie vers Le Mix les connexions lancées depuis Le Mix (state=mix). */
+/* Adresse de retour enregistrée dans l'app Spotify : le dossier du site, c'est-à-dire Le Mix (index.html).
+   Il renvoie à la radio les connexions lancées par un cœur (state=like). */
 const SP_REDIRECT = location.origin + location.pathname.replace(/[^/]*$/, '')
+
+/* ── Compte (Supabase Auth, sur invitation) ──────────────────── */
+/* Un seul client pour les deux pages, session gardée dans le navigateur. Flux « implicit » : le lien de connexion
+   revient avec la session dans le # de l'adresse, sans ?code= (réservé au retour de connexion Spotify) */
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { flowType: 'implicit', persistSession: true, detectSessionInUrl: true } })
+const session = async () => (await sb.auth.getSession()).data.session
+/* Fiche du compte connecté (droits radio / admin), null si déconnecté */
+let profilePromise = null
+const myProfile = (fresh = false) => {
+  if (fresh || !profilePromise) profilePromise = (async () => {
+    const s = await session()
+    if (!s) return null
+    const { data } = await sb.from('profiles').select('id, email, radio, admin').eq('id', s.user.id).maybeSingle()
+    return data || { id: s.user.id, email: s.user.email, radio: false, admin: false }
+  })()
+  return profilePromise
+}
+sb.auth.onAuthStateChange(() => { profilePromise = null })
+/* En-têtes des appels à Supabase (REST, fonctions) : le jeton du compte connecté, sinon la clé publique */
+async function sbHeaders() {
+  const token = (await session())?.access_token || SUPABASE_ANON_KEY
+  return { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
+}
 
 /* ── Utilitaires ────────────────────────────────────────────── */
 const el    = id => document.getElementById(id)
@@ -34,7 +57,7 @@ function radioStream(audio, { onStatus = () => {}, onChange = () => {} } = {}) {
   }
   const retry = () => {
     clearTimeout(timer)
-    timer = setTimeout(() => { if (on) { onStatus('Reconnexion…'); connect() } }, 3000)
+    timer = setTimeout(() => { if (on) { onStatus(t('Reconnecting…')); connect() } }, 3000)
   }
   function stop(blocked = false) {
     on = false
@@ -116,7 +139,7 @@ async function spExchange(code) {
     })
   })
   const d = await res.json()
-  if (!d.access_token) throw new Error(d.error_description || d.error || 'connexion refusée')
+  if (!d.access_token) throw new Error(d.error_description || d.error || t('sign-in refused'))
   localStorage.setItem('sp_token', d.access_token)
   localStorage.setItem('sp_exp', Date.now() + d.expires_in * 1000)
   localStorage.removeItem('sp_v')

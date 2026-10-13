@@ -1,254 +1,228 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>La frite</title>
-<link rel="stylesheet" href="da.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Le Mix · Build your next playlist</title>
+<meta name="description" content="Build your next playlist from the Spotify playlists you love, and grow your own DJ library.">
+<meta name="theme-color" content="#938965">
+<link rel="manifest" href="mix.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<style>
-  /* Couleurs : jetons de da.css (--bg, --ink, --accent, --on-accent, --line), plus ces nuances propres à la page */
-  :root{
-    --ink-dim:color-mix(in srgb, var(--ink) 72%, var(--bg));   /* textes secondaires */
-    --panel:color-mix(in srgb, var(--ink) 5%, var(--bg));      /* fond du player */
-    --card:color-mix(in srgb, var(--ink) 5%, transparent);     /* lignes de la liste */
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{background:var(--bg);color:var(--ink)}
-  body{
-    font-family:var(--font-body);
-    min-height:100vh;
-    line-height:1.45;
-    background:var(--bg);
-    padding:clamp(18px,4vw,48px);
-  }
-  .wrap{max-width:780px;margin:0 auto}
-
-
-  .custom-player{
-    display:flex;gap:24px;align-items:center;
-    background:var(--panel);border:1px solid var(--line);border-radius:4px;
-    padding:24px;
-  }
-  .vinyl{flex:0 0 auto;width:110px;height:110px;position:relative}
-  .vinyl svg,.vinyl img{width:100%;height:100%;display:block;border-radius:50%}
-  .vinyl img{object-fit:cover;display:none}
-  .vinyl.has-cover img{display:block}
-  .vinyl.has-cover svg{display:none}
-  .vinyl.spinning svg,.vinyl.spinning img{animation:spin 3.2s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  @media (prefers-reduced-motion:reduce){.vinyl.spinning svg,.vinyl.spinning img{animation:none}}
-  .cp-body{min-width:0;flex:1}
-  .cp-station{font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);margin-bottom:8px}
-  .now-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)}
-  .now-title{font-family:var(--font-display);font-size:26px;font-weight:400;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .now-artist{font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cp-controls{display:flex;gap:12px;align-items:center;margin-top:14px}
-  .vol-wrap{display:flex;align-items:center;gap:8px}
-  .vol-icon{display:flex;cursor:pointer;user-select:none;transition:transform .1s}
-  .vol-icon .ico{width:20px;height:20px}
-  .btn-main .ico{width:.9em;height:.9em;flex:0 0 auto}
-  .vol-icon:active{transform:scale(.88)}
-  input[type=range].vol{
-    -webkit-appearance:none;appearance:none;
-    width:96px;height:4px;border-radius:2px;outline:none;cursor:pointer;
-    background:linear-gradient(to right,var(--ink) var(--vol,100%),var(--line) var(--vol,100%));
-    transition:height .15s;
-  }
-  input[type=range].vol:hover{height:5px}
-  input[type=range].vol::-webkit-slider-thumb{
-    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
-    background:var(--ink);cursor:pointer;
-    box-shadow:0 0 0 2px color-mix(in srgb, var(--ink) 20%, transparent);
-    transition:background .15s,transform .12s,box-shadow .15s;
-  }
-  input[type=range].vol::-webkit-slider-thumb:hover{
-    background:var(--ink);transform:scale(1.2);box-shadow:0 0 0 4px color-mix(in srgb, var(--ink) 25%, transparent);
-  }
-  input[type=range].vol::-moz-range-thumb{
-    width:14px;height:14px;border-radius:50%;background:var(--ink);border:none;cursor:pointer;
-  }
-
-  .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;align-items:center}
-  button{font-family:var(--font-mono);cursor:pointer;border:none;border-radius:999px;font-weight:500;letter-spacing:.02em;transition:transform .12s ease, background .2s ease, opacity .2s}
-  button:active{transform:scale(.97)}
-  button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-  .btn-main{background:var(--accent);color:var(--on-accent);font-size:16px;padding:13px 24px;display:inline-flex;align-items:center;gap:9px}
-  .btn-main.live{background:var(--ink);color:var(--bg)}
-  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--ink);padding:10px 16px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
-  a.btn-ghost{display:inline-flex;align-items:center;border-radius:999px;font-family:var(--font-mono);font-weight:500;text-decoration:none}
-  /* Accès au générateur : en haut à droite de la page */
-  /* Grand titre à gauche, CTA Le Mix à droite, centrés sur la même ligne */
-  .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:clamp(20px,4vw,36px)}
-  /* Grand titre : crème dans un pavé rouge, comme Le Mix */
-  h1{display:inline-block;margin:0;padding:.08em .2em .02em;border-radius:.12em;background:var(--accent);color:var(--on-accent);font-family:var(--font-display);font-weight:400;font-size:clamp(40px,12vw,140px);line-height:.88;letter-spacing:-.02em}
-  h1 em{font-style:italic}
-  .btn-mix{display:inline-flex;align-items:center;min-height:44px;padding:11px 20px;border-radius:999px;background:var(--accent);color:var(--on-accent);font:500 13px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;flex:0 0 auto;white-space:nowrap}
-  @media (hover:hover){.btn-mix:hover{opacity:.85}}
-  .btn-ghost:hover{background:var(--card)}
-  .count{font-family:var(--font-mono);font-size:13px;color:var(--ink-dim);margin-left:auto}
-  .count b{color:var(--ink)}
-
-  .list{margin-top:26px;display:flex;flex-direction:column;gap:1px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
-  .row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card)}
-  .row .thumb{display:block;width:38px;height:38px;border-radius:6px;flex:0 0 auto;background:var(--card);border:1px solid var(--line);object-fit:cover}
-  .row .idx{font-family:var(--font-mono);font-size:12px;color:var(--ink-dim);width:26px;flex:0 0 auto;text-align:right}
-  .row .info{min-width:0;flex:1}
-  .row .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .a{font-size:13px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .genre{display:inline-block;vertical-align:1px;margin-right:6px;padding:1px 6px 0;border:1px solid var(--line-strong);border-radius:999px;font-family:var(--font-mono);font-size:9.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;line-height:1.3;color:var(--ink)}
-  .genre--hiphop{background:var(--ink);border-color:var(--ink);color:var(--on-accent)}
-  .genre--house{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-  .row .time{font-family:var(--font-mono);font-size:11px;color:var(--ink-dim)}
-  .row .links{display:flex;gap:5px;flex:0 0 auto;align-items:center}
-  /* Écouter ailleurs : logo + nom (logo seul dans la liste sur mobile) */
-  .svc{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:5px 11px 5px 9px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:500 11px/1 var(--font-mono);letter-spacing:.02em;text-decoration:none;white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
-  .svc svg{width:14px;height:14px;flex:0 0 auto;fill:currentColor}
-  @media (hover:hover){
-    .svc.sp:hover{background:#1DB954;border-color:#1DB954;color:#000}
-    .svc.yt:hover{background:#FF0000;border-color:#FF0000;color:#fff}
-    .svc.dz:hover{background:#A238FF;border-color:#A238FF;color:#fff}
-  }
-  .now-links{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-  .now-links[hidden]{display:none}
-  .now-links .svc{min-height:32px;padding:7px 13px 7px 11px;font-size:12px}
-  /* Cœur : ajoute aux Titres likés Spotify */
-  /* Cœur (Titres likés) et + (ajouter à une playlist) */
-  .heart,.add{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex:0 0 auto;padding:0;border:0;border-radius:99px;background:transparent;color:var(--ink-dim);cursor:pointer;transition:color .15s,transform .12s}
-  .heart svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
-  .add svg{width:16px;height:16px}
-  .add[aria-expanded="true"]{color:var(--ink)}
-  @media (hover:hover){.add:hover{color:var(--ink);transform:scale(1.1)}}
-  .heart[aria-pressed="true"]{color:var(--accent)}
-  .heart[aria-pressed="true"] svg{fill:currentColor}
-  .heart.wait{opacity:.45;pointer-events:none}
-  .heart.none{opacity:.3}
-  @media (hover:hover){.heart:hover{color:var(--accent);transform:scale(1.1)}}
-  .now-links .heart,.now-links .add{width:28px;height:28px}
-
-  /* Menu « Ajouter à une playlist » : sous le bouton ; en bas de l'écran sur mobile */
-  .pl-menu{position:absolute;z-index:30;width:300px;max-height:min(420px,60vh);display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line-strong);border-radius:12px;background:var(--bg);box-shadow:0 18px 40px rgba(31,29,20,.3)}
-  .pl-menu[hidden]{display:none}
-  .pl-menu__title{font:500 12px var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pl-menu__note{font:400 12px var(--font-mono);color:var(--ink-dim)}
-  .pl-menu__filter{width:100%;padding:8px 16px;border:0;border-radius:99px;outline:none;background:var(--card);color:var(--ink);font:400 14px var(--font-mono)}
-  .pl-menu__filter:focus-visible{box-shadow:0 0 0 1px var(--ink)}
-  .pl-menu__list{display:flex;flex-direction:column;gap:2px;overflow-y:auto;overscroll-behavior:contain;margin:0 -6px}
-  .pl-item{display:flex;align-items:center;gap:10px;padding:6px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:400 13px var(--font-mono);text-align:left;cursor:pointer}
-  .pl-item[hidden]{display:none}
-  .pl-item span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pl-item img,.pl-item__cover{width:36px;height:36px;flex:0 0 auto;border-radius:4px;background:var(--card);object-fit:cover}
-  @media (hover:hover){.pl-item:hover{background:var(--card)}}
-
-
-
-  .more{display:block;width:100%;border:0;border-radius:0;padding:16px;background:var(--card)}
-  .empty{padding:40px 20px;text-align:center;color:var(--ink-dim);background:var(--card)}
-  .empty b{color:var(--ink);font-family:var(--font-display);font-weight:500}
-
-  .hour-sep{padding:10px 16px 6px;display:flex;align-items:center;gap:10px;background:transparent}
-  .hour-sep .hour-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
-  .hour-sep .hour-line{flex:1;height:1px;background:var(--line)}
-
-  .export{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
-  .footnote{margin-top:26px;font-size:12.5px;color:var(--ink-dim);border-top:1px solid var(--line);padding-top:16px}
-  .footnote a{color:var(--ink)}
-  .status{font-family:var(--font-mono);font-size:12px;color:var(--ink-dim);margin-top:12px;min-height:16px}
-  .status.err{color:var(--ink)}
-
-  @media(max-width:600px){
-    /* Player */
-    .custom-player{flex-direction:column;align-items:center;text-align:center;padding:20px 16px;gap:16px}
-    .vinyl{width:96px;height:96px}
-    .cp-body{width:100%}
-    .cp-station,.now-label{text-align:center}
-    .now-title{font-size:20px}
-    .now-links{justify-content:center;flex-wrap:nowrap;gap:5px}
-    .pl-menu{position:fixed;left:0 !important;right:0;top:auto !important;bottom:0;width:auto;max-height:70vh;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
-    .now-links .svc{padding:6px 9px 6px 8px;font-size:11px;gap:5px}
-    .cp-controls{justify-content:center}
-    .vol-wrap{flex:1;justify-content:flex-end}
-
-    /* Liste */
-    .row .time,.row .idx{display:none}
-    .row{flex-wrap:wrap;row-gap:6px}
-    .row .thumb{width:34px;height:34px}
-    /* Boutons sur une 2e ligne, sous le titre : le titre garde toute la largeur */
-    .row .links{flex-basis:100%;padding-left:48px;margin-left:-6px}
-    .row .svc{width:32px;height:32px;padding:0;justify-content:center}
-    .row .svc span{display:none}
-
-    /* Export */
-    .export{flex-direction:column}
-    .export button{border-radius:12px;text-align:center;justify-content:center}
-
-  }
-</style>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Le Mix">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="da.css">
+<link rel="stylesheet" href="mix.css">
 </head>
 <body>
 <div class="wrap">
-
-
-  <header class="topbar">
-    <h1>La <em>Radio</em></h1>
-    <a class="btn-mix" href="generateur.html">Le Mix</a>
+  <!-- Barre du haut : onglets (créer, communauté, bibliothèque), radio, langue, compte -->
+  <header class="appbar">
+    <div class="appbar__left">
+      <nav class="nav" aria-label="Sections">
+        <button type="button" data-go="form" data-t>Create</button>
+        <button type="button" data-go="community" data-t>Community</button>
+        <button type="button" data-go="account" data-t>Library</button>
+      </nav>
+    </div>
+    <div class="appbar__right">
+      <a class="back pill-button" href="radio.html" id="toRadio" data-radio-only data-t>Radio</a>
+      <button class="lang" type="button" id="langBtn" aria-label="Français">FR</button>
+      <button class="pill-button" id="accountBtn" type="button" data-t>Sign in</button>
+    </div>
   </header>
 
-  <div class="custom-player">
-    <audio id="radioAudio" preload="none"></audio>
-    <div class="vinyl" id="vinyl">
-      <img id="nowCover" src="" alt="">
-      <svg viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="49" fill="#1F1D14"/>
-        <circle cx="50" cy="50" r="49" fill="none" stroke="color-mix(in srgb, var(--ink) 8%, transparent)" stroke-width="1"/>
-        <circle cx="50" cy="50" r="40" fill="none" stroke="color-mix(in srgb, var(--ink) 6%, transparent)" stroke-width="1"/>
-        <circle cx="50" cy="50" r="31" fill="none" stroke="color-mix(in srgb, var(--ink) 6%, transparent)" stroke-width="1"/>
-        <circle cx="50" cy="50" r="18" fill="#E3301A"/>
-        <circle cx="50" cy="50" r="4.5" fill="#1F1D14"/>
-        <circle cx="62" cy="38" r="2" fill="rgba(255,255,255,.25)"/>
-      </svg>
+  <!-- ── Créer ── -->
+  <div class="filters">
+    <p class="label" data-t>Title</p>
+    <input class="field" id="plName" placeholder="Name your playlist (or: mood · date)" enterkeyhint="done" maxlength="100">
+
+    <p class="label" data-t>Mode</p>
+    <div class="filters__chips filters__chips--scroll" id="mode"></div>
+    <p class="filters__note" id="modeDesc"></p>
+
+    <p class="label" data-for="spotify" data-t>Playlists</p>
+    <div class="pick" data-for="spotify">
+      <div class="mine" id="mine"></div>
+      <div class="or" data-t>or paste a link</div>
+      <div class="seeds" id="seeds"></div>
+      <button class="pill-button add-seed" type="button" id="addSeed" data-t>+ Add a link</button>
     </div>
-    <div class="cp-body">
-      <div class="cp-station">La Patate Douce · en direct</div>
-      <div class="now-label" >En ce moment</div>
-      <div class="now-title" id="nowTitle">—</div>
-      <div class="now-artist" id="nowArtist"></div>
-      <div class="now-links" id="nowLinks" hidden></div>
-      <div class="cp-controls">
-        <button class="btn-main" id="radioPlayBtn"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg> Écouter</button>
-        <div class="vol-wrap">
-          <span class="vol-icon" id="volIcon" role="button" aria-label="Couper le son"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
-          <input type="range" class="vol" id="volSlider" min="0" max="1" step="0.01" value="1">
-        </div>
+
+    <p class="label" data-for="radio" data-t>Period</p>
+    <div class="filters__chips filters__chips--scroll" id="period" data-for="radio"></div>
+
+    <p class="label" data-t>Styles</p>
+    <div class="filters__chips" id="styles"></div>
+    <p class="filters__note" id="stylesNote"></p>
+
+    <p class="label" data-t>Mood</p>
+    <div class="filters__chips filters__chips--scroll" id="themes"></div>
+    <p class="filters__note" id="themeDesc"></p>
+
+    <p class="label" data-t>Length</p>
+    <div class="range"><input type="range" id="len" min="15" max="60" step="5" value="30" aria-label="Length"><output id="lenVal"></output></div>
+
+    <p class="label" data-for="discover" data-t>Discoveries</p>
+    <div class="range" data-for="discover"><input type="range" id="disc" min="0" max="100" step="10" value="50" aria-label="Discoveries"><output id="discVal"></output></div>
+
+    <p class="label" data-t>Artists</p>
+    <div class="filters__chips filters__chips--scroll" id="niche"></div>
+    <p class="filters__note" id="nicheDesc"></p>
+
+    <p class="label" data-t>Flow</p>
+    <div class="filters__chips filters__chips--scroll" id="curve"></div>
+  </div>
+
+  <div class="error" id="error" role="alert"></div>
+
+  <!-- ── Bibliothèque (tes playlists, onglet du haut) et Mon compte (profil, mot de passe, invitations : bouton du compte) ── -->
+  <section class="account" id="account">
+    <div class="section-header"><h2 class="section-title" id="accountTitle" data-t>Library</h2></div>
+
+    <form class="login account__block" id="loginForm" hidden>
+      <p id="loginWhy"></p>
+      <input class="field" type="email" id="loginEmail" placeholder="you@email.com" autocomplete="username" required>
+      <input class="field" type="password" id="loginPass" placeholder="Password" autocomplete="current-password">
+      <button class="btn-cta" type="submit" id="loginGo" data-t>Sign in</button>
+      <button class="pill-button link-btn" type="button" id="loginLink" data-t>No password? Email me a sign-in link</button>
+      <p class="hint" id="loginMsg" aria-live="polite"></p>
+    </form>
+
+    <div id="signedIn" hidden>
+      <nav class="tabs" id="tabs" role="tablist">
+        <button class="chip" type="button" role="tab" data-tab="profile" aria-pressed="true" data-t>Profile</button>
+        <button class="chip" type="button" role="tab" data-tab="password" aria-pressed="false" data-t>Password</button>
+        <button class="chip" type="button" role="tab" data-tab="invites" aria-pressed="false" id="invitesTab" data-t>Invites</button>
+      </nav>
+
+      <div class="panel" data-panel="playlists">
+        <ul class="grid" id="mixList"></ul>
+      </div>
+
+      <div class="panel" data-panel="profile" hidden>
+        <dl class="infos">
+          <dt data-t>DJ name</dt>
+          <dd><form class="inline-form" id="nameForm">
+            <input class="field" id="displayName" maxlength="40" placeholder="Shown on the playlists you publish">
+            <button class="chip" type="submit" data-t>Save</button>
+            <span class="hint" id="nameMsg" aria-live="polite"></span>
+          </form></dd>
+          <dt data-t>Email</dt><dd id="meEmail"></dd>
+          <dt data-t>Radio</dt><dd id="meRadio"></dd>
+          <dt data-t>Member since</dt><dd id="meSince"></dd>
+        </dl>
+        <button class="pill-button" id="logout" type="button" data-t>Sign out</button>
+      </div>
+
+      <form class="panel password" data-panel="password" id="passForm" hidden>
+        <p class="panel__lead" data-t>Pick a password to sign in without waiting for an email.</p>
+        <input type="email" autocomplete="username" id="passUser" hidden>
+        <input class="field" type="password" id="newPass" placeholder="New password (8+ characters)" autocomplete="new-password" minlength="8" required>
+        <button class="chip" type="submit" data-t>Save</button>
+        <p class="hint panel__msg" id="passMsg" aria-live="polite"></p>
+      </form>
+
+      <div class="panel" data-panel="invites" id="adminBox" hidden>
+        <form class="invite" id="inviteForm">
+          <input class="field" type="email" id="inviteEmail" placeholder="Email to invite" required>
+          <label class="check" id="inviteRadioWrap"><input type="checkbox" id="inviteRadio"> <span data-t>radio access</span></label>
+          <button class="chip" type="submit" data-t>Invite</button>
+        </form>
+        <p class="hint" id="inviteMsg" aria-live="polite"></p>
+        <ul class="members" id="members"></ul>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="controls">
-    <button class="btn-ghost" id="refreshBtn">Rafraîchir</button>
-    <a class="btn-ghost" href="generateur.html?source=radio">Créer playlist Spotify</a>
-    <span class="count"><b id="countNum">0</b> titres</span>
-  </div>
-  <div class="status" id="status"></div>
+  <!-- ── Communauté ── -->
+  <section class="community" id="community">
+    <div class="section-header page-head">
+      <div>
+        <h2 class="section-title" data-t>Community</h2>
+        <p class="intro" data-t>Mixes published by Le Mix DJs. Play them, remix them, make them yours.</p>
+      </div>
+    </div>
+    <ul class="grid" id="communityList"></ul>
+  </section>
 
-  <div class="list" id="list"></div>
-
-  <div class="export">
-    <a class="btn-ghost" href="generateur.html?source=radio">Créer playlist Spotify</a>
-    <button class="btn-ghost" id="copyBtn">Copier la liste</button>
-    <button class="btn-ghost" id="csvBtn">Télécharger .csv</button>
-  </div>
-
-  <p class="footnote">
-    Un robot tourne en continu côté serveur et note chaque nouveau titre toutes les minutes, même quand cette page est fermée : la liste se met à jour toute seule. Le cœur ajoute un titre à tes Titres likés Spotify, le + à une de tes playlists.
-    « Créer playlist Spotify » ouvre <a href="generateur.html?source=radio">Le Mix</a> avec les titres de la radio : thème, styles, niveau, enchaînement par tempo et écoute des extraits.
-  </p>
-
+  <!-- ── Résultat ── -->
+  <section class="result" id="result">
+    <!-- En-tête : où est ce mix, son nom ; puis l'action principale (écouter), garder / partager, refaire -->
+    <div class="result__head">
+      <p class="eyebrow" id="resEyebrow"></p>
+      <h2 class="section-title" id="resTitle"></h2>
+    </div>
+    <div class="result__bar">
+      <button class="pill-button pill-button--filled" id="listenAll" type="button" data-t>Play the mix</button>
+      <button class="pill-button" id="saveMix" type="button" data-t>Save</button>
+      <button class="pill-button" id="publishMix" type="button" data-t>Publish</button>
+      <span class="result__bar-gap"></span>
+      <button class="pill-button" id="regen" type="button" data-t>↻ Regenerate</button>
+      <button class="pill-button" id="toForm" type="button" data-t>← Settings</button>
+    </div>
+    <div class="versions" id="versions" hidden></div>
+    <div class="profile" id="profile"></div>
+    <p class="adjust-note" id="adjustNote"></p>
+    <div class="adjust" id="adjust"><span class="adjust__label" data-t>Tweak</span></div>
+    <div class="adjust adjust--more" id="adjustMore"><span class="adjust__label" data-t>More</span></div>
+    <form class="adjust adjust--more" id="adjustArtist">
+      <span class="adjust__label" data-t>Like</span>
+      <input class="field adjust__field" id="likeName" placeholder="An artist you love" autocomplete="off" enterkeyhint="go" maxlength="80">
+      <button class="chip" type="submit" data-t>Add</button>
+    </form>
+    <div class="short" id="short">
+      <p id="shortText"></p>
+      <button class="pill-button" id="complete" type="button" data-t>Fill the gaps</button>
+    </div>
+    <ol class="tracks" id="list"></ol>
+    <div class="done" id="done"></div>
+  </section>
 </div>
 
-<div class="pl-menu" id="plMenu" role="dialog" aria-label="Ajouter à une playlist" hidden></div>
+<!-- Lecteur de l'extrait en cours -->
+<div class="player" id="player" aria-live="polite">
+  <div class="player__disc"><span class="player__cover" id="playerCover"></span><span class="player__vinyl"></span></div>
+  <div class="player__text">
+    <span class="player__artist" id="playerArtist"></span><span class="player__title" id="playerTitle"></span>
+    <span class="player__time" id="playerTime">0:00 / 0:30</span>
+    <div class="player__controls">
+      <button type="button" id="playerPrev" aria-label="Previous"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button type="button" id="playerStop" aria-label="Pause"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
+      <button type="button" id="playerNext" aria-label="Next"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<nav class="actionbar">
+  <div class="actionbar__inner">
+    <p class="summary" id="summary" data-only="form" aria-live="polite"></p>
+    <p class="hint" id="goHint" data-only="form"></p>
+    <p class="hint" id="createStep" data-only="result"></p>
+    <button class="btn-cta" id="go" data-only="form" data-t>Build my mix</button>
+    <button class="btn-cta" id="create" data-only="result" data-t>Create on Spotify</button>
+  </div>
+</nav>
+
+<div class="loading" id="loading" role="status" aria-live="polite">
+  <p class="loading__title">Le <em>Mix</em></p>
+  <p class="loading__step" id="step"></p>
+  <div class="loading__bar"><span id="bar"></span></div>
+  <p class="hint" data-t>Takes about a minute.</p>
+  <button class="pill-button radio-btn" id="radioBtnWait" type="button" aria-pressed="false" data-radio-only></button>
+  <button class="pill-button" id="cancel" type="button" data-t>Cancel</button>
+</div>
+
+<audio id="radioAudio" preload="none"></audio>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/i18n.js"></script>
+<script>translatePage()</script>
 <script src="js/shared.js"></script>
-<script src="js/radio.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/mix.js"></script>
+<script src="js/account.js"></script>
+<script src="js/community.js"></script>
 </body>
 </html>
