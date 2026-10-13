@@ -10,7 +10,7 @@ const CORS = {
 }
 const URL_ = Deno.env.get('SUPABASE_URL')!
 /* Adresses de retour acceptées pour le lien d'invitation : le site en ligne et le site local */
-const SITES = [/^https:\/\/[a-z0-9-]+\.github\.io\//, /^http:\/\/(127\.0\.0\.1|localhost):\d+\//]
+const SITES = [/^https:\/\/music\.malochaperon\.com\//, /^https:\/\/malochaps\.github\.io\/scrapperPatate\//, /^http:\/\/(127\.0\.0\.1|localhost):\d+\//]
 
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
