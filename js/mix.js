@@ -2,22 +2,33 @@
    via la Edge Function build-playlist, puis la crée sur Spotify.
    Réglages et fonctions communes : js/shared.js */
 
+/* Ambiances : tempo et styles gardés / écartés, mêmes valeurs que THEMES dans build-playlist
+   (ici pour prévenir quand une ambiance contredit les styles choisis) */
 const THEMES = {
-  libre:    { label: 'Comme mes playlists', desc: 'Pas de thème : le style, le tempo et la rareté de tes playlists' },
-  diner:    { label: 'Dîner',          desc: 'Soul, jazz, brésil, funk, afro · 80–112 BPM' },
-  apero:    { label: 'Apéro',          desc: 'Funk, soul, brésil, jazz, latin · 92–118 BPM' },
-  soiree:   { label: 'Soirée',         desc: 'Disco, house, funk, hip-hop · 110–128 BPM' },
-  nuit:     { label: 'Fin de nuit',    desc: 'House, chill, jazz, R&B · 85–115 BPM' },
-  dimanche: { label: 'Dimanche matin', desc: 'Jazz, folk, soul, chanson · 70–105 BPM' },
-  route:    { label: 'Road trip',      desc: 'Rock, pop, funk, soul · 100–135 BPM' },
-  focus:    { label: 'Concentration',  desc: 'Chill, jazz, électro · 80–120 BPM' },
-  sport:    { label: 'Sport',          desc: 'House, hip-hop, disco, rock · 120–150 BPM' }
+  libre:    { label: 'Comme mes playlists', desc: 'Pas d\'ambiance : le style, le tempo et la rareté de tes playlists' },
+  diner:    { label: 'Dîner',          desc: 'Soul, jazz, brésil, funk, afro · 80–112 BPM', bpm: [80, 112],
+              like: ['soul', 'jazz', 'bresil', 'funk', 'afro', 'latin', 'rnb', 'chill'], avoid: ['metal', 'hiphop', 'house'] },
+  apero:    { label: 'Apéro',          desc: 'Funk, soul, brésil, jazz, latin · 92–118 BPM', bpm: [92, 118],
+              like: ['funk', 'soul', 'bresil', 'jazz', 'latin', 'afro', 'disco', 'reggae', 'rnb'], avoid: ['metal', 'classique'] },
+  soiree:   { label: 'Soirée',         desc: 'Disco, house, funk, hip-hop · 110–128 BPM', bpm: [110, 128],
+              like: ['disco', 'house', 'funk', 'hiphop', 'latin', 'afro', 'rnb', 'pop'], avoid: ['classique', 'folk', 'chill', 'metal'] },
+  nuit:     { label: 'Fin de nuit',    desc: 'House, chill, jazz, R&B · 85–115 BPM', bpm: [85, 115],
+              like: ['house', 'chill', 'jazz', 'rnb', 'soul'], avoid: ['metal', 'rock', 'folk', 'funk', 'disco', 'hiphop'] },
+  dimanche: { label: 'Dimanche matin', desc: 'Jazz, folk, soul, chanson · 70–105 BPM', bpm: [70, 105],
+              like: ['jazz', 'folk', 'soul', 'bresil', 'chill', 'chanson'], avoid: ['metal', 'house', 'hiphop'] },
+  route:    { label: 'Road trip',      desc: 'Rock, pop, funk, soul · 100–135 BPM', bpm: [100, 135],
+              like: ['rock', 'pop', 'funk', 'soul', 'hiphop', 'disco'], avoid: ['classique', 'chill'] },
+  focus:    { label: 'Concentration',  desc: 'Chill, jazz, électro · 80–120 BPM', bpm: [80, 120],
+              like: ['chill', 'jazz', 'house', 'classique'], avoid: ['hiphop', 'metal', 'chanson'] },
+  sport:    { label: 'Sport',          desc: 'House, hip-hop, disco, rock · 120–150 BPM', bpm: [120, 150],
+              like: ['house', 'hiphop', 'disco', 'rock', 'funk'], avoid: ['jazz', 'classique', 'folk', 'chill'] }
 }
 const STYLES = {
   funk: 'Funk', soul: 'Soul', disco: 'Disco & boogie', jazz: 'Jazz', afro: 'Afro', bresil: 'Brésil',
   latin: 'Latin', rnb: 'R&B', house: 'House & électro', hiphop: 'Rap & hip-hop', reggae: 'Reggae & dub',
   rock: 'Rock', pop: 'Pop', folk: 'Folk', chanson: 'Chanson', chill: 'Chill'
 }
+const listFr = a => a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} et ${a.at(-1)}`
 const NICHE = {
   auto:      { label: 'Comme mes playlists', desc: 'Même niveau de rareté que tes playlists' },
   connu:     { label: 'Connu',               desc: 'Artistes reconnus (plus de 20 000 fans)' },
@@ -33,7 +44,7 @@ document.body.dataset.source = SOURCE
 const FORM_KEY = SOURCE === 'radio' ? 'mix_form_radio' : 'mix_form'
 
 if (SOURCE === 'radio') {
-  THEMES.libre = { label: 'Comme la radio', desc: 'Pas de thème : le style, le tempo et la rareté des titres de la radio' }
+  THEMES.libre = { label: 'Comme la radio', desc: 'Pas d\'ambiance : le style, le tempo et la rareté des titres de la radio' }
   NICHE.auto   = { label: 'Comme la radio', desc: 'Même niveau de rareté que les titres de la radio' }
 }
 
@@ -45,7 +56,7 @@ const MODES = SOURCE === 'radio' ? {
   mix:      { label: 'Juste mes playlists',      desc: 'Aucun titre ajouté : tes playlists filtrées, mélangées et enchaînées par tempo' }
 }
 const LEN_ALL = 105  // dernier cran du curseur en mode « Juste mes playlists » : tous les titres
-const CURVES = { theme: 'Selon le thème', rise: '↗ Montée', fall: '↘ Descente', wave: '∿ Vagues', none: 'Mélangé' }
+const CURVES = { theme: 'Selon l\'ambiance', rise: '↗ Montée', fall: '↘ Descente', wave: '∿ Vagues', none: 'Mélangé' }
 /* Ajustements d'une playlist générée (build-playlist : adjust) ; chacun crée une nouvelle version.
    match : ce que compte la note « 12 titres français sur 30 » */
 const ADJUSTS = {
@@ -288,7 +299,7 @@ function renderChoice(id, options, key, onPick) {
 }
 const syncDescs = () => {
   el("modeDesc").textContent  = MODES[state.mode].desc
-  el("themeDesc").textContent = THEMES[state.theme].desc
+  syncThemeNote()
   el("nicheDesc").textContent = NICHE[state.niche].desc
 }
 /* Mode « Juste mes playlists » : curseur de longueur jusqu'à « Tous », pas de découvertes */
@@ -357,11 +368,11 @@ function syncRadio() {
     c.disabled = n === 0 && !state.styles.has(k) && !state.without.has(k)
   })
   syncStylesNote()
-  syncSummary()
+  syncLive()
 }
 renderChoice('period', PERIODS, 'period', syncRadio)
 if (SOURCE === 'radio') {
-  el("intro").textContent = 'Les titres passés à la radio, filtrés par thème et styles et enchaînés par tempo. Écoute les extraits avant de créer la playlist Spotify.'
+  el("intro").textContent = 'Les titres passés à la radio, filtrés par style et ambiance et enchaînés par tempo. Écoute les extraits avant de créer la playlist Spotify.'
   loadRadio()
 }
 renderChoice('themes', THEMES, 'theme', syncDescs)
@@ -385,7 +396,51 @@ el("styles").onclick = e => {
   SOURCE === 'radio' ? syncRadio() : syncStylesNote()
 }
 
-const listFr = a => a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} et ${a.at(-1)}`
+/* Ambiance : même règle que themeOk dans build-playlist (style écarté → non ; sinon un style gardé
+   et/ou un tempo dans la plage). Approximation côté page : avertissements, résumé, choix des titres de la radio envoyés */
+const effBpm = (bpm, [lo, hi]) => [bpm, bpm * 2, bpm / 2].reduce((a, b) => Math.abs(b - (lo + hi) / 2) < Math.abs(a - (lo + hi) / 2) ? b : a)
+function bpmFit(bpm, range) {
+  if (!bpm) return 0.5
+  const b = effBpm(bpm, range), [lo, hi] = range
+  return Math.max(0, 1 - (b < lo ? lo - b : b > hi ? b - hi : 0) / 20)
+}
+function themeOk(t, th = THEMES[state.theme]) {
+  if (!th.bpm) return true
+  if (t.styles.some(s => th.avoid.includes(s))) return false
+  const liked = t.styles.some(s => th.like.includes(s))
+  if (t.styles.length && !liked) return false
+  return t.bpm ? bpmFit(t.bpm, th.bpm) >= 0.75 : liked
+}
+
+/* Sous l'ambiance : sa description, puis ce qu'elle retire des styles choisis (et, radio, combien de titres restent) */
+function syncThemeNote() {
+  const th = THEMES[state.theme], chosen = [...state.styles]
+  const warns = [], avoided = chosen.filter(k => th.avoid?.includes(k)), others = chosen.filter(k => th.like && !th.like.includes(k) && !th.avoid.includes(k))
+  if (avoided.length) warns.push(`${th.label} écarte ${listFr(avoided.map(k => STYLES[k]))}`)
+  if (others.length) warns.push(`${th.label} ne retient ${listFr(others.map(k => STYLES[k]))} que mêlé à ${listFr(th.like.slice(0, 3).map(k => STYLES[k]))}…`)
+  let count = ''
+  if (th.bpm && SOURCE === 'radio' && radioPlays) {
+    const pool = radioPool(), k = pool.filter(t => themeOk(t)).length
+    count = `${k ? `≈ ${k}` : 'Aucun'} titre${k > 1 ? 's' : ''} sur ${pool.length} ${k > 1 ? 'vont' : 'va'} avec ${th.label} (styles et tempo)`
+    if (k < pool.length / 3) warns.push(count), count = ''
+  }
+  el("themeDesc").innerHTML = esc(th.desc) +
+    (warns.length ? `<span class="warn">⚠ ${esc(warns.join(' · '))}</span>` : '') + (count ? `<span class="peek">${esc(count)}</span>` : '')
+}
+
+/* « Plus de réglages » replié : ce qui n'est pas par défaut, à côté du titre */
+function syncMore() {
+  const name = el("plName").value.trim()
+  const bits = [state.niche !== 'auto' && NICHE[state.niche].label, state.curve !== 'theme' && CURVES[state.curve], name && `« ${name} »`].filter(Boolean)
+  el("moreSum").textContent = bits.length ? '· ' + bits.join(' · ') : ''
+}
+/* Tout ce qui dépend de plusieurs réglages à la fois */
+function syncLive() {
+  syncThemeNote()
+  syncMore()
+  syncSummary()
+}
+
 /* « Rock et Pop, sans House & électro » */
 const stylesPhrase = () => [listFr([...state.styles].map(k => STYLES[k])),
   state.without.size ? 'sans ' + listFr([...state.without].map(k => STYLES[k])) : ''].filter(Boolean).join(', ')
@@ -425,12 +480,13 @@ function syncSummary() {
   }
   if (stylesPhrase()) parts.push(stylesPhrase())
   if (SOURCE === 'radio') parts.push(state.period === 'tout' ? 'toute la période' : `dernières ${PERIODS[state.period].label}`)
-  if (state.theme !== 'libre') parts.push(THEMES[state.theme].label)
+  if (state.theme !== 'libre') parts.push(SOURCE === 'radio' ? `${THEMES[state.theme].label} (≈ ${radioPool().filter(t => themeOk(t)).length})` : THEMES[state.theme].label)
   const out = state.mode === 'mix' ? (len ? `mix de ${len} titres au plus` : 'tous les titres') : `mix de ${len} titres avec découvertes`
   el("summary").textContent = `${parts.join(' · ')} → ${out}`
 }
-document.querySelector('.filters').addEventListener('click', () => requestAnimationFrame(syncSummary))
-document.querySelector('.filters').addEventListener('input', () => requestAnimationFrame(syncSummary))
+/* Écouté sur le conteneur : passe après les gestionnaires des pastilles et des champs */
+document.querySelector('.filters').addEventListener('click', syncLive)
+document.querySelector('.filters').addEventListener('input', syncLive)
 syncStylesNote()
 
 const syncSliders = () => {
@@ -500,7 +556,7 @@ function startSteps(mode, adjust) {
   const steps = adjust
     ? [[0, 'Analyse de ta playlist'], [mode === 'mix' ? 15 : 12, ADJUSTS[adjust].step], [mode === 'mix' ? 35 : 50, 'Remplacement et mise en ordre']]
     : mode === 'mix'
-    ? [[0, 'Lecture des tempos de tes titres'], [25, 'Filtrage par thème et styles'], [38, 'Enchaînement des tempos']]
+    ? [[0, 'Lecture des tempos de tes titres'], [25, 'Filtrage par style et ambiance'], [38, 'Enchaînement des tempos']]
     : [[0, 'Analyse des styles et des tempos'], [15, 'Recherche d\'artistes proches'],
        [35, 'Écoute des titres candidats'], [55, 'Sélection et mise en ordre']]
   const total = mode === 'mix' ? 45 : 70
@@ -594,7 +650,9 @@ el("go").onclick = async () => {
     if (!radioPlays) return showError('Les titres de la radio sont encore en chargement, réessaie dans un instant.')
     const pool = radioPool()
     if (!pool.length) return showError(state.styles.size || state.without.size ? 'Aucun titre de ces styles sur cette période : choisis une période plus longue ou d\'autres styles.' : 'Aucun titre passé à la radio sur cette période.')
-    lastSeeds = (pool.length > RADIO_MAX ? [...pool].sort(() => Math.random() - 0.5).slice(0, RADIO_MAX) : pool)
+    /* Trop de titres pour tout envoyer : tirage au hasard, ceux qui vont avec l'ambiance d'abord */
+    const shuffled = [...pool].sort(() => Math.random() - 0.5)
+    lastSeeds = (pool.length > RADIO_MAX ? [...shuffled.filter(t => themeOk(t)), ...shuffled.filter(t => !themeOk(t))].slice(0, RADIO_MAX) : pool)
       .map(({ title, artist, bpm }) => ({ title, artist, ...(bpm ? { bpm } : {}) }))
     /* Styles déjà appliqués ici (track_info.styles : Last.fm, sinon Deezer) : le serveur ne refiltre
        que si Last.fm en dit plus, et filtre les découvertes */
@@ -664,7 +722,7 @@ function renderResult() {
   if (s > 0) {
     const why = lastBody?.styles?.length && result.rejected?.style >= result.rejected?.niche ? 'les styles choisis' : 'le niveau de rareté'
     el("shortText").textContent = mix
-      ? `Seulement ${result.tracks.length} titres ${SOURCE === 'radio' ? 'de la radio' : 'de tes playlists'} passent ces filtres : choisis d'autres styles, un autre thème${SOURCE === 'radio' ? ' ou une période plus longue' : ''}.` :
+      ? `Seulement ${result.tracks.length} titres ${SOURCE === 'radio' ? 'de la radio' : 'de tes playlists'} passent ces filtres : choisis d'autres styles, une autre ambiance${SOURCE === 'radio' ? ' ou une période plus longue' : ''}.` :
       `Il manque ${s} titre${s > 1 ? 's' : ''} : ${why} ${why.startsWith('les') ? 'écartent' : 'écarte'} trop de titres de ces playlists.` +
       (result.relaxed ? ' Même en assouplissant, il n\'y en a pas plus : essaie une autre playlist de départ ou un autre style.' : '') +
       (!result.lastfm && why.startsWith('les') ? ' (Styles déduits de Deezer, approximatifs.)' : '')
@@ -849,7 +907,7 @@ if (startParams.has('radio')) {
 if (radioWanted) radio.play()
 ;(async () => {
   restoreForm()
-  syncSummary()
+  syncLive()
   /* Partage vers l'app (Web Share Target) : « Partager > Le Mix » depuis Spotify */
   const params = new URLSearchParams(location.search)
   const shared = playlistId(`${params.get('url') || ''} ${params.get('text') || ''}`)

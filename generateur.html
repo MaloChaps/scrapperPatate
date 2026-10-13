@@ -93,6 +93,14 @@
   .filters .label{font-size:13px;letter-spacing:.02em;align-self:start;padding-top:7px}
   .filters__chips{display:flex;flex-wrap:wrap;gap:8px}
   .filters__note{grid-column:2;margin-top:-10px;font:400 12px var(--font-mono);opacity:.75}
+  .filters__note .warn{display:block;margin-top:4px;font-weight:500;opacity:1}
+  .more{grid-column:1/-1;border-top:1px solid var(--line)}
+  .more>summary{padding:14px 0 4px;font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;list-style:none}
+  .more>summary::-webkit-details-marker{display:none}
+  .more>summary::before{content:'+';display:inline-block;width:1.2em}
+  .more[open]>summary::before{content:'−'}
+  .more__sum{margin-left:.6em;font-weight:400;letter-spacing:0;text-transform:none;opacity:.75}
+  .filters--more{margin-top:10px}
   .field{width:100%;min-width:0;padding:9px 22px;border:0;border-radius:99px;outline:none;background:var(--field);color:var(--ink);font:400 16px var(--font-mono);-webkit-appearance:none;appearance:none}
   .field:focus-visible{box-shadow:0 0 0 1px var(--ink)}
   .field::placeholder{color:var(--ink);opacity:.75}
@@ -266,9 +274,6 @@
   </section>
 
   <div class="filters">
-    <p class="label">Titre</p>
-    <input class="field" id="plName" placeholder="Automatique : thème · date" enterkeyhint="done" maxlength="100">
-
     <p class="label">Mode</p>
     <div class="filters__chips filters__chips--scroll" id="mode"></div>
     <p class="filters__note" id="modeDesc"></p>
@@ -284,26 +289,35 @@
     <p class="label" data-for="radio">Période</p>
     <div class="filters__chips filters__chips--scroll" id="period" data-for="radio"></div>
 
-    <p class="label">Thème</p>
-    <div class="filters__chips filters__chips--scroll" id="themes"></div>
-    <p class="filters__note" id="themeDesc"></p>
-
     <p class="label">Styles</p>
     <div class="filters__chips" id="styles"></div>
     <p class="filters__note" id="stylesNote"></p>
 
-    <p class="label">Type d'artiste</p>
-    <div class="filters__chips filters__chips--scroll" id="niche"></div>
-    <p class="filters__note" id="nicheDesc"></p>
-
-    <p class="label">Enchaînement</p>
-    <div class="filters__chips filters__chips--scroll" id="curve"></div>
+    <p class="label">Ambiance</p>
+    <div class="filters__chips filters__chips--scroll" id="themes"></div>
+    <p class="filters__note" id="themeDesc"></p>
 
     <p class="label">Longueur</p>
     <div class="range"><input type="range" id="len" min="15" max="60" step="5" value="30"><output id="lenVal"></output></div>
 
     <p class="label" data-for="discover">Découvertes</p>
     <div class="range" data-for="discover"><input type="range" id="disc" min="0" max="100" step="10" value="50"><output id="discVal"></output></div>
+
+    <!-- Réglages secondaires : repliés, ce qui n'est pas par défaut s'affiche à côté du titre -->
+    <details class="more" id="more">
+      <summary>Plus de réglages<span class="more__sum" id="moreSum"></span></summary>
+      <div class="filters filters--more">
+        <p class="label">Type d'artiste</p>
+        <div class="filters__chips filters__chips--scroll" id="niche"></div>
+        <p class="filters__note" id="nicheDesc"></p>
+
+        <p class="label">Enchaînement</p>
+        <div class="filters__chips filters__chips--scroll" id="curve"></div>
+
+        <p class="label">Titre</p>
+        <input class="field" id="plName" placeholder="Automatique : ambiance · date" enterkeyhint="done" maxlength="100">
+      </div>
+    </details>
   </div>
 
   <div class="error" id="error"></div>
