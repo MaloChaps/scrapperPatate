@@ -310,7 +310,7 @@ Deno.serve(async req => {
 
   try {
     const { seeds = [], theme = 'libre', length = 30, discovery = 0.5, mode = 'discover',
-            niche = 'auto', styles: wanted = [], curve: curveIn = 'theme', relax = false, keep: keepIn = [],
+            niche = 'auto', styles: wanted = [], without = [], curve: curveIn = 'theme', relax = false, keep: keepIn = [],
             seedsFiltered = false, adjust: adjustIn = '', current: currentIn = [], size = 0 } = await req.json()
     const th = THEMES[theme]
     if (!th) return json({ error: 'thème inconnu' }, 400)
@@ -324,6 +324,9 @@ Deno.serve(async req => {
     const N = adjust ? Math.min(Math.max(+size || current.length, 1), MIX_MAX) : mode === 'mix' ? (+length > 0 ? Math.min(+length, MIX_MAX) : MIX_MAX) : Math.min(Math.max(+length || 30, 10), 80)
     const r = Math.min(Math.max(+discovery, 0), 1)
     const wantedStyles = (Array.isArray(wanted) ? wanted : []).filter((s: string) => STYLES[s])
+    /* Styles exclus (pastille touchée deux fois) : un titre qui en a un est écarté, sauf celui qu'un ajustement ajoute */
+    const unwanted = (Array.isArray(without) ? without : []).filter((s: string) => STYLES[s])
+    const excluded = (t: Track, except = '') => hasStyle(t, unwanted.filter(s => s !== except))
     const curve: Curve = ['rise', 'fall', 'wave', 'none'].includes(curveIn) ? curveIn : th.curve
     /* Titres déjà retenus (complétion) : gardés tels quels, on ne fait que compléter */
     const keep: Track[] = (Array.isArray(keepIn) ? keepIn : []).slice(0, N).map((t: Track) => ({
@@ -437,7 +440,7 @@ Deno.serve(async req => {
     /* 4. Styles choisis : seuls les titres qui en font partie (jamais ceux au style inconnu) */
     const exactStyle = (t: Track) => hasStyle(t, wantedStyles)
     const nearStyle = (t: Track) => (relax || !t.precise) && t.styles.some(s => wantedStyles.some(w => NEIGHBORS[w]?.includes(s)))
-    const styleOk = (t: Track) => (t.seed || fitsNiche(t.fans)) && themeOk(t, th, range, relax) &&
+    const styleOk = (t: Track) => (t.seed || fitsNiche(t.fans)) && themeOk(t, th, range, relax) && !excluded(t) &&
       (!wantedStyles.length || prefiltered(t, seedsFiltered) || exactStyle(t) || nearStyle(t))
     /* Style certain d'abord : un titre retenu seulement par voisinage passe après */
     const rank = (t: Track) => (t.score || 0) + (wantedStyles.length && (exactStyle(t) || prefiltered(t, seedsFiltered)) ? 0.15 : 0)
@@ -521,7 +524,7 @@ Deno.serve(async req => {
       const canAdd = (t: Track) =>
         (adjust === 'rare' || t.seed || fitsNiche(t.fans)) &&
         !t.styles.some(st => th.avoid.includes(st) && st !== adjust) &&
-        (adjust === 'calm' || adjust === 'fast' || !th.bpm || !t.bpm || bpmFit(t.bpm, range) >= 0.5) &&
+        (adjust === 'calm' || adjust === 'fast' || !th.bpm || !t.bpm || bpmFit(t.bpm, range) >= 0.5) && !excluded(t, adjust) &&
         (!wantedStyles.length || !!STYLE_TAGS[adjust] || prefiltered(t, seedsFiltered) || exactStyle(t) || nearStyle(t))
       const pool0 = () => [...candidates.map(c => c.t), ...seedTracks]
       /* Pas assez de titres dans le bon sens : un tour de recherche autour de ceux qui y sont */
@@ -555,7 +558,7 @@ Deno.serve(async req => {
       const exact = (t: Track) => hasStyle(t, wantedStyles) || prefiltered(t, seedsFiltered)
       const nearby = (t: Track) => !t.precise && t.styles.some(x => wantedStyles.some(w => NEIGHBORS[w]?.includes(x)))
       const keepIt = (t: Track) =>
-        (!wantedStyles.length || exact(t) || nearby(t)) &&
+        (!wantedStyles.length || exact(t) || nearby(t)) && !excluded(t) &&
         (!rule || t.fans === null || (t.fans >= rule.min && t.fans <= rule.max)) &&
         themeOk(t, th, range)
 
@@ -571,7 +574,7 @@ Deno.serve(async req => {
       if (adjust) {
         const res = applyAdjust(adjust, current, tracks0, N, curve, range, t =>
           (!rule || adjust === 'rare' || t.fans === null || (t.fans >= rule.min && t.fans <= rule.max)) &&
-          !t.styles.some(st => th.avoid.includes(st) && st !== adjust) &&
+          !t.styles.some(st => th.avoid.includes(st) && st !== adjust) && !excluded(t, adjust) &&
           (!wantedStyles.length || !!STYLE_TAGS[adjust] || exact(t) || nearby(t)))
         return {
           mode: 'mix', ...res, tracks: res.tracks.map(toClient(range)), curve, bpm: seedBpm ? Math.round(seedBpm) : null,

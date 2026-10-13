@@ -77,10 +77,16 @@
   .chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
   .chip .count{margin-left:7px;font-size:12px;opacity:.6}
   .chip:disabled{opacity:.35;cursor:default}
-  .chip__close{display:inline-block;max-width:0;margin-left:0;overflow:hidden;opacity:0;font-size:16px;line-height:1;transform:rotate(-90deg) scale(.4);transition:max-width .25s ease,margin-left .25s ease,opacity .2s ease,transform .25s ease}
-  .chip--multi[aria-pressed="true"] .chip__close{max-width:1em;margin-left:8px;opacity:1;transform:none}
+  /* Style exclu : contour, barré, « sans » devant */
+  .chip__sans{display:none}
+  .chip[data-out]{background:transparent;box-shadow:inset 0 0 0 1px var(--ink);text-decoration:line-through}
+  .chip[data-out] .chip__sans{display:inline-block;margin-right:.3em;text-decoration:none}  /* inline-block : pas barré */
+  .chip .count:empty{display:none}
+  .filters__note .peek{display:block;margin-top:4px}
+  .summary{margin:0;font:500 12px var(--font-mono);text-align:center;text-wrap:balance}
+  .summary:empty{display:none}
   @media (hover:hover){.chip:not(:disabled):hover{background:var(--ink);color:var(--bg)}}
-  @media (prefers-reduced-motion:reduce){.chip,.chip__close{transition:none}}
+  @media (prefers-reduced-motion:reduce){.chip{transition:none}}
 
   /* Réglages : étiquette à gauche, choix à droite */
   .filters{display:grid;grid-template-columns:156px 1fr;align-items:center;gap:18px 0;margin-top:28px}
@@ -277,7 +283,6 @@
 
     <p class="label" data-for="radio">Période</p>
     <div class="filters__chips filters__chips--scroll" id="period" data-for="radio"></div>
-    <p class="filters__note" id="radioNote" data-for="radio">Chargement des titres de la radio…</p>
 
     <p class="label">Thème</p>
     <div class="filters__chips filters__chips--scroll" id="themes"></div>
@@ -285,7 +290,7 @@
 
     <p class="label">Styles</p>
     <div class="filters__chips" id="styles"></div>
-    <p class="filters__note" id="stylesNote">Aucun choisi : tous les styles de tes playlists.</p>
+    <p class="filters__note" id="stylesNote"></p>
 
     <p class="label">Type d'artiste</p>
     <div class="filters__chips filters__chips--scroll" id="niche"></div>
@@ -323,6 +328,7 @@
 
 <nav class="actionbar">
   <div class="actionbar__inner">
+    <p class="summary" id="summary" data-only="form" aria-live="polite"></p>
     <p class="hint" id="goHint" data-only="form"></p>
     <p class="hint" id="createStep" data-only="result"></p>
     <button class="btn-cta" id="go" data-only="form">Générer le mix</button>

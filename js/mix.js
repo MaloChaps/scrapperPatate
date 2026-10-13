@@ -85,7 +85,7 @@ async function readPlaylist(id, src) {
 }
 
 /* ── Formulaire ─────────────────────────────────────────────── */
-const state = { mode: SOURCE === 'radio' ? 'mix' : 'discover', period: 'tout', theme: 'libre', niche: 'auto', curve: 'theme', styles: new Set() }
+const state = { mode: SOURCE === 'radio' ? 'mix' : 'discover', period: 'tout', theme: 'libre', niche: 'auto', curve: 'theme', styles: new Set(), without: new Set() }
 const seedInputs = []
 const canPaste = !!navigator.clipboard?.readText
 el("seeds").innerHTML = [0, 1, 2].map(i => `
@@ -342,7 +342,7 @@ function radioTitles(period = state.period) {
   return [...seen.values()]
 }
 /* Le filtre Styles s'applique ici, sur toute la radio, avant tout tirage au hasard */
-const inStyles = (t, styles = state.styles) => !styles.size || t.styles.some(x => styles.has(x))
+const inStyles = t => (!state.styles.size || t.styles.some(x => state.styles.has(x))) && !t.styles.some(x => state.without.has(x))
 const radioPool = (period = state.period) => radioTitles(period).filter(t => inStyles(t))
 
 /* Compteurs : titres par période (styles choisis compris) et par style (période choisie) */
@@ -352,17 +352,15 @@ function syncRadio() {
     c.innerHTML = `${PERIODS[c.dataset.k].label}<small class="count">${radioPool(c.dataset.k).length}</small>`)
   const titles = radioTitles()
   el("styles").querySelectorAll('[data-k]').forEach(c => {
-    const n = titles.filter(t => t.styles.includes(c.dataset.k)).length
-    c.innerHTML = `${esc(STYLES[c.dataset.k])}<small class="count">${n}</small><span class="chip__close" aria-hidden="true">×</span>`
-    c.disabled = n === 0 && c.getAttribute('aria-pressed') !== 'true'
+    const k = c.dataset.k, n = titles.filter(t => t.styles.includes(k)).length
+    c.querySelector('.count').textContent = n
+    c.disabled = n === 0 && !state.styles.has(k) && !state.without.has(k)
   })
-  const n = radioPool().length
-  el("radioNote").textContent = `${n} titre${n > 1 ? 's' : ''} de la radio sur cette période${state.styles.size ? ' dans ces styles' : ''}` +
-    (n > RADIO_MAX ? ` (${RADIO_MAX} tirés au hasard pour le calcul)` : '')
+  syncStylesNote()
+  syncSummary()
 }
 renderChoice('period', PERIODS, 'period', syncRadio)
 if (SOURCE === 'radio') {
-  el("stylesNote").textContent = 'Aucun choisi : tous les styles de la radio.'
   el("intro").textContent = 'Les titres passés à la radio, filtrés par thème et styles et enchaînés par tempo. Écoute les extraits avant de créer la playlist Spotify.'
   loadRadio()
 }
@@ -371,16 +369,69 @@ renderChoice('niche', NICHE, 'niche', syncDescs)
 renderChoice('curve', CURVES, 'curve')
 syncDescs()
 
+/* Styles : une touche choisit, une deuxième exclut (« sans »), une troisième remet à zéro */
 el("styles").innerHTML = Object.entries(STYLES).map(([k, label]) =>
-  `<button class="chip chip--multi" data-k="${k}" aria-pressed="false">${esc(label)}<span class="chip__close" aria-hidden="true">×</span></button>`).join('')
+  `<button class="chip chip--style" data-k="${k}" aria-pressed="false"><span class="chip__sans">sans </span>${esc(label)}<small class="count"></small></button>`).join('')
 el("styles").onclick = e => {
-  const b = e.target.closest('[data-k]')
-  if (!b) return
-  const on = !state.styles.has(b.dataset.k)
-  on ? state.styles.add(b.dataset.k) : state.styles.delete(b.dataset.k)
-  b.setAttribute('aria-pressed', on)
-  syncRadio()
+  const k = e.target.closest('[data-k]')?.dataset.k
+  if (!k) return
+  if (state.styles.has(k)) { state.styles.delete(k); state.without.add(k) }
+  else if (state.without.has(k)) state.without.delete(k)
+  else state.styles.add(k)
+  el("styles").querySelectorAll('[data-k]').forEach(c => {
+    c.setAttribute('aria-pressed', state.styles.has(c.dataset.k))
+    c.toggleAttribute('data-out', state.without.has(c.dataset.k))
+  })
+  SOURCE === 'radio' ? syncRadio() : syncStylesNote()
 }
+
+const listFr = a => a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} et ${a.at(-1)}`
+/* « Rock et Pop, sans House & électro » */
+const stylesPhrase = () => [listFr([...state.styles].map(k => STYLES[k])),
+  state.without.size ? 'sans ' + listFr([...state.without].map(k => STYLES[k])) : ''].filter(Boolean).join(', ')
+
+/* Sous les styles : le mode d'emploi, puis (radio) les artistes les plus joués de la sélection,
+   pour voir ce qu'il y a derrière un style avant de générer */
+function syncStylesNote() {
+  const how = state.styles.size || state.without.size
+    ? 'Touche encore pour exclure ou retirer un style.'
+    : `Aucun choisi : tous les styles ${SOURCE === 'radio' ? 'de la radio' : 'de tes playlists'}. Touche une fois pour choisir, deux fois pour exclure.`
+  let peek = ''
+  if (SOURCE === 'radio' && radioPlays) {
+    const byArtist = new Map()  // loose(artiste) → { name, n } : « Mac DeMarco » et « Mac Demarco » ensemble
+    for (const t of radioPool()) {
+      const name = firstArtist(t.artist), k = loose(name)
+      byArtist.set(k, { name: byArtist.get(k)?.name || name, n: (byArtist.get(k)?.n || 0) + 1 })
+    }
+    const top = [...byArtist.values()].sort((a, b) => b.n - a.n).slice(0, 6).map(a => a.name)
+    if (top.length) peek = `<span class="peek">Le plus joué : ${esc(top.join(', '))}${byArtist.size > top.length ? '…' : ''}</span>`
+  }
+  el("stylesNote").innerHTML = esc(how) + peek
+}
+
+/* Résumé au-dessus du bouton : ce que le mix va prendre et ce qu'il va donner */
+function syncSummary() {
+  const len = state.mode === 'mix' && +el("len").value >= LEN_ALL ? 0 : +el("len").value
+  const parts = []
+  if (SOURCE === 'radio') {
+    if (!radioPlays) return el("summary").textContent = 'Chargement des titres de la radio…'
+    const n = radioPool().length
+    if (!n) return el("summary").textContent = 'Aucun titre de la radio avec ces styles sur cette période'
+    parts.push(`${n} titre${n > 1 ? 's' : ''}${n > RADIO_MAX ? ` (${RADIO_MAX} tirés au hasard)` : ''}`)
+  } else {
+    const k = seedInputs.filter(x => playlistId(x.value)).length
+    if (!k) return el("summary").textContent = 'Choisis au moins une playlist'
+    parts.push(`${k} playlist${k > 1 ? 's' : ''}`)
+  }
+  if (stylesPhrase()) parts.push(stylesPhrase())
+  if (SOURCE === 'radio') parts.push(state.period === 'tout' ? 'toute la période' : `dernières ${PERIODS[state.period].label}`)
+  if (state.theme !== 'libre') parts.push(THEMES[state.theme].label)
+  const out = state.mode === 'mix' ? (len ? `mix de ${len} titres au plus` : 'tous les titres') : `mix de ${len} titres avec découvertes`
+  el("summary").textContent = `${parts.join(' · ')} → ${out}`
+}
+document.querySelector('.filters').addEventListener('click', () => requestAnimationFrame(syncSummary))
+document.querySelector('.filters').addEventListener('input', () => requestAnimationFrame(syncSummary))
+syncStylesNote()
 
 const syncSliders = () => {
   el("lenVal").textContent  = state.mode === 'mix' && +el("len").value >= LEN_ALL ? 'Tous' : `${el("len").value} titres`
@@ -398,7 +449,7 @@ function saveForm() {
   lsSet('mix_source', SOURCE)
   lsSet(FORM_KEY, {
     seeds: seedInputs.map(x => x.value), mode: state.mode, period: state.period, theme: state.theme, niche: state.niche, curve: state.curve,
-    styles: [...state.styles], len: el("len").value, disc: el("disc").value, name: el("plName").value
+    styles: [...state.styles], without: [...state.without], len: el("len").value, disc: el("disc").value, name: el("plName").value
   })
 }
 function restoreForm() {
@@ -409,6 +460,7 @@ function restoreForm() {
     for (const [key, id] of [['mode', 'mode'], ['period', 'period'], ['theme', 'themes'], ['niche', 'niche'], ['curve', 'curve']])
       el(id).querySelector(`[data-k="${f[key]}"]`)?.click()
     for (const s of f.styles || []) el("styles").querySelector(`[data-k="${s}"]`)?.click()
+    for (const s of f.without || []) { const c = el("styles").querySelector(`[data-k="${s}"]`); c?.click(); c?.click() }
     el("len").value = f.len; el("disc").value = f.disc
     el("plName").value = f.name || ''
     syncSliders()
@@ -472,7 +524,7 @@ const setBusy = on => {
 async function generate(seeds, extra = {}, label = 'Originale') {
   const fromShown = !!(extra.keep || extra.adjust)
   const body = fromShown ? { ...lastBody, ...extra } : {
-    seeds, mode: state.mode, theme: state.theme, niche: state.niche, curve: state.curve, styles: [...state.styles],
+    seeds, mode: state.mode, theme: state.theme, niche: state.niche, curve: state.curve, styles: [...state.styles], without: [...state.without],
     length: state.mode === 'mix' && +el("len").value >= LEN_ALL ? 0 : +el("len").value, discovery: el("disc").value / 100,
     ...extra
   }
@@ -541,7 +593,7 @@ el("go").onclick = async () => {
   if (SOURCE === 'radio') {
     if (!radioPlays) return showError('Les titres de la radio sont encore en chargement, réessaie dans un instant.')
     const pool = radioPool()
-    if (!pool.length) return showError(state.styles.size ? 'Aucun titre de ces styles sur cette période : choisis une période plus longue ou d\'autres styles.' : 'Aucun titre passé à la radio sur cette période.')
+    if (!pool.length) return showError(state.styles.size || state.without.size ? 'Aucun titre de ces styles sur cette période : choisis une période plus longue ou d\'autres styles.' : 'Aucun titre passé à la radio sur cette période.')
     lastSeeds = (pool.length > RADIO_MAX ? [...pool].sort(() => Math.random() - 0.5).slice(0, RADIO_MAX) : pool)
       .map(({ title, artist, bpm }) => ({ title, artist, ...(bpm ? { bpm } : {}) }))
     /* Styles déjà appliqués ici (track_info.styles : Last.fm, sinon Deezer) : le serveur ne refiltre
@@ -797,6 +849,7 @@ if (startParams.has('radio')) {
 if (radioWanted) radio.play()
 ;(async () => {
   restoreForm()
+  syncSummary()
   /* Partage vers l'app (Web Share Target) : « Partager > Le Mix » depuis Spotify */
   const params = new URLSearchParams(location.search)
   const shared = playlistId(`${params.get('url') || ''} ${params.get('text') || ''}`)
